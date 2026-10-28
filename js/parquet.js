@@ -46,34 +46,33 @@ function plain(value) {
   return value;
 }
 
-async function fetchColumns(handle, columns, group) {
-  const { parquetReadObjects } = globalThis.hyparquet;
-  const out = Object.fromEntries(columns.map((column) => [column, []]));
-  const indices = group === undefined ? handle.groups.keys() : [group];
-  for (const index of indices) {
-    const { start, count } = handle.groups[index];
-    const rows = await parquetReadObjects({
-      file: files.get(handle),
-      metadata: handle.metadata,
-      columns,
-      compressors,
-      rowStart: start,
-      rowEnd: start + count,
-    });
-    for (const row of rows) for (const column of columns) out[column].push(plain(row[column]));
-  }
-  return out;
+async function fetchGroup(handle, columns, group) {
+  const { start, count } = handle.groups[group];
+  const rows = await globalThis.hyparquet.parquetReadObjects({
+    file: files.get(handle),
+    metadata: handle.metadata,
+    columns,
+    compressors,
+    rowStart: start,
+    rowEnd: start + count,
+  });
+  return Object.fromEntries(columns.map((column) => [column, rows.map((row) => plain(row[column]))]));
 }
 
-/** Reads columns from one row group, or from all groups when `group` is omitted. */
+async function fetchAll(handle, columns) {
+  const parts = await Promise.all(handle.groups.map((_, group) => readColumns(handle, columns, group)));
+  return Object.fromEntries(columns.map((column) => [column, parts.flatMap((part) => part[column])]));
+}
+
+/** Reads columns from one row group, or from all groups in parallel when `group` is omitted. */
 export function readColumns(handle, columns, group) {
   if (group !== undefined && !handle.groups[group]) {
     return Promise.reject(new RangeError(`row group ${group} does not exist`));
   }
-  const key = `${group}${columns.join()}`;
+  const key = `${group}|${columns.join(",")}`;
   const cache = reads.get(handle);
   if (!cache.has(key)) {
-    const read = fetchColumns(handle, columns, group);
+    const read = group === undefined ? fetchAll(handle, columns) : fetchGroup(handle, columns, group);
     cache.set(key, read);
     read.catch(() => cache.delete(key));
   }

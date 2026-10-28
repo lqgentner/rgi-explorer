@@ -150,3 +150,29 @@ test("reads the regions fixture", async () => {
   assert.equal(cols.full_name[0], "North Asia");
   assert.deepEqual(cols.bbox[0], { xmin: -180, ymin: 31, xmax: 180, ymax: 78 });
 });
+
+test("cache keys keep a group and its columns apart", async () => {
+  const reads = [];
+  const groups = Array.from({ length: 11 }, () => ({ num_rows: 1n }));
+  globalThis.hyparquet = {
+    ...hyparquet,
+    parquetMetadataAsync: async () => ({ row_groups: groups }),
+    parquetReadObjects: async ({ columns, rowStart }) => {
+      reads.push(`${rowStart}:${columns}`);
+      return [Object.fromEntries(columns.map((c) => [c, `${c}@${rowStart}`]))];
+    },
+  };
+  try {
+    const h = await openParquet({});
+    const one = await readColumns(h, ["0a"], 1);
+    const ten = await readColumns(h, ["a"], 10);
+    assert.deepEqual(one["0a"], ["0a@1"]);
+    assert.deepEqual(ten.a, ["a@10"]);
+    const all = await readColumns(h, ["a"]);
+    assert.equal(all.a.length, 11);
+    assert.deepEqual(all.a.slice(9), ["a@9", "a@10"]);
+    assert.equal(reads.filter((r) => r === "10:a").length, 1);
+  } finally {
+    globalThis.hyparquet = hyparquet;
+  }
+});
