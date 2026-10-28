@@ -1,3 +1,9 @@
+import { loadCatalog } from "./catalog.js";
+import { resolveCatalogUrl } from "./config.js";
+import { createMap } from "./map.js";
+import { parseState } from "./state.js";
+import { el } from "./ui.js";
+
 /*
  * Startup. Handlers attach first, and map work waits for the style.
  */
@@ -16,3 +22,10 @@ function registerServiceWorker() {
 }
 
 registerServiceWorker();
+
+async function start() {
+  const catalog = await loadCatalog(resolveCatalogUrl(new URLSearchParams(location.search)));
+  return createMap(el("map"), catalog, parseState(new URL(location.href)));
+}
+
+start().catch((error) => console.error("startup:", error));

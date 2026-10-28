@@ -19,7 +19,11 @@ export class FakeMap {
   constructor(options = {}) {
     created.push(this);
     this.options = options;
-    this.sources = new Map(Object.entries(options.style?.sources ?? {}));
+    this.rendered = [];
+    this.sources = new Map(
+      Object.entries(options.style?.sources ?? {}).map(([id, spec]) => [id, this.#source(spec)]),
+    );
+    queueMicrotask(() => this.fire("load"));
     this.layers = new Map();
     this.order = [];
     this.handlers = {};
@@ -33,9 +37,21 @@ export class FakeMap {
     }
   }
 
+  /** GeoJSON sources take new data; the fake keeps the latest as `data`. */
+  #source(spec) {
+    const source = { ...spec };
+    if (spec.type === "geojson") {
+      source.setData = (data) => {
+        source.data = data;
+        this.calls.push("setData");
+      };
+    }
+    return source;
+  }
+
   addSource(id, spec) {
     if (this.sources.has(id)) throw new Error(`source '${id}' added twice`);
-    this.sources.set(id, spec);
+    this.sources.set(id, this.#source(spec));
     this.calls.push(`+source ${id}`);
   }
 
@@ -68,6 +84,21 @@ export class FakeMap {
 
   getLayer(id) {
     return this.layers.get(id);
+  }
+
+  /** The layer's layout object, empty when it has none. */
+  layout(id) {
+    const layer = this.layers.get(id);
+    if (!layer) throw new Error(`layout of missing layer '${id}'`);
+    return layer.layout ?? {};
+  }
+
+  /** The features a test put in `rendered`, limited to the layers asked for. */
+  queryRenderedFeatures(point, { layers = [] } = {}) {
+    for (const id of layers) {
+      if (!this.layers.has(id)) throw new Error(`query of missing layer '${id}'`);
+    }
+    return this.rendered.filter((feature) => layers.includes(feature.layer?.id));
   }
 
   setLayoutProperty(id, key, value) {
