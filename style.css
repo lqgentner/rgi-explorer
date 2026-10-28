@@ -1,0 +1,73 @@
+:root {
+  --accent: #1a73e8;
+  --red: #d93025;
+  --surface: #fff;
+  --text: #202124;
+  --muted: #5f6368;
+  --line: #dadce0;
+  --shadow: 0 1px 3px rgb(60 64 67 / 30%), 0 4px 8px 3px rgb(60 64 67 / 15%);
+  --font: "Noto Sans", system-ui, sans-serif;
+  --mono: "Noto Sans Mono", ui-monospace, monospace;
+}
+
+@font-face {
+  font-family: "Noto Sans";
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  src: url("node_modules/@fontsource/noto-sans/files/noto-sans-latin-400-normal.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Noto Sans";
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+  src: url("node_modules/@fontsource/noto-sans/files/noto-sans-latin-600-normal.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Noto Sans Mono";
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  src: url("node_modules/@fontsource/noto-sans-mono/files/noto-sans-mono-latin-400-normal.woff2") format("woff2");
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--surface);
+  color: var(--text);
+  font: 400 14px/1.4 var(--font);
+}
+
+code,
+pre,
+kbd {
+  font-family: var(--mono);
+}
+
+#map {
+  position: fixed;
+  inset: 0;
+}
+
+.icon {
+  width: 1.25em;
+  height: 1.25em;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vertical-align: middle;
+}

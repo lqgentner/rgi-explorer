@@ -1,0 +1,32 @@
+{
+  "name": "rgi-explorer",
+  "version": "0.0.0",
+  "private": true,
+  "description": "A static web map to explore the Randolph Glacier Inventory 7.0 from its cloud-native mirror.",
+  "author": {
+    "name": "Luis Gentner",
+    "email": "luis.gentner@geo.uzh.ch"
+  },
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@fontsource/noto-sans": "5.3.0",
+    "@fontsource/noto-sans-mono": "5.3.0",
+    "@leeoniya/ufuzzy": "1.0.19",
+    "fflate": "0.8.3",
+    "fzstd": "0.1.1",
+    "hyparquet": "1.31.5",
+    "hyparquet-compressors": "1.1.2",
+    "hysnappy": "1.1.1",
+    "lucide-static": "1.63.0",
+    "maplibre-gl": "6.16.0",
+    "pmtiles": "4.5.0"
+  },
+  "devDependencies": {
+    "es-module-lexer": "3.0.4",
+    "jsdom": "30.1.3"
+  }
+}

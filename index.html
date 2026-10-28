@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- Hashes allow the two inline scripts below; page-assets.test.js checks them.
+         MapLibre may run its worker from a blob. Each data host is listed by name. -->
+    <meta http-equiv="Content-Security-Policy"
+          content="default-src 'self'; script-src 'self' 'sha256-AhyLtkIet4TfpNSBThIRmXCJKZI9sEC8lAIme8DixnU=' 'sha256-DWKQrEMHzwPpL+gX7XQ/AJ00ymmgtL5GSVRQqg0o5ro='; style-src 'self'; img-src 'self' data: blob: https://data.source.coop https://tiles.openfreemap.org https://server.arcgisonline.com https://tiles.mapterhorn.com https://photon.komoot.io https://query.wikidata.org https://commons.wikimedia.org https://upload.wikimedia.org; connect-src 'self' data: blob: https://data.source.coop https://tiles.openfreemap.org https://server.arcgisonline.com https://tiles.mapterhorn.com https://photon.komoot.io https://query.wikidata.org https://commons.wikimedia.org https://upload.wikimedia.org; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'none'" />
+    <title>RGI Explorer</title>
+    <meta name="description"
+          content="Explore the Randolph Glacier Inventory 7.0 on a map: every glacier outline, its attributes and its region." />
+
+    <!-- Use relative asset paths for Pages project subpaths. -->
+    <link rel="stylesheet" href="node_modules/maplibre-gl/dist/maplibre-gl.css" />
+    <link rel="stylesheet" href="style.css" />
+
+    <!-- Parse the import map before any module fetch. npm installs the libraries,
+         and scripts/stage-libraries.mjs copies each target's directory for Pages.
+         PMTiles needs the bare fflate mapping, and hyparquet-compressors the
+         fzstd and hysnappy ones. -->
+    <script type="importmap">
+      {
+        "imports": {
+          "maplibre-gl": "./node_modules/maplibre-gl/dist/maplibre-gl.mjs",
+          "pmtiles": "./node_modules/pmtiles/dist/esm/index.js",
+          "fflate": "./node_modules/fflate/esm/browser.js",
+          "hyparquet": "./node_modules/hyparquet/src/index.js",
+          "hyparquet-compressors": "./node_modules/hyparquet-compressors/src/index.js",
+          "fzstd": "./node_modules/fzstd/esm/index.mjs",
+          "hysnappy": "./node_modules/hysnappy/js/index.js",
+          "@leeoniya/ufuzzy": "./node_modules/@leeoniya/ufuzzy/dist/uFuzzy.mjs"
+        }
+      }
+    </script>
+
+    <!-- Fetch modules found only one or two imports deep in parallel with their
+         importers. page-assets.test.js requires every js/ module but app.js here. -->
+    <link rel="modulepreload" href="node_modules/fflate/esm/browser.js" />
+    <link rel="modulepreload" href="js/ui.js" />
+  </head>
+  <body>
+    <div id="map"></div>
+    <aside id="sidebar">
+      <div id="search"></div>
+      <div id="layers"></div>
+    </aside>
+    <div id="controls"></div>
+    <div id="status" role="status" aria-live="polite"></div>
+    <div id="sheet"></div>
+
+    <!-- Expose library globals before app.js so tests can substitute fakes. -->
+    <script type="module">
+      import * as maplibregl from "maplibre-gl";
+      import * as pmtiles from "pmtiles";
+      import * as hyparquet from "hyparquet";
+      Object.assign(globalThis, { maplibregl, pmtiles, hyparquet });
+    </script>
+    <!-- Load deployment overrides before application modules: deferred scripts and
+         modules run in document order. -->
+    <script defer src="site-config.js"></script>
+    <script type="module" src="js/app.js"></script>
+  </body>
+</html>
