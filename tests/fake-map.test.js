@@ -57,3 +57,15 @@ test("fitBounds and jumpTo are recorded and fire moveend", () => {
   assert.equal(map.getZoom(), 3);
   assert.equal(map.lastFit.options.padding, 10);
 });
+
+test("a style with a duplicate layer or a missing source throws at construction", () => {
+  const sources = { a: source };
+  assert.throws(
+    () => new FakeMap({ style: { sources, layers: [{ id: "x", type: "line", source: "a" }, { id: "x", type: "line", source: "a" }] } }),
+    /added twice/,
+  );
+  assert.throws(
+    () => new FakeMap({ style: { sources, layers: [{ id: "x", type: "line", source: "nope" }] } }),
+    /missing source/,
+  );
+});

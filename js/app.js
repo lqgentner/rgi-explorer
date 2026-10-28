@@ -5,7 +5,7 @@ import { parseState } from "./state.js";
 import { el } from "./ui.js";
 
 /*
- * Startup. Handlers attach first, and map work waits for the style.
+ * Startup. Reads the catalog, builds the map from it and registers the service worker.
  */
 
 /*

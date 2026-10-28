@@ -163,7 +163,14 @@ export async function createMap(container, catalog, state) {
     center: [view.lon, view.lat],
     zoom: view.zoom,
   });
-  await new Promise((resolve) => map.once("load", resolve));
+  await new Promise((resolve, reject) => {
+    const fail = (event) => reject(event?.error ?? new Error("The map failed to load"));
+    map.once("error", fail);
+    map.once("load", () => {
+      map.off("error", fail);
+      resolve();
+    });
+  });
 
   const rgiToggles = rgi.layers.map((layer) => [layer.id, toggleOf(layer)]).filter(([, n]) => n);
   const idFilter = (id) => ["==", ["get", "rgi_id"], id];

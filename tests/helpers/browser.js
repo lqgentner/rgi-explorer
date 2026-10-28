@@ -32,6 +32,10 @@ export class FakeMap {
     this.center = { lng: options.center?.[0] ?? 0, lat: options.center?.[1] ?? 0 };
     this.zoom = options.zoom ?? 0;
     for (const layer of options.style?.layers ?? []) {
+      if (this.layers.has(layer.id)) throw new Error(`layer '${layer.id}' added twice`);
+      if (layer.source && !this.sources.has(layer.source)) {
+        throw new Error(`layer '${layer.id}' names missing source '${layer.source}'`);
+      }
       this.layers.set(layer.id, structuredClone(layer));
       this.order.push(layer.id);
     }

@@ -74,6 +74,38 @@ test("imagery shows esri above Liberty's last non-symbol layer and below its fir
   assert.equal(map.layout("esri").visibility, "none");
 });
 
+test("a symbol between Liberty's lines stays below imagery and the RGI layers", async () => {
+  const { map } = await build();
+  const arrow = map.indexOf("road_one_way_arrow");
+  assert.ok(arrow > -1 && arrow < map.indexOf("boundary"));
+  assert.ok(map.indexOf("esri") > map.indexOf("boundary"));
+  assert.ok(map.indexOf("glaciers-fill") > map.indexOf("esri"));
+  assert.ok(map.indexOf("regions-fill") > map.indexOf("boundary"));
+  assert.ok(arrow < map.indexOf("esri"));
+  assert.ok(map.indexOf("label_place") > map.indexOf("glaciers-outline"));
+});
+
+test("the map rejects when MapLibre reports an error before load", async () => {
+  const page = await loadPage({ url: "https://lqgentner.github.io/rgi-explorer/", fetch: fetchFixture });
+  const { createMap } = await load("js/map.js");
+  const catalog = await loadCatalog(ROOT);
+  const Base = globalThis.maplibregl.Map;
+  globalThis.maplibregl.Map = class extends Base {
+    constructor(options) {
+      super(options);
+      queueMicrotask(() => this.fire("error", { error: new Error("style broke") }));
+    }
+
+    fire(event, payload) {
+      if (event !== "load") super.fire(event, payload);
+    }
+  };
+  await assert.rejects(
+    createMap(page.document.getElementById("map"), catalog, parseState(new URL(page.window.location.href))),
+    /style broke/,
+  );
+});
+
 test("the state starts the base map and the toggles", async () => {
   const { map } = await build("?base=imagery&layers=centerlines");
   assert.equal(map.layout("esri").visibility, "visible");
@@ -116,6 +148,27 @@ test("selection draws a red dashed outline filtered to the ID", async () => {
     assert.equal(map.layout(id).visibility, "visible", id);
   }
   assert.ok(map.indexOf("selection-outline") > map.indexOf("glacier-labels"));
+});
+
+test("a second selection replaces the first", async () => {
+  const { rgiMap, map } = await build();
+  const other = "RGI2000-v7.0-G-01-00002";
+  rgiMap.select(rgiId);
+  rgiMap.select(other);
+  assert.deepEqual(map.getLayer("selection-outline").filter, ["==", ["get", "rgi_id"], other]);
+  assert.deepEqual(map.getLayer("selection-fill").filter, ["==", ["get", "rgi_id"], other]);
+  assert.equal(map.layout("selection-outline").visibility, "visible");
+});
+
+test("setBase keeps the selection and the toggles", async () => {
+  const { rgiMap, map } = await build();
+  rgiMap.setToggle("centerlines", true);
+  rgiMap.select(rgiId);
+  rgiMap.setBase("imagery");
+  rgiMap.setBase("standard");
+  assert.equal(map.layout("centerlines").visibility, "visible");
+  assert.equal(map.layout("selection-outline").visibility, "visible");
+  assert.deepEqual(map.getLayer("selection-outline").filter, ["==", ["get", "rgi_id"], rgiId]);
 });
 
 test("select(null) hides the selection and clears the complex and the pin", async () => {
