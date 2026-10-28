@@ -179,6 +179,16 @@ export class FakeMap {
     for (const fn of [...(this.handlers[event] ?? [])]) fn(payload);
   }
 
+  zoomIn() {
+    this.zoom += 1;
+    this.calls.push("zoomIn");
+  }
+
+  zoomOut() {
+    this.zoom -= 1;
+    this.calls.push("zoomOut");
+  }
+
   /** Index of a layer in draw order; -1 when it does not exist. */
   indexOf(id) {
     return this.order.indexOf(id);
@@ -192,8 +202,9 @@ export class FakeMap {
  * @param {object} [options]
  * @param {string} [options.url]    the page address, query and hash included
  * @param {Function} [options.fetch]  replaces fetch(); the default answers 404
+ * @param {boolean} [options.phone]  makes every media query match, as a phone does
  */
-export async function loadPage({ url = PAGE_URL, fetch } = {}) {
+export async function loadPage({ url = PAGE_URL, fetch, phone = false } = {}) {
   created = [];
   const dom = new JSDOM(fs.readFileSync(path.join(REPO, "index.html"), "utf8"), {
     url,
@@ -210,10 +221,10 @@ export async function loadPage({ url = PAGE_URL, fetch } = {}) {
   }
 
   /* jsdom has no matchMedia. The page asks one question, whether this is a
-   * phone, so the stub answers every query alike. */
+   * phone, so the stub answers every query alike (`phone`). */
   window.matchMedia = (media) => ({
     media,
-    matches: false,
+    matches: phone,
     addEventListener() {},
     removeEventListener() {},
   });
