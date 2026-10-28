@@ -233,6 +233,12 @@ button:focus-visible {
   animation: panel-grow 120ms ease-out;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .layers-panel {
+    animation: none;
+  }
+}
+
 @keyframes panel-grow {
   from {
     clip-path: inset(0 100% 0 0);

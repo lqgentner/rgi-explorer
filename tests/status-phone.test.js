@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { FakeMap, loadPage, load } from "./helpers/browser.js";
 
-const { document } = await loadPage({ phone: true });
+const { window, document } = await loadPage({ phone: true });
 const { mountStatus } = await load("js/status.js");
 const { mountZoom } = await load("js/layers.js");
 
@@ -33,4 +33,15 @@ test("the phone draws no zoom buttons", () => {
   const root = document.createElement("div");
   mountZoom(root, { map: new FakeMap() });
   assert.equal(root.children.length, 0);
+});
+
+test("Escape closes the credits panel and returns focus to the info button", () => {
+  const root = document.createElement("div");
+  document.body.append(root);
+  mountStatus(root, { map: new FakeMap({ zoom: 5 }), onMove() {} }, catalog, () => ({ base: "standard", terrain: false }));
+  const button = root.querySelector("button");
+  button.click();
+  root.querySelector(".credits-panel").dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  assert.equal(root.querySelector(".credits-panel").hidden, true);
+  assert.equal(document.activeElement, button);
 });

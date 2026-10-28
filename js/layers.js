@@ -145,9 +145,15 @@ export function mountLayers(root, { base, layers, onBase, onToggle, zoom }) {
     const open = h("button", { type: "button", class: "round-button", "aria-label": "Layers" }, icon("layers-2"));
     open.addEventListener("click", () => {
       pane.hidden = false;
+      close.focus();
     });
-    close.addEventListener("click", () => {
+    const closePane = () => {
       pane.hidden = true;
+      open.focus();
+    };
+    close.addEventListener("click", closePane);
+    pane.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") closePane();
     });
     root.append(open, pane);
     api.setBase = (next) => {
@@ -180,18 +186,35 @@ export function mountLayers(root, { base, layers, onBase, onToggle, zoom }) {
   );
   const panel = h("div", { class: "layers-panel", hidden: true }, toggles.buttons);
   const wrapper = h("div", { class: "layers" }, thumb, panel, chevron);
+  /* A click pins the panel open. Hover and focus open it only while they last. */
+  let pinned = false;
   const setOpen = (open) => {
+    if (!open) pinned = false;
     panel.hidden = !open;
     chevron.setAttribute("aria-expanded", String(open));
     wrapper.classList.toggle("open", open);
   };
   wrapper.addEventListener("pointerenter", () => setOpen(true));
-  wrapper.addEventListener("pointerleave", () => setOpen(false));
+  wrapper.addEventListener("pointerleave", () => {
+    if (!pinned) setOpen(false);
+  });
   wrapper.addEventListener("focusin", () => setOpen(true));
   wrapper.addEventListener("focusout", (event) => {
     if (!wrapper.contains(event.relatedTarget)) setOpen(false);
   });
-  chevron.addEventListener("click", () => setOpen(panel.hidden));
+  chevron.addEventListener("click", () => {
+    if (panel.hidden || !pinned) {
+      setOpen(true);
+      pinned = true;
+    } else {
+      setOpen(false);
+    }
+  });
+  wrapper.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    chevron.focus();
+    setOpen(false);
+  });
   root.append(wrapper);
   api.setBase = (next) => {
     current = next;

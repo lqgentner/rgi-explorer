@@ -160,3 +160,28 @@ test("the terrain notice shows once per session and survives a throwing sessionS
   button.click();
   assert.equal(root.querySelector(".terrain-notice"), null);
 });
+
+test("a click pins the panel open through pointerleave until a second click", () => {
+  const { root } = layers();
+  const panel = root.querySelector(".layers-panel");
+  const chevron = root.querySelector(".layers-chevron");
+  const wrapper = root.firstElementChild;
+  const fire = (type) => wrapper.dispatchEvent(new window.Event(type));
+  fire("pointerenter");
+  chevron.click();
+  assert.equal(panel.hidden, false);
+  fire("pointerleave");
+  assert.equal(panel.hidden, false);
+  chevron.click();
+  assert.equal(panel.hidden, true);
+});
+
+test("Escape closes the pinned panel and returns focus to the chevron", () => {
+  const { root } = layers();
+  document.body.append(root);
+  const chevron = root.querySelector(".layers-chevron");
+  chevron.click();
+  root.querySelector(".layer-toggle").dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  assert.equal(root.querySelector(".layers-panel").hidden, true);
+  assert.equal(document.activeElement, chevron);
+});

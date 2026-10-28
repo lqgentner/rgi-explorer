@@ -13,6 +13,8 @@ const catalog = {
 const UNOFFICIAL =
   "RGI Explorer and the RGI mirror are unofficial and not endorsed by the RGI Consortium.";
 
+const texts = (list) => list.map((c) => c.text);
+
 test("scale bar picks a round length", () => {
   assert.deepEqual(scaleBar(metersPerPixel(46.48, 11)), { px: 76, label: "2 km" });
   assert.deepEqual(scaleBar(0.5), { px: 40, label: "20 m" });
@@ -27,7 +29,7 @@ test("meters per pixel follow the 512 px tile formula", () => {
 test("credits name Esri only on imagery and Mapterhorn only in 3D", () => {
   const esri = "Esri, Maxar, Earthstar Geographics, and the GIS User Community";
   const plain = credits({ base: "standard", terrain: false, catalog });
-  assert.deepEqual(plain, [
+  assert.deepEqual(texts(plain), [
     "© OpenStreetMap contributors",
     "OpenFreeMap",
     catalog.citation,
@@ -35,7 +37,7 @@ test("credits name Esri only on imagery and Mapterhorn only in 3D", () => {
     UNOFFICIAL,
   ]);
   const both = credits({ base: "imagery", terrain: true, catalog });
-  assert.deepEqual(both, [
+  assert.deepEqual(texts(both), [
     "© OpenStreetMap contributors",
     "OpenFreeMap",
     esri,
@@ -49,7 +51,7 @@ test("credits name Esri only on imagery and Mapterhorn only in 3D", () => {
 test("credits always end with the unofficial note", () => {
   for (const base of ["standard", "imagery"]) {
     for (const terrain of [false, true]) {
-      assert.equal(credits({ base, terrain, catalog }).at(-1), UNOFFICIAL);
+      assert.equal(credits({ base, terrain, catalog }).at(-1).text, UNOFFICIAL);
     }
   }
 });
@@ -89,4 +91,26 @@ test("credits render as text, never markup", () => {
   mountStatus(root, rgiMap, { ...catalog, citation: "<img src=x>" }, () => ({ base: "standard", terrain: false }));
   assert.equal(root.querySelector("img"), null);
   assert.ok(root.textContent.includes("<img src=x>"));
+});
+
+test("credits carry links only for OpenStreetMap and a web license", () => {
+  const links = (c) => credits({ base: "standard", terrain: false, catalog: c }).filter((x) => x.href);
+  assert.deepEqual(links(catalog).map((x) => x.href), ["https://www.openstreetmap.org/copyright", catalog.license.href]);
+  for (const href of ["javascript:alert(1)", "not a url", null]) {
+    const list = links({ ...catalog, license: { id: "X", href } });
+    assert.deepEqual(list.map((x) => x.href), ["https://www.openstreetmap.org/copyright"]);
+  }
+});
+
+test("scale bar edge cases", () => {
+  assert.ok(Number.isFinite(metersPerPixel(90, 5)) && metersPerPixel(90, 5) > 0);
+  assert.equal(metersPerPixel(90, 5), metersPerPixel(85.05, 5));
+  assert.equal(scaleBar(metersPerPixel(0, 0)).label, "5000 km");
+  for (const bad of [NaN, 0, -1, Infinity]) assert.equal(scaleBar(bad), null);
+});
+
+test("the status line hides the scale bar when there is no scale", () => {
+  const root = document.createElement("div");
+  mountStatus(root, { map: new FakeMap({ zoom: NaN }), onMove() {} }, catalog, () => ({ base: "standard", terrain: false }));
+  assert.equal(root.querySelector(".scale").hidden, true);
 });

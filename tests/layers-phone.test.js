@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { loadPage, load } from "./helpers/browser.js";
 
-const { document } = await loadPage({ phone: true });
+const { window, document } = await loadPage({ phone: true });
 const { mountLayers } = await load("js/layers.js");
 
 test("the phone layer button opens a pane with map types and RGI layers", () => {
@@ -41,4 +41,16 @@ test("the phone layer button opens a pane with map types and RGI layers", () => 
 
   pane.querySelector('button[aria-label="Close"]').click();
   assert.equal(pane.hidden, true);
+});
+
+test("Escape closes the pane and returns focus to the layers button", () => {
+  const root = document.createElement("div");
+  document.body.append(root);
+  mountLayers(root, { base: "standard", layers: new Set(), onBase() {}, onToggle() {}, zoom: () => 12 });
+  const fab = root.querySelector('button[aria-label="Layers"]');
+  fab.click();
+  const pane = root.querySelector(".layers-pane");
+  pane.querySelector('button[aria-label="Close"]').dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  assert.equal(pane.hidden, true);
+  assert.equal(document.activeElement, fab);
 });
