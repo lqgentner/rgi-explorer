@@ -2,10 +2,9 @@
 
 import { h, icon } from "./ui.js";
 import { searchPlaces } from "./photon.js";
-import { rankHits, searchGlaciers, searchRegions } from "./search.js";
+import { MIN_QUERY, rankHits, searchGlaciers, searchRegions } from "./search.js";
 
 const DEBOUNCE_MS = 250;
-const MIN_QUERY = 2;
 const ICONS = { glacier: "mountain-snow", region: "square-dashed", place: "map-pin" };
 
 /**
@@ -53,10 +52,12 @@ export function mountSearch(root, { onPick, loadGlacierIndex, regions, view }) {
     input.removeAttribute("aria-activedescendant");
   }
 
-  function render() {
+  const keyOf = (hit) => `${hit.kind}|${hit.title}|${hit.subtitle}`;
+
+  /* Draw the ranked hits. With `keepActive` the row the user selected stays selected. */
+  function render(keepActive) {
+    const kept = keepActive && active >= 0 ? keyOf(hits[active]) : null;
     hits = rankHits(local, places);
-    active = -1;
-    input.removeAttribute("aria-activedescendant");
     list.replaceChildren(
       ...hits.map((hit, i) =>
         h(
@@ -70,6 +71,12 @@ export function mountSearch(root, { onPick, loadGlacierIndex, regions, view }) {
     );
     list.hidden = hits.length === 0;
     input.setAttribute("aria-expanded", String(hits.length > 0));
+    setActive(kept ? hits.findIndex((hit) => keyOf(hit) === kept) : -1);
+  }
+
+  function hide() {
+    list.hidden = true;
+    input.setAttribute("aria-expanded", "false");
   }
 
   function setActive(next) {
@@ -104,7 +111,7 @@ export function mountSearch(root, { onPick, loadGlacierIndex, regions, view }) {
         glacierIndex = loaded;
         if (query.length >= MIN_QUERY) {
           searchLocal();
-          render();
+          render(true);
         }
       },
       () => {
@@ -123,7 +130,7 @@ export function mountSearch(root, { onPick, loadGlacierIndex, regions, view }) {
       if (mine !== seq) return;
       places = [];
     }
-    render();
+    render(true);
   }
 
   function update() {
@@ -139,12 +146,22 @@ export function mountSearch(root, { onPick, loadGlacierIndex, regions, view }) {
       return;
     }
     searchLocal();
-    render();
+    render(false);
     const mine = seq;
     timer = setTimeout(() => askPhoton(mine), DEBOUNCE_MS);
   }
 
-  input.addEventListener("focus", ensureIndex);
+  input.addEventListener("focus", () => {
+    ensureIndex();
+    if (hits.length) {
+      list.hidden = false;
+      input.setAttribute("aria-expanded", "true");
+    }
+  });
+  root.addEventListener("focusout", (event) => {
+    if (!root.contains(event.relatedTarget)) hide();
+  });
+  list.addEventListener("mousedown", (event) => event.preventDefault());
   input.addEventListener("input", update);
   input.addEventListener("keydown", (event) => {
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {

@@ -131,3 +131,19 @@ test("a Photon error status gives no places", async () => {
   const fetch = async () => ({ ok: false, status: 503, json: async () => ({}) });
   assert.deepEqual(await searchPlaces("matter", { lat: 0, lon: 0, zoom: 2 }, { fetch }), []);
 });
+
+test("a query with over 1,000 fuzzy matches is still ranked by uFuzzy", async () => {
+  const { default: uFuzzy } = await import("@leeoniya/ufuzzy");
+  const names = Array.from({ length: 1500 }, (_, i) => `zzzz yyyy xxxx ${i} ab`);
+  names.push("c ab");
+  const big = buildGlacierIndex({
+    rgi_id: names.map((_, i) => ID("11", i + 1)),
+    display_name: names,
+    glac_name: names.map(() => null),
+  });
+  const folded = names.map((n) => n.toLowerCase());
+  const [found, , order] = new uFuzzy().search(folded, "ab", false, 1e4);
+  const expected = order.map((k) => found[k]);
+  assert.notDeepEqual(expected.slice(0, 5), [0, 1, 2, 3, 4]);
+  assert.deepEqual(searchGlaciers(big, "ab", 5).map((hit) => hit.row), expected.slice(0, 5));
+});

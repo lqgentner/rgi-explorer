@@ -6,7 +6,11 @@
 import uFuzzy from "@leeoniya/ufuzzy";
 
 const ID_PATTERN = /^(?:(?:RGI2000-v7\.0-)?G-)?(\d{2})-(\d{5})$/i;
-const MIN_QUERY = 2;
+/** The fewest characters a query needs before any search runs. */
+export const MIN_QUERY = 2;
+
+/* Above this many fuzzy matches uFuzzy skips ranking and the hits keep row order. */
+const RANK_LIMIT = 1e4;
 
 export const SCORE = { id: 1000, equal: 900, prefix: 700, region: 650, place: 600, fuzzy: 500 };
 
@@ -39,7 +43,7 @@ export function buildGlacierIndex(cols, regionNames = new Map()) {
       folded.push(fold(name));
     }
   }
-  return { cols, regionNames, byId, rows, folded, fuzzy: new uFuzzy({ infoThresh: 1e6 }) };
+  return { cols, regionNames, byId, rows, folded, fuzzy: new uFuzzy() };
 }
 
 function glacierHit(index, row, score) {
@@ -78,7 +82,7 @@ export function searchGlaciers(index, q, limit = 8) {
     seen.add(i);
   }
 
-  const [found, , order] = index.fuzzy.search(folded, needle);
+  const [found, , order] = index.fuzzy.search(folded, needle, false, RANK_LIMIT);
   const ranked = (order ? order.map((k) => found[k]) : (found ?? [])).filter((i) => !seen.has(i));
   ranked.forEach((i, rank) => scored.push([i, (SCORE.fuzzy * (ranked.length - rank)) / ranked.length]));
 

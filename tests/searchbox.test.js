@@ -192,3 +192,47 @@ test("Escape clears the input and closes the list", async () => {
   assert.equal(rows().length, 0);
   assert.equal(input.getAttribute("aria-expanded"), "false");
 });
+
+test("the list closes when focus leaves the search and reopens on focus", async () => {
+  const { root, input, type, rows } = setup();
+  type("aletsch");
+  await flush();
+  const list = root.querySelector('[role="listbox"]');
+  input.dispatchEvent(new window.FocusEvent("focusout", { bubbles: true, relatedTarget: null }));
+  assert.equal(list.hidden, true);
+  assert.equal(input.getAttribute("aria-expanded"), "false");
+  input.dispatchEvent(new window.Event("focus"));
+  assert.equal(list.hidden, false);
+  assert.equal(rows().length, 1);
+});
+
+test("focus moving to a row keeps the list open", async () => {
+  const { root, input, type, rows } = setup();
+  type("aletsch");
+  await flush();
+  input.dispatchEvent(
+    new window.FocusEvent("focusout", { bubbles: true, relatedTarget: rows()[0] }),
+  );
+  assert.equal(root.querySelector('[role="listbox"]').hidden, false);
+});
+
+test("a late Photon response keeps the arrow-key selection on the same hit", async () => {
+  const fuzzyIndex = buildGlacierIndex(
+    { rgi_id: [ID(1)], display_name: ["Grosser Aletsch"], glac_name: [null] },
+    new Map(),
+  );
+  const { input, type, key, rows } = setup({
+    fetch: photonOk("Rossi"),
+    loadGlacierIndex: async () => fuzzyIndex,
+  });
+  type("rosser");
+  await flush();
+  key("ArrowDown");
+  assert.equal(rows()[0].getAttribute("aria-selected"), "true");
+  mock.timers.tick(250);
+  await flush();
+  const titles = rows().map((r) => r.querySelector(".title").textContent);
+  assert.deepEqual(titles, ["Rossi", "Grosser Aletsch"]);
+  assert.equal(rows()[1].getAttribute("aria-selected"), "true");
+  assert.equal(input.getAttribute("aria-activedescendant"), rows()[1].id);
+});
