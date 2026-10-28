@@ -71,3 +71,29 @@ kbd {
   stroke-linejoin: round;
   vertical-align: middle;
 }
+
+#search ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  background: #fff;
+}
+
+#search li {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 0.5em;
+  padding: 0.4em 0.6em;
+  cursor: pointer;
+}
+
+#search li .subtitle {
+  grid-column: 2;
+  font-size: 0.85em;
+  color: #5f6368;
+}
+
+#search li[aria-selected="true"],
+#search li:hover {
+  background: #e8f0fe;
+}
