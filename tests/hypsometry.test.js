@@ -77,3 +77,23 @@ test("a glacier without a mean or median still draws", () => {
   assert.equal(el.querySelectorAll("rect").length, 50);
   assert.equal(el.querySelector("line.median"), null);
 });
+
+test("one band and 105 bands draw with finite geometry", () => {
+  for (const n of [1, 105]) {
+    const el = draw({ hypso_z0_m: 500, hypso_permille: Array.from({ length: n }, (_, i) => (i % 7) + 1), zmed_m: 500, zmean_m: 500 });
+    const rects = [...el.querySelectorAll("rect")];
+    assert.equal(rects.length, n);
+    for (const node of el.querySelectorAll("rect, line, text")) {
+      for (const a of ["x", "y", "width", "height", "x1", "x2", "y1", "y2"]) {
+        if (node.hasAttribute(a)) assert.ok(Number.isFinite(Number(node.getAttribute(a))), `${a} on ${node.tagName}`);
+      }
+    }
+  }
+});
+
+test("median and mean outside the bands are clamped to the plot", () => {
+  const el = draw({ ...ALETSCH, zmed_m: 99999, zmean_m: -500 });
+  const top = Number(el.querySelector("rect:last-child, .bars rect:last-child").getAttribute("y"));
+  assert.ok(Number(el.querySelector("line.median").getAttribute("y1")) >= top - 0.01);
+  assert.ok(Number(el.querySelector("line.mean").getAttribute("y1")) <= 308.01);
+});

@@ -279,3 +279,75 @@ test("the sidebar rises above the status line", () => {
   assert.ok(z("#sidebar") > z("#status"));
   assert.match(css, /#sidebar\s*{[^}]*width:\s*408px/);
 });
+
+test("the sidebar is hidden until a glacier opens and again after close", async () => {
+  const { root, card } = setup();
+  assert.equal(root.hidden, true);
+  await card.open({ rgiId: IDS[0], props: {} });
+  assert.equal(root.hidden, false);
+  card.close();
+  assert.equal(root.hidden, true);
+  await card.open({ rgiId: IDS[0], props: {} });
+  click(root.querySelector('[aria-label="Close"]'));
+  assert.equal(root.hidden, true);
+});
+
+/** A handle of one-row groups whose reads `rows(rowStart)` answers, possibly late. */
+async function fakeHandle(count, rows) {
+  const real = globalThis.hyparquet;
+  globalThis.hyparquet = {
+    ...real,
+    parquetMetadataAsync: async () => ({ row_groups: Array.from({ length: count }, () => ({ num_rows: 1n })) }),
+    parquetReadObjects: async ({ rowStart }) => [await rows(rowStart)],
+  };
+  try {
+    return await openParquet({});
+  } finally {
+    globalThis.hyparquet = real;
+  }
+}
+
+test("null or empty hypsometry settles on a message, not Loading", async () => {
+  for (const hypso of [{ hypso_permille: null, hypso_z0_m: null }, { hypso_permille: [], hypso_z0_m: 1000 }]) {
+    const real = globalThis.hyparquet;
+    const h = await fakeHandle(1, async () => ({}));
+    globalThis.hyparquet = { ...real, parquetReadObjects: async () => [{ ...hypso, bbox: null, rgi6_links: null }] };
+    try {
+      const { root, card } = setup({ parquet: { handle: h, rowOf: async () => 0 } });
+      await card.open({ rgiId: IDS[0], row: 0, props: { display_name: "X" } });
+      assert.equal(text(root, ".panel-hypsometry"), "No hypsometry data.");
+      assert.equal(root.querySelector(".panel-hypsometry svg"), null);
+    } finally {
+      globalThis.hyparquet = real;
+    }
+  }
+  const { root, card } = setup({ parquet: { handle, rowOf: async () => null } });
+  await card.open({ rgiId: IDS[0], props: { hypso_permille: [], hypso_z0_m: 1000 } });
+  assert.equal(text(root, ".panel-hypsometry"), "No hypsometry data.");
+});
+
+test("a late readRow for A is ignored after B opens", async () => {
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  const names = ["Late A", "Prompt B"];
+  const read = async ({ rowStart }) => {
+    if (rowStart === 0) await gate;
+    return [{ display_name: names[rowStart], hypso_permille: [1, 2], hypso_z0_m: 1000 }];
+  };
+  const real = globalThis.hyparquet;
+  globalThis.hyparquet = { ...real, parquetReadObjects: read };
+  try {
+    const h = await fakeHandle(2, async () => ({}));
+    const { root, card } = setup({ parquet: { handle: h, rowOf: async () => null } });
+    const a = card.open({ rgiId: IDS[0], row: 0, props: {} });
+    await card.open({ rgiId: IDS[1], row: 1, props: {} });
+    assert.equal(text(root, ".card-title"), "Prompt B");
+    release();
+    await a;
+    await settle();
+    assert.equal(text(root, ".card-title"), "Prompt B");
+    assert.doesNotMatch(root.textContent, /Late A/);
+  } finally {
+    globalThis.hyparquet = real;
+  }
+});

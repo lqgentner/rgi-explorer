@@ -92,7 +92,7 @@ export function renderHypsometry(el, props) {
   if (mean !== null && mean !== undefined) marks.push({ name: "Mean", value: mean, class: "mean", stroke: "#5f6368" });
   let lastLabel = -Infinity;
   for (const mark of marks.sort((a, b) => b.value - a.value)) {
-    const line = y(mark.value);
+    const line = y(Math.min(high, Math.max(low, mark.value)));
     const label = Math.max(line, lastLabel + LABEL_GAP);
     lastLabel = label;
     chart.append(

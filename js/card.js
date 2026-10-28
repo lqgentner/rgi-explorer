@@ -69,6 +69,7 @@ export function mountCard(root, ctx) {
   tablist.append(...Object.values(tabs));
   const section = h("section", { class: "card", "aria-label": "Glacier", hidden: true },
     photo, closeButton, head, actions, tablist, ...Object.values(panels));
+  root.hidden = true;
   root.append(section);
 
   function selectTab(id, focus = false) {
@@ -184,8 +185,9 @@ export function mountCard(root, ctx) {
 
   function renderHypso() {
     const { props, hypsoState } = current;
-    if (props.hypso_permille && props.hypso_z0_m !== undefined) renderHypsometry(panels.hypsometry, props);
-    else panels.hypsometry.replaceChildren(h("p", { class: "muted" }, hypsoState === "none" ? "No hypsometry data." : "Loading…"));
+    const usable = Array.isArray(props.hypso_permille) && props.hypso_permille.length > 0 && Number.isFinite(props.hypso_z0_m);
+    if (usable) renderHypsometry(panels.hypsometry, props);
+    else panels.hypsometry.replaceChildren(h("p", { class: "muted" }, hypsoState === "done" ? "No hypsometry data." : "Loading…"));
   }
 
   function render() {
@@ -206,7 +208,7 @@ export function mountCard(root, ctx) {
       if (row === undefined || row === null) row = (await ctx.parquet?.rowOf?.(mine.rgiId)) ?? null;
       if (!isCurrent()) return;
       if (row === null) {
-        mine.hypsoState = "none";
+        mine.hypsoState = "done";
         renderHypso();
         return;
       }
@@ -216,10 +218,11 @@ export function mountCard(root, ctx) {
       const values = await readRow(ctx.parquet.handle, row, columns);
       if (!isCurrent()) return;
       Object.assign(mine.props, values);
+      mine.hypsoState = "done";
       render();
     } catch {
       if (!isCurrent()) return;
-      mine.hypsoState = "none";
+      mine.hypsoState = "done";
       renderHypso();
     }
   }
@@ -238,6 +241,7 @@ export function mountCard(root, ctx) {
       current = mine;
       state.rgi6Open = false;
       state.moreOpen = false;
+      root.hidden = false;
       section.hidden = false;
       render();
       selectTab(state.tab);
@@ -253,6 +257,7 @@ export function mountCard(root, ctx) {
       controller = null;
       current = null;
       section.hidden = true;
+      root.hidden = true;
     },
   };
   selectTab(state.tab);
