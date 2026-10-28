@@ -41,8 +41,14 @@ test("bad values fall back to defaults", () => {
   assert.equal(s.view, null);
 });
 
+test("a glacier id of the wrong case or with padding is dropped", () => {
+  for (const id of ["rgi2000-v7.0-g-11-02596", "%20RGI2000-v7.0-G-11-02596"]) {
+    assert.equal(parseState(new URL(`https://x/?glacier=${id}`)).glacier, null, id);
+  }
+});
+
 test("a hash out of range or half numeric gives no view", () => {
-  for (const hash of ["#11/91/0", "#11/0/181", "#25/0/0", "#11/46.48", "#11/a/7.99", "#11/1/2/3"]) {
+  for (const hash of ["#11/91/0", "#11/0/181", "#25/0/0", "#-1/0/0", "#11/-91/0", "#11/0/-181", "#Infinity/0/0", "#1e3/0/0", "#11/46.48", "#11/a/7.99", "#11/1/2/3"]) {
     assert.equal(parseState(new URL(`https://x/${hash}`)).view, null, hash);
   }
 });
@@ -77,4 +83,9 @@ test("a relative catalog parameter resolves against the page", () => {
     resolveCatalogUrl(search, "http://localhost:8000/?catalog=catalog/catalog.json"),
     "http://localhost:8000/catalog/catalog.json",
   );
+});
+
+test("a malformed catalog parameter falls back to the published catalog", () => {
+  assert.equal(resolveCatalogUrl(new URLSearchParams("catalog=http://"), "https://x/"), CATALOG_URL);
+  assert.equal(resolveCatalogUrl(new URLSearchParams("catalog=catalog/c.json"), undefined), CATALOG_URL);
 });

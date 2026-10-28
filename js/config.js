@@ -20,9 +20,14 @@ export const DEFAULT_VIEW = { zoom: 2, lat: 30, lon: 10 };
 
 /**
  * The catalog to read: the `catalog` query parameter, resolved against `base`,
- * or the published catalog when the parameter is missing or empty.
+ * or the published catalog when the parameter is missing, empty or not a URL.
  */
 export function resolveCatalogUrl(search, base = globalThis.location?.href) {
   const value = search.get("catalog");
-  return value ? new URL(value, base).href : CATALOG_URL;
+  if (!value) return CATALOG_URL;
+  try {
+    return new URL(value, base).href;
+  } catch {
+    return CATALOG_URL;
+  }
 }
