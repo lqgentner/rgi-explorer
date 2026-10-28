@@ -173,7 +173,7 @@ export async function createMap(container, catalog, state) {
     map.once("load", () => {
       map.off("error", fail);
       resolve();
-  });
+    });
   });
 
   const rgiToggles = rgi.layers.map((layer) => [layer.id, toggleOf(layer)]).filter(([, n]) => n);
