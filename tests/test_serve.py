@@ -227,8 +227,8 @@ class TestRangeRequests(ServerTestCase):
         self.assertEqual(self.get("/catalog/sample.pmtiles", "Range: bytes=-0\r\n").status, 416)
 
     def test_range_naming_neither_end_is_ignored(self) -> None:
-        # `bytes=-` matches the grammar with both groups empty. int("") used to
-        # raise here, and the connection was dropped with no response at all.
+        # `bytes=-` matches the grammar with both groups empty. The server
+        # ignores the header and sends the whole body.
         response = self.get("/catalog/sample.pmtiles", "Range: bytes=-\r\n")
         self.assertEqual(response.status, 200)
         self.assertEqual(response.body, BODY)
