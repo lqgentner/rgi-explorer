@@ -85,7 +85,8 @@ test("a symbol between Liberty's lines stays below imagery and the RGI layers", 
   assert.ok(map.indexOf("label_place") > map.indexOf("glaciers-outline"));
 });
 
-test("the map rejects when MapLibre reports an error before load", async () => {
+/** createMap with a map that fires `events` instead of loading, then `load` if asked. */
+async function startWith(events, { thenLoad }) {
   const page = await loadPage({ url: "https://lqgentner.github.io/rgi-explorer/", fetch: fetchFixture });
   const { createMap } = await load("js/map.js");
   const catalog = await loadCatalog(ROOT);
@@ -93,17 +94,29 @@ test("the map rejects when MapLibre reports an error before load", async () => {
   globalThis.maplibregl.Map = class extends Base {
     constructor(options) {
       super(options);
-      queueMicrotask(() => this.fire("error", { error: new Error("style broke") }));
+      queueMicrotask(() => {
+        for (const event of events) this.fire("error", event);
+        if (thenLoad) super.fire("load");
+      });
     }
 
     fire(event, payload) {
       if (event !== "load") super.fire(event, payload);
     }
   };
-  await assert.rejects(
-    createMap(page.document.getElementById("map"), catalog, parseState(new URL(page.window.location.href))),
-    /style broke/,
+  return createMap(page.document.getElementById("map"), catalog, parseState(new URL(page.window.location.href)));
+}
+
+test("the map rejects when MapLibre reports an error before load", async () => {
+  await assert.rejects(startWith([{ error: new Error("style broke") }], { thenLoad: false }), /style broke/);
+});
+
+test("a source or tile error before load does not stop the map", async () => {
+  const rgiMap = await startWith(
+    [{ error: new Error("404"), sourceId: "openmaptiles" }, { error: new Error("404"), tile: {} }],
+    { thenLoad: true },
   );
+  assert.ok(rgiMap.map);
 });
 
 test("the state starts the base map and the toggles", async () => {
