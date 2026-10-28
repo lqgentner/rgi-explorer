@@ -1,0 +1,89 @@
+/* Reads GeoParquet columns by row group over HTTP range requests. */
+
+import { compressors } from "hyparquet-compressors";
+
+export const SEARCH_COLUMNS = ["rgi_id", "display_name", "glac_name"];
+export const CARD_COLUMNS = ["bbox", "hypso_z0_m", "hypso_permille", "rgi6_links"];
+
+const files = new WeakMap();
+const reads = new WeakMap();
+
+/** Opens a GeoParquet from a URL or an AsyncBuffer and lists its row groups. */
+export async function openParquet(source) {
+  const { asyncBufferFromUrl, parquetMetadataAsync } = globalThis.hyparquet;
+  const file = typeof source === "string" ? await asyncBufferFromUrl({ url: source }) : source;
+  const metadata = await parquetMetadataAsync(file);
+  const groups = [];
+  let start = 0;
+  for (const group of metadata.row_groups) {
+    const count = Number(group.num_rows);
+    groups.push({ start, count });
+    start += count;
+  }
+  const handle = { metadata, groups };
+  files.set(handle, file);
+  reads.set(handle, new Map());
+  return handle;
+}
+
+const totalRows = (handle) => handle.groups.reduce((sum, group) => sum + group.count, 0);
+
+/** Returns the index of the row group that holds a row. */
+export function rowGroupOf(handle, row) {
+  if (!Number.isInteger(row) || row < 0 || row >= totalRows(handle)) {
+    throw new RangeError(`row ${row} is outside 0..${totalRows(handle) - 1}`);
+  }
+  return handle.groups.findIndex((group) => row < group.start + group.count);
+}
+
+/** Converts BigInt to Number inside lists and structs. Dates stay as they are. */
+function plain(value) {
+  if (typeof value === "bigint") return Number(value);
+  if (Array.isArray(value)) return value.map(plain);
+  if (value && typeof value === "object" && !(value instanceof Date) && !ArrayBuffer.isView(value)) {
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, plain(item)]));
+  }
+  return value;
+}
+
+async function fetchColumns(handle, columns, group) {
+  const { parquetReadObjects } = globalThis.hyparquet;
+  const out = Object.fromEntries(columns.map((column) => [column, []]));
+  const indices = group === undefined ? handle.groups.keys() : [group];
+  for (const index of indices) {
+    const { start, count } = handle.groups[index];
+    const rows = await parquetReadObjects({
+      file: files.get(handle),
+      metadata: handle.metadata,
+      columns,
+      compressors,
+      rowStart: start,
+      rowEnd: start + count,
+    });
+    for (const row of rows) for (const column of columns) out[column].push(plain(row[column]));
+  }
+  return out;
+}
+
+/** Reads columns from one row group, or from all groups when `group` is omitted. */
+export function readColumns(handle, columns, group) {
+  if (group !== undefined && !handle.groups[group]) {
+    return Promise.reject(new RangeError(`row group ${group} does not exist`));
+  }
+  const key = `${group}${columns.join()}`;
+  const cache = reads.get(handle);
+  if (!cache.has(key)) {
+    const read = fetchColumns(handle, columns, group);
+    cache.set(key, read);
+    read.catch(() => cache.delete(key));
+  }
+  return cache.get(key);
+}
+
+/** Reads the given columns of one row as an object. */
+export async function readRow(handle, row, columns) {
+  const group = rowGroupOf(handle, row);
+  const data = await readColumns(handle, columns, group);
+  const at = row - handle.groups[group].start;
+  return Object.fromEntries(columns.map((column) => [column, data[column][at]]));
+}
