@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import test, { mock } from "node:test";
 
 import { loadPage } from "./helpers/browser.js";
@@ -64,6 +65,26 @@ test("the input is labelled and the list is a listbox", () => {
   assert.equal(input.type, "search");
   assert.ok(input.getAttribute("aria-label"));
   assert.ok(root.querySelector('[role="listbox"]'));
+});
+
+test("the search bar is a pill with a hidden search icon and no native clear control", () => {
+  const { root, input } = setup();
+  const glyph = root.querySelector("svg.search-icon");
+  assert.ok(glyph.querySelector("use").getAttribute("href").endsWith("#search"));
+  assert.equal(glyph.getAttribute("aria-hidden"), "true");
+  assert.ok(glyph.compareDocumentPosition(input) & window.Node.DOCUMENT_POSITION_FOLLOWING, "the icon sits before the input");
+
+  const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
+  const rule = (selector) => new RegExp(`(^|\\n)${selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*\\{([^}]*)\\}`).exec(css)?.[2] ?? "";
+  const pill = rule("#search input");
+  for (const declaration of [/width:\s*100%/, /height:\s*48px/, /border-radius:\s*24px/, /box-shadow:\s*var\(--shadow\)/, /border:\s*0/, /padding:\s*0 48px/]) {
+    assert.match(pill, declaration);
+  }
+  assert.match(css, /#search input::-webkit-search-cancel-button[^{]*\{[^}]*appearance:\s*none/);
+  const results = rule("#search ul");
+  for (const declaration of [/background:\s*var\(--surface\)/, /box-shadow:\s*var\(--shadow\)/, /border-radius:\s*16px/]) {
+    assert.match(results, declaration);
+  }
 });
 
 test("the glacier index loads once, on first focus or input, not at mount", async () => {

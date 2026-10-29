@@ -37,9 +37,11 @@ export function mountSearch(root, { onPick, loadGlacierIndex, regions, view }) {
     { type: "button", class: "icon-button search-close", "aria-label": "Close", hidden: true },
     icon("x"),
   );
+  const searchIcon = icon("search");
+  searchIcon.classList.add("search-icon");
   let onClose = null;
   closeButton.addEventListener("click", () => onClose?.());
-  root.append(input, closeButton, list);
+  root.append(searchIcon, input, closeButton, list);
 
   let glacierIndex = null;
   let indexLoad = null;
