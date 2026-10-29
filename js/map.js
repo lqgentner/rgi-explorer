@@ -6,6 +6,9 @@ import { adaptStyle, mergeStyles, TOGGLES } from "./styles.js";
 const SELECTION_RED = "#d93025";
 const COMPLEX_GREY = "#5f6368";
 const MAX_LAT = 85.05;
+/* How far from a click, in pixels, a glacier dot still counts as hit. */
+const HIT_PX = 6;
+const POINTS = ["in", ["geometry-type"], ["literal", ["Point", "MultiPoint"]]];
 /* The camera tilt in 3D, in degrees from straight down. */
 const TERRAIN_PITCH = 60;
 const NONE = { visibility: "none" };
@@ -97,6 +100,20 @@ function buildStyle(liberty, rgi, state) {
       paint: { "line-color": SELECTION_RED, "line-width": 2.5, "line-dasharray": [2, 1.2] },
     },
     {
+      id: "selection-dot",
+      type: "circle",
+      source: "data",
+      "source-layer": "glaciers",
+      filter: POINTS,
+      layout: NONE,
+      paint: {
+        "circle-color": SELECTION_RED,
+        "circle-radius": ["interpolate", ["linear"], ["zoom"], 0, 4, 6, 5],
+        "circle-stroke-color": "#ffffff",
+        "circle-stroke-width": 1.5,
+      },
+    },
+    {
       id: "selection-complex",
       type: "line",
       source: "data",
@@ -182,6 +199,7 @@ export async function createMap(container, catalog, state) {
 
   const rgiToggles = rgi.layers.map((layer) => [layer.id, toggleOf(layer)]).filter(([, n]) => n);
   const idFilter = (id) => ["==", ["get", "rgi_id"], id];
+  const SELECTION = ["selection-dim", "selection-fill", "selection-outline", "selection-dot"];
   const show = (id, on) => map.setLayoutProperty(id, "visibility", visibility(on));
 
   const api = {
@@ -200,8 +218,9 @@ export async function createMap(container, catalog, state) {
       if (on) {
         map.setFilter("selection-fill", idFilter(rgiId));
         map.setFilter("selection-outline", idFilter(rgiId));
+        map.setFilter("selection-dot", ["all", POINTS, idFilter(rgiId)]);
       }
-      for (const id of ["selection-dim", "selection-fill", "selection-outline"]) show(id, on);
+      for (const id of SELECTION) show(id, on);
       if (!on) {
         api.showComplex(null);
         api.pin(null);
@@ -252,11 +271,35 @@ export async function createMap(container, catalog, state) {
       );
     },
 
+    /**
+     * The properties of the glacier under a screen point, or null. A glacier
+     * under the exact pixel wins. Otherwise the nearest dot within HIT_PX
+     * pixels counts, because the low-zoom dots are only a few pixels wide.
+     */
     glacierAt(point) {
-      const [feature] = map.queryRenderedFeatures(point, {
-        layers: ["glaciers-fill", "glaciers-dots"],
-      });
-      return feature ? feature.properties : null;
+      const [x, y] = Array.isArray(point) ? point : [point.x, point.y];
+      const [exact] = map.queryRenderedFeatures([x, y], { layers: ["glaciers-fill", "glaciers-dots"] });
+      if (exact) return exact.properties;
+      const near = map.queryRenderedFeatures(
+        [
+          [x - HIT_PX, y - HIT_PX],
+          [x + HIT_PX, y + HIT_PX],
+        ],
+        { layers: ["glaciers-dots"] },
+      );
+      const distance = (feature) => {
+        const { type, coordinates } = feature.geometry ?? {};
+        const lngLat = type === "Point" ? coordinates : type === "MultiPoint" ? coordinates[0] : null;
+        if (!lngLat) return Infinity;
+        const at = map.project(lngLat);
+        return Math.hypot(at.x - x, at.y - y);
+      };
+      let best = null;
+      for (const feature of near) {
+        const d = distance(feature);
+        if (!best || d < best.d) best = { feature, d };
+      }
+      return best ? best.feature.properties : null;
     },
 
     onMove(callback) {

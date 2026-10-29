@@ -108,12 +108,32 @@ export class FakeMap {
     return layer.layout ?? {};
   }
 
-  /** The features a test put in `rendered`, limited to the layers asked for. */
-  queryRenderedFeatures(point, { layers = [] } = {}) {
+  /**
+   * The features a test put in `rendered`, limited to the layers asked for. A
+   * feature with Point geometry is drawn as a dot of `radius` pixels (default
+   * 2) at `project()` of its coordinates, and only a query that touches the dot
+   * finds it. A feature without geometry is under every point.
+   */
+  queryRenderedFeatures(geometry, { layers = [] } = {}) {
     for (const id of layers) {
       if (!this.layers.has(id)) throw new Error(`query of missing layer '${id}'`);
     }
-    return this.rendered.filter((feature) => layers.includes(feature.layer?.id));
+    const xy = (p) => (Array.isArray(p) ? { x: p[0], y: p[1] } : p);
+    const box = Array.isArray(geometry) && typeof geometry[0] !== "number";
+    const [low, high] = box ? geometry.map(xy) : [xy(geometry), xy(geometry)];
+    this.calls.push(`queryRenderedFeatures ${box ? "box" : "point"}`);
+    return this.rendered.filter((feature) => {
+      if (!layers.includes(feature.layer?.id)) return false;
+      if (feature.geometry?.type !== "Point") return true;
+      const at = this.project(feature.geometry.coordinates);
+      const r = feature.radius ?? 2;
+      return at.x >= low.x - r && at.x <= high.x + r && at.y >= low.y - r && at.y <= high.y + r;
+    });
+  }
+
+  /** Screen pixels of a [lng, lat]. The fake's screen is the lon/lat plane, one pixel per degree. */
+  project([lng, lat]) {
+    return { x: lng, y: lat };
   }
 
   /**

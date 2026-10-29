@@ -157,10 +157,34 @@ test("selection draws a red dashed outline filtered to the ID", async () => {
   assert.deepEqual(map.getLayer("selection-fill").filter, ["==", ["get", "rgi_id"], rgiId]);
   assert.deepEqual(map.getLayer("selection-fill").paint, map.getLayer("glaciers-fill").paint);
   assert.equal(map.getLayer("selection-dim").paint["fill-opacity"], 0.15);
-  for (const id of ["selection-dim", "selection-fill", "selection-outline"]) {
+  for (const id of ["selection-dim", "selection-fill", "selection-outline", "selection-dot"]) {
     assert.equal(map.layout(id).visibility, "visible", id);
   }
   assert.ok(map.indexOf("selection-outline") > map.indexOf("glacier-labels"));
+});
+
+test("a selected glacier drawn as a dot shows a red dot with a white ring", async () => {
+  const { rgiMap, map } = await build();
+  const dot = map.getLayer("selection-dot");
+  assert.equal(dot.type, "circle");
+  assert.equal(dot["source-layer"], "glaciers");
+  assert.equal(map.layout("selection-dot").visibility, "none");
+  assert.equal(dot.paint["circle-color"], "#d93025");
+  assert.equal(dot.paint["circle-stroke-color"], "#ffffff");
+  const radius = (paint, zoom) => paint["circle-radius"][paint["circle-radius"].indexOf(zoom, 3) + 1];
+  const dots = map.getLayer("glaciers-dots").paint;
+  for (const zoom of [0, 6]) assert.ok(radius(dot.paint, zoom) > radius(dots, zoom), `larger than the dots at zoom ${zoom}`);
+  assert.ok(map.indexOf("selection-dot") > map.indexOf("glaciers-dots"));
+
+  rgiMap.select(rgiId);
+  assert.deepEqual(map.getLayer("selection-dot").filter, [
+    "all",
+    ["in", ["geometry-type"], ["literal", ["Point", "MultiPoint"]]],
+    ["==", ["get", "rgi_id"], rgiId],
+  ]);
+  assert.equal(map.layout("selection-dot").visibility, "visible");
+  rgiMap.select(null);
+  assert.equal(map.layout("selection-dot").visibility, "none");
 });
 
 test("a second selection replaces the first", async () => {
@@ -197,7 +221,7 @@ test("select(null) hides the selection and clears the complex and the pin", asyn
   assert.equal(map.getLayer("terminus-pin").paint["circle-color"], "#d93025");
 
   rgiMap.select(null);
-  for (const id of ["selection-dim", "selection-fill", "selection-outline", "selection-complex"]) {
+  for (const id of ["selection-dim", "selection-fill", "selection-outline", "selection-dot", "selection-complex"]) {
     assert.equal(map.layout(id).visibility, "none", id);
   }
   assert.deepEqual(map.getSource("pin").data.features, []);
@@ -256,6 +280,28 @@ test("glacierAt returns the properties of the first glacier under the point", as
     { layer: { id: "glaciers-fill" }, properties: { rgi_id: rgiId } },
   ];
   assert.deepEqual(rgiMap.glacierAt([5, 5]), { rgi_id: rgiId });
+});
+
+test("glacierAt finds the nearest dot within 6 pixels and prefers an exact hit", async () => {
+  const { rgiMap, map } = await build();
+  const dot = (id, x, y) => ({
+    layer: { id: "glaciers-dots" },
+    geometry: { type: "Point", coordinates: [x, y] },
+    properties: { rgi_id: id },
+  });
+  map.rendered = [dot("far", 105, 100), dot("near", 103, 100)];
+  assert.deepEqual(rgiMap.glacierAt({ x: 100, y: 100 }), { rgi_id: "near" }, "a click beside a dot finds it");
+  assert.equal(rgiMap.glacierAt({ x: 100, y: 120 }), null, "a click far from every dot finds none");
+
+  map.rendered = [dot("near", 103, 100), dot("under", 101, 100)];
+  map.calls = [];
+  assert.deepEqual(rgiMap.glacierAt({ x: 100, y: 100 }), { rgi_id: "under" });
+  assert.deepEqual(map.calls, ["queryRenderedFeatures point"], "an exact hit needs no box query");
+
+  map.rendered = [
+    { layer: { id: "glaciers-fill" }, geometry: { type: "Point", coordinates: [104, 100] }, properties: { rgi_id: "outline" } },
+  ];
+  assert.equal(rgiMap.glacierAt({ x: 100, y: 100 }), null, "the box looks for dots only");
 });
 
 test("onMove reports the view after the map moves", async () => {
