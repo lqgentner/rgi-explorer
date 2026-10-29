@@ -12,7 +12,8 @@ export const el = (id) => document.getElementById(id);
 
 /*
  * Append children as nodes or text. Set known DOM properties directly and other
- * keys as attributes.
+ * keys as attributes. `style` takes an object of CSSOM properties. A string
+ * throws, because the CSP blocks style attributes.
  */
 export function h(tag, props = {}, ...children) {
   const node = document.createElement(tag);
@@ -20,7 +21,10 @@ export function h(tag, props = {}, ...children) {
     if (value === null || value === undefined) continue;
     if (key === "class") node.className = value;
     else if (key === "dataset") Object.assign(node.dataset, value);
-    else if (key === "style") Object.assign(node.style, value);
+    else if (key === "style") {
+      if (typeof value !== "object") throw new TypeError("h() takes style as an object of CSSOM properties");
+      Object.assign(node.style, value);
+    }
     else if (key in node) node[key] = value;
     else node.setAttribute(key, value);
   }

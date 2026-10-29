@@ -1,6 +1,7 @@
 /* The hypsometry chart. */
 
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import { loadPage, load } from "./helpers/browser.js";
@@ -29,7 +30,9 @@ test("bands start at hypso_z0_m in 50 m steps", () => {
 test("one bar per band, zero bands included, in the accent color", () => {
   const rects = [...draw().querySelectorAll("rect")];
   assert.equal(rects.length, 50);
-  assert.ok(rects.every((r) => r.style.fill === "var(--accent)"));
+  assert.ok(rects.every((r) => r.getAttribute("class") === "bar" && !r.hasAttribute("style")));
+  const css = readFileSync(new URL("../style.css", import.meta.url), "utf8");
+  assert.match(css, /\.hypsometry \.bar\s*\{\s*fill:\s*var\(--accent\);/);
   assert.equal(Number(rects[48].getAttribute("width")), 0);
   const ys = rects.map((r) => Number(r.getAttribute("y")));
   assert.ok(ys.every((y, i) => i === 0 || y < ys[i - 1]), "higher bands sit higher");

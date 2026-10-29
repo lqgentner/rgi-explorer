@@ -79,7 +79,7 @@ export function renderHypsometry(el, props) {
         y: y(band.center + HYPSO_BAND_M / 2),
         width,
         height: Math.max(bandHeight - 0.5, 0.5),
-        style: "fill: var(--accent)",
+        class: "bar",
         "data-center": band.center,
         "data-index": i,
       }),

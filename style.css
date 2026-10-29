@@ -725,6 +725,10 @@ button:focus-visible {
   display: block;
 }
 
+.hypsometry .bar {
+  fill: var(--accent);
+}
+
 .hypso-range,
 .muted {
   color: var(--muted);
