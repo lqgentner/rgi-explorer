@@ -12,7 +12,10 @@ export const MIN_QUERY = 2;
 /* Above this many fuzzy matches uFuzzy skips ranking and the hits keep row order. */
 const RANK_LIMIT = 1e4;
 
-export const SCORE = { id: 1000, equal: 900, prefix: 700, region: 650, place: 600, fuzzy: 500 };
+/* A glacier name with a word that starts with the query ranks above places and below regions. */
+export const SCORE = { id: 1000, equal: 900, prefix: 700, region: 650, word: 620, place: 600, fuzzy: 500 };
+
+const WORD_BREAK = /[\s\-'’]/;
 
 /** A lowercase form of text without accents, for comparing names. */
 export function fold(text) {
@@ -46,6 +49,14 @@ export function buildGlacierIndex(cols, regionNames = new Map()) {
   return { cols, regionNames, byId, rows, folded, fuzzy: new uFuzzy() };
 }
 
+/** Whether a word of the folded name, split on spaces, hyphens and apostrophes, starts with the query. */
+function hasWordStart(name, needle) {
+  for (let at = name.indexOf(needle); at !== -1; at = name.indexOf(needle, at + 1)) {
+    if (at === 0 || WORD_BREAK.test(name[at - 1])) return true;
+  }
+  return false;
+}
+
 function glacierHit(index, row, score) {
   const { cols, regionNames } = index;
   const rgiId = cols.rgi_id[row];
@@ -61,7 +72,7 @@ function glacierHit(index, row, score) {
   };
 }
 
-/** Glacier hits for an ID, an equal name, a name prefix and a fuzzy match, best first. */
+/** Glacier hits for an ID, an equal name, a name prefix, a word prefix and a fuzzy match, best first. */
 export function searchGlaciers(index, q, limit = 8) {
   const text = q.trim();
   if (text.length < MIN_QUERY) return [];
@@ -78,6 +89,7 @@ export function searchGlaciers(index, q, limit = 8) {
   for (let i = 0; i < folded.length; i += 1) {
     if (folded[i] === needle) scored.push([i, SCORE.equal]);
     else if (folded[i].startsWith(needle)) scored.push([i, SCORE.prefix]);
+    else if (hasWordStart(folded[i], needle)) scored.push([i, SCORE.word]);
     else continue;
     seen.add(i);
   }

@@ -47,13 +47,31 @@ test("a glacier subtitle drops the region when the code has no name", () => {
   assert.equal(hit.subtitle, `Glacier · ${ID("01", 5)}`);
 });
 
-test("an equal name scores 900, a prefix 700, a fuzzy match at most 500", () => {
+test("an equal name scores 900, a prefix 700, a word prefix 620, a fuzzy match at most 500", () => {
   const hits = searchGlaciers(idx, "aletsch");
   const byTitle = Object.fromEntries(hits.map((hit) => [hit.title, hit.score]));
   assert.equal(byTitle.Aletsch, 900);
   assert.equal(byTitle.Aletschfirn, 700);
-  assert.equal(byTitle["Grosser Aletsch"], 500);
+  assert.equal(byTitle["Grosser Aletsch"], 620);
   assert.equal(hits[0].title, "Aletsch");
+});
+
+test("a word that starts with the query ranks above every place and below a region", () => {
+  const long = buildGlacierIndex({
+    rgi_id: [ID("11", 7), ID("11", 8)],
+    display_name: ["Grosser Aletsch Gletscher", "Pfaffen-Aletsch"],
+    glac_name: [null, null],
+  });
+  const places = [0, 1, 2, 3, 4].map((i) => placeHit(`Aletsch place ${i}`, 600 - 10 * i));
+  const hits = rankHits(searchGlaciers(long, "aletsch"), places, 7);
+  assert.equal(hits[0].title, "Grosser Aletsch Gletscher");
+  assert.equal(hits[0].score, 620);
+  assert.equal(hits[1].score, 620);
+  assert.ok(hits.slice(2).every((hit) => hit.kind === "place"));
+  assert.equal(searchGlaciers(long, "letsch").length, 2);
+  assert.ok(searchGlaciers(long, "letsch").every((hit) => hit.score <= 500));
+  const withId = rankHits(searchGlaciers(long, ID("11", 7)), places);
+  assert.equal(withId[0].score, 1000);
 });
 
 test("names match without case or accents, and glac_name fills a missing display_name", () => {
@@ -134,8 +152,8 @@ test("a Photon error status gives no places", async () => {
 
 test("a query with over 1,000 fuzzy matches is still ranked by uFuzzy", async () => {
   const { default: uFuzzy } = await import("@leeoniya/ufuzzy");
-  const names = Array.from({ length: 1500 }, (_, i) => `zzzz yyyy xxxx ${i} ab`);
-  names.push("c ab");
+  const names = Array.from({ length: 1500 }, (_, i) => `zzzz yyyy xxxx ${i} xab`);
+  names.push("c xab");
   const big = buildGlacierIndex({
     rgi_id: names.map((_, i) => ID("11", i + 1)),
     display_name: names,
