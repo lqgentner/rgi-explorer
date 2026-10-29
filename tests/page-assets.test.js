@@ -237,6 +237,18 @@ test("the page has the containers the modules fill", () => {
   }
 });
 
+test("Tab reaches the search before the map", () => {
+  const document = page();
+  const search = document.getElementById("search");
+  const map = document.getElementById("map");
+  assert.ok(search.compareDocumentPosition(map) & document.defaultView.Node.DOCUMENT_POSITION_FOLLOWING);
+});
+
+test("the page loads no script but the inline ones and app.js", () => {
+  const sources = [...page().querySelectorAll("script[src]")].map((script) => script.getAttribute("src"));
+  assert.deepEqual(sources, ["js/app.js"]);
+});
+
 test("the service worker is registered by a relative path", () => {
   const app = read("js/app.js");
   assert.match(app, /register\("sw\.js"\)/);

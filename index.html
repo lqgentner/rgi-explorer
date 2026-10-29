@@ -54,11 +54,12 @@
     <link rel="modulepreload" href="js/usedata.js" />
   </head>
   <body>
-    <div id="map"></div>
+    <!-- The sidebar comes first, so Tab reaches the search before the map. -->
     <aside id="sidebar">
       <div id="search"></div>
       <div id="card"></div>
     </aside>
+    <div id="map"></div>
     <div id="layers"></div>
     <div id="controls"></div>
     <div id="status"></div>
@@ -82,9 +83,6 @@
       import * as hyparquet from "hyparquet";
       Object.assign(globalThis, { maplibregl, pmtiles, hyparquet });
     </script>
-    <!-- Load deployment overrides before application modules: deferred scripts and
-         modules run in document order. -->
-    <script defer src="site-config.js"></script>
     <script type="module" src="js/app.js"></script>
   </body>
 </html>

@@ -37,7 +37,7 @@ jobs:
       - name: Stage the site
         run: |
           mkdir -p _site
-          cp index.html style.css site-config.js sw.js _site/
+          cp index.html style.css sw.js _site/
           cp -r js assets _site/
           pixi run --locked node scripts/stage-libraries.mjs _site
           du -sh _site
