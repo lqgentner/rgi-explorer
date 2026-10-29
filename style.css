@@ -500,7 +500,7 @@ button:focus-visible {
 
 /* Sidebar and glacier card */
 
-#sidebar {
+#card {
   position: fixed;
   top: 0;
   bottom: 0;
@@ -510,6 +510,14 @@ button:focus-visible {
   overflow-y: auto;
   background: var(--surface);
   box-shadow: var(--shadow);
+}
+
+#search {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  z-index: 4;
+  width: 376px;
 }
 
 .card {

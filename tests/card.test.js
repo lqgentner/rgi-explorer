@@ -43,8 +43,10 @@ before(async () => {
 after(() => fs.rmSync(dir, { recursive: true, force: true }));
 
 function setup(over = {}) {
-  const root = document.createElement("aside");
-  document.body.append(root);
+  document.getElementById("card")?.remove();
+  const root = document.createElement("div");
+  root.id = "card";
+  document.getElementById("sidebar").append(root);
   const calls = [];
   const rowOf = async (id) => (IDS.includes(id) ? IDS.indexOf(id) : null);
   const ctx = {
@@ -273,11 +275,22 @@ test("the terminus and complex rows call onAction", async () => {
   assert.deepEqual(calls[1][1], { type: "complex", id: "RGI2000-v7.0-C-11-01323" });
 });
 
-test("the sidebar rises above the status line", () => {
+test("the card column rises above the status line and the search above the card", () => {
   const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
   const z = (sel) => Number(new RegExp(`${sel}\\s*{[^}]*z-index:\\s*(\\d+)`).exec(css)[1]);
-  assert.ok(z("#sidebar") > z("#status"));
-  assert.match(css, /#sidebar\s*{[^}]*width:\s*408px/);
+  assert.ok(z("#card") > z("#status"));
+  assert.ok(z("#search") > z("#card"));
+  assert.match(css, /#card\s*{[^}]*width:\s*408px/);
+});
+
+test("the search and the layer control sit outside the card container", () => {
+  const page = new window.DOMParser().parseFromString(
+    fs.readFileSync(new URL("../index.html", import.meta.url), "utf8"), "text/html");
+  const card = page.getElementById("card");
+  assert.ok(card && page.getElementById("sidebar").contains(card));
+  assert.equal(card.contains(page.getElementById("search")), false);
+  assert.equal(card.contains(page.getElementById("layers")), false);
+  assert.equal(page.getElementById("sidebar").contains(page.getElementById("layers")), false);
 });
 
 test("the sidebar is hidden until a glacier opens and again after close", async () => {
