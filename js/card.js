@@ -3,6 +3,7 @@
 import { ATTRIBUTE_COLUMNS, GROUP_TITLES, missingAttributes, nonEmpty, overviewRows } from "./columns.js";
 import { renderHypsometry } from "./hypsometry.js";
 import { CARD_COLUMNS, readRow } from "./parquet.js";
+import { esriCrop } from "./photo.js";
 import { h, icon } from "./ui.js";
 
 const TABS = [
@@ -10,6 +11,9 @@ const TABS = [
   { id: "hypsometry", label: "Hypsometry" },
 ];
 const SHOWN_LINKS = 3;
+const CROP_SIZE = [816, 400];
+const IMAGERY_CREDIT = "Imagery: Esri, Maxar, Earthstar Geographics";
+const isHttp = (url) => /^https?:\/\//i.test(url ?? "");
 
 /** The first-order region code inside an RGI ID, such as "11" in RGI2000-v7.0-G-11-02596. */
 const regionOfId = (rgiId) => /-G-(\d{2})-/.exec(rgiId ?? "")?.[1] ?? null;
@@ -194,11 +198,73 @@ export function mountCard(root, ctx) {
     renderHead();
     renderOverview();
     renderHypso();
+    renderPhotoArea();
   }
 
-  /** Hook for the photo area. */
+  /** The photo area: a carousel of photos, or the imagery crop when there are none. */
+  function renderPhotoArea() {
+    const { photos, cropFailed } = current.photos;
+    const { bbox } = current.props;
+    if (photos?.length) photo.replaceChildren(...carousel(photos));
+    else if (photos && cropFailed) photo.replaceChildren(plainBlock());
+    else if (photos && bbox) photo.replaceChildren(...imageryCrop(bbox));
+    else photo.replaceChildren();
+  }
+
+  const plainBlock = () => h("div", { class: "photo-placeholder", style: { background: "var(--line)" } });
+
+  function imageryCrop(bbox) {
+    const image = h("img", { src: esriCrop(bbox, ...CROP_SIZE), alt: "Satellite imagery of the glacier", loading: "lazy" });
+    image.addEventListener("error", () => {
+      current.photos.cropFailed = true;
+      renderPhotoArea();
+    });
+    return [image, h("p", { class: "photo-credit" }, IMAGERY_CREDIT)];
+  }
+
+  function carousel(photos) {
+    const at = current.photos.index;
+    const shown = photos[at];
+    const title = head.querySelector(".card-title")?.textContent ?? "";
+    const details = h("div", { class: "photo-details", hidden: !current.photos.infoOpen },
+      h("p", {}, isHttp(shown.page) ? h("a", { href: shown.page, target: "_blank", rel: "noopener noreferrer" }, shown.source) : shown.source),
+      shown.author ? h("p", {}, shown.author) : null,
+      shown.license
+        ? h("p", {}, isHttp(shown.licenseUrl)
+          ? h("a", { href: shown.licenseUrl, target: "_blank", rel: "noopener noreferrer" }, shown.license)
+          : shown.license)
+        : null);
+    const toggle = h("button", {
+      type: "button", class: "icon-button photo-info", "aria-label": "Photo details",
+      "aria-expanded": String(current.photos.infoOpen),
+    }, icon("info"));
+    toggle.addEventListener("click", () => {
+      current.photos.infoOpen = !current.photos.infoOpen;
+      details.hidden = !current.photos.infoOpen;
+      toggle.setAttribute("aria-expanded", String(current.photos.infoOpen));
+    });
+    const step = (delta, label, name) => {
+      const node = h("button", { type: "button", class: `icon-button photo-${label}`, "aria-label": `${label === "prev" ? "Previous" : "Next"} photo` }, icon(name));
+      node.addEventListener("click", () => {
+        current.photos.index = (at + delta + photos.length) % photos.length;
+        renderPhotoArea();
+        photo.querySelector(`.photo-${label}`)?.focus();
+      });
+      return node;
+    };
+    return [
+      h("img", { src: shown.src, alt: `Photo of ${title}`, loading: "lazy" }),
+      photos.length > 1 ? step(-1, "prev", "chevron-left") : null,
+      photos.length > 1 ? step(1, "next", "chevron-right") : null,
+      toggle,
+      details,
+    ];
+  }
+
   function renderPhotos(photos) {
-    void photos;
+    current.photos.photos = Array.isArray(photos) ? photos : [];
+    current.photos.index = 0;
+    renderPhotoArea();
   }
 
   async function load(glacier, mine, signal) {
@@ -237,7 +303,12 @@ export function mountCard(root, ctx) {
       controller?.abort();
       controller = new AbortController();
       const { signal } = controller;
-      const mine = { rgiId: glacier.rgiId, row: glacier.row, props: { ...glacier.props } };
+      const mine = {
+        rgiId: glacier.rgiId,
+        row: glacier.row,
+        props: { ...glacier.props },
+        photos: { photos: null, index: 0, infoOpen: false, cropFailed: false },
+      };
       current = mine;
       state.rgi6Open = false;
       state.moreOpen = false;
