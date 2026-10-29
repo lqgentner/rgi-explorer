@@ -27,6 +27,7 @@ test("a pick mounts the card in the sheet: the header in the band, the photo and
   const row = await waitFor(() => [...document.querySelectorAll("#search li")]
     .find((li) => li.querySelector(".title").textContent === "Grosser Aletsch Gletscher"));
   click(row);
+  assert.notEqual(document.activeElement, input, "the pick puts the keyboard away");
 
   await waitFor(() => $("#sheet .card-area"));
   assert.equal($("#sheet").hidden, false);

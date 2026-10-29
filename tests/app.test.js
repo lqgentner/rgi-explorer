@@ -199,6 +199,7 @@ test("clicking empty map closes the card", () => {
   assert.equal(document.body.classList.contains("card-open"), false);
   assert.equal(params().get("glacier"), null);
   assert.equal(map.layout("selection-outline").visibility, "none");
+  assert.equal($("#search input").value, "", "closing the card clears the search");
 });
 
 test("the search bar's Close button closes the card on desktop", async () => {
@@ -238,6 +239,39 @@ test("a region pick made while a glacier's bbox is read keeps the region fit", a
   map.rendered = [];
   map.fire("click", { point: { x: 1, y: 1 } });
   assert.equal($("#card").hidden, true);
+});
+
+test("a drag while a glacier's bbox is read drops the late fit", async () => {
+  await search("athabasca");
+  const row = await waitFor(() => [...document.querySelectorAll("#search li")]
+    .find((li) => li.querySelector(".title").textContent === "Athabasca Glacier"));
+  let release;
+  hold = new Promise((resolve) => {
+    release = resolve;
+  });
+  const before = fits();
+  click(row);
+  map.fire("movestart", { originalEvent: new window.MouseEvent("mousedown") });
+  release();
+  hold = null;
+  await waitFor(() => $("#card .card-title")?.textContent === "Athabasca Glacier");
+  await settle(20);
+  assert.equal(fits(), before, "the user's drag wins over the late glacier fit");
+  map.rendered = [];
+  map.fire("click", { point: { x: 1, y: 1 } });
+  assert.equal($("#card").hidden, true);
+});
+
+test("a camera move without a user event keeps the glacier fit", async () => {
+  await search("athabasca");
+  const row = await waitFor(() => [...document.querySelectorAll("#search li")]
+    .find((li) => li.querySelector(".title").textContent === "Athabasca Glacier"));
+  const before = fits();
+  click(row);
+  map.fire("movestart", {});
+  await waitFor(() => fits() > before);
+  map.rendered = [];
+  map.fire("click", { point: { x: 1, y: 1 } });
 });
 
 test("a region pick fits the region's bbox and a place pick jumps to zoom 12", async () => {

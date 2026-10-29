@@ -223,6 +223,11 @@ function wire(catalog, rgiMap, regions) {
    */
   let camera = 0;
 
+  /* A drag, pinch or wheel move is a camera request too, so a pending fit is dropped. */
+  map.on("movestart", (event) => {
+    if (event?.originalEvent) camera += 1;
+  });
+
   const padding = () => {
     if (phone) return { top: PHONE_TOP, right: GAP, bottom: (popupPadding()?.bottom ?? 0) + GAP, left: GAP };
     return { top: GAP, right: GAP, bottom: GAP, left: (shown ? CARD_WIDTH : 0) + GAP };
@@ -275,6 +280,7 @@ function wire(catalog, rgiMap, regions) {
     save();
     rgiMap.select(null);
     search.setClosable(null);
+    search.clear();
     useData.close();
     card.close();
     showCard(false);

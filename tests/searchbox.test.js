@@ -37,7 +37,7 @@ function setup({ fetch = photonOk(), loadGlacierIndex = async () => index } = {}
   document.body.append(root);
   const picks = [];
   const loads = [];
-  mountSearch(root, {
+  const api = mountSearch(root, {
     onPick: (hit) => picks.push(hit),
     loadGlacierIndex: () => {
       loads.push(1);
@@ -54,7 +54,7 @@ function setup({ fetch = photonOk(), loadGlacierIndex = async () => index } = {}
   const key = (name) =>
     input.dispatchEvent(new window.KeyboardEvent("keydown", { key: name, bubbles: true }));
   const rows = () => [...root.querySelectorAll('[role="option"]')];
-  return { root, input, picks, loads, type, key, rows };
+  return { root, input, picks, loads, type, key, rows, api };
 }
 const window = document.defaultView;
 
@@ -212,6 +212,30 @@ test("Escape clears the input and closes the list", async () => {
   assert.equal(input.value, "");
   assert.equal(rows().length, 0);
   assert.equal(input.getAttribute("aria-expanded"), "false");
+});
+
+test("clear empties the input, closes the list and drops the pending Photon request", async () => {
+  const calls = [];
+  const { input, type, rows, api } = setup({ fetch: async (url) => (calls.push(url), photonOk("Aletschhorn")()) });
+  type("aletsch");
+  await flush();
+  assert.ok(rows().length > 0);
+  api.clear();
+  assert.equal(input.value, "");
+  assert.equal(rows().length, 0);
+  assert.equal(input.getAttribute("aria-expanded"), "false");
+  mock.timers.tick(300);
+  await flush();
+  assert.deepEqual(calls, [], "no Photon request after clear");
+});
+
+test("a pick on the desktop keeps the focus in the input", async () => {
+  const { input, type, rows } = setup();
+  input.focus();
+  type("aletsch");
+  await flush();
+  rows()[0].dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+  assert.equal(document.activeElement, input);
 });
 
 test("the list closes when focus leaves the search and reopens on focus", async () => {

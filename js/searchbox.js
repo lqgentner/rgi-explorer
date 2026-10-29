@@ -1,6 +1,6 @@
 /* The search input and its result list. */
 
-import { h, icon } from "./ui.js";
+import { h, icon, PHONE } from "./ui.js";
 import { searchPlaces } from "./photon.js";
 import { MIN_QUERY, rankHits, searchGlaciers, searchRegions } from "./search.js";
 
@@ -16,8 +16,9 @@ const ICONS = { glacier: "mountain-snow", region: "square-dashed", place: "map-p
  * @param {() => Promise<object>} options.loadGlacierIndex  called once, on first focus or input
  * @param {object[]} options.regions
  * @param {() => {lat: number, lon: number, zoom: number}} options.view
- * @returns {{setClosable(close: (() => void) | null): void}}  shows a Close button
- *   that calls `close`, or hides it for null
+ * @returns {{setClosable(close: (() => void) | null): void, clear(): void}}
+ *   setClosable shows a Close button that calls `close`, or hides it for null.
+ *   clear empties the input and closes the list.
  */
 export function mountSearch(root, { onPick, loadGlacierIndex, regions, view }) {
   const listId = "search-list";
@@ -97,14 +98,21 @@ export function mountSearch(root, { onPick, loadGlacierIndex, regions, view }) {
     else input.removeAttribute("aria-activedescendant");
   }
 
-  function pick(hit) {
-    if (!hit) return;
+  /* Stop the pending Photon request and close the list, with `value` in the input. */
+  function reset(value) {
     clearTimeout(timer);
     controller?.abort();
     seq += 1;
-    input.value = hit.title;
+    input.value = value;
     query = "";
     close();
+  }
+
+  function pick(hit) {
+    if (!hit) return;
+    reset(hit.title);
+    /* On the phone the keyboard covers the map, so a pick puts it away. */
+    if (PHONE.matches) input.blur();
     onPick(hit);
   }
 
@@ -184,12 +192,7 @@ export function mountSearch(root, { onPick, loadGlacierIndex, regions, view }) {
     } else if (event.key === "Enter") {
       pick(hits[active] ?? hits[0]);
     } else if (event.key === "Escape") {
-      clearTimeout(timer);
-      controller?.abort();
-      seq += 1;
-      query = "";
-      input.value = "";
-      close();
+      reset("");
     }
   });
   list.addEventListener("click", (event) => {
@@ -201,6 +204,9 @@ export function mountSearch(root, { onPick, loadGlacierIndex, regions, view }) {
     setClosable(close) {
       onClose = close ?? null;
       closeButton.hidden = !onClose;
+    },
+    clear() {
+      reset("");
     },
   };
 }
