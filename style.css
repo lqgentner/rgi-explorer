@@ -892,7 +892,7 @@ body.card-open #layers {
 .notice {
   position: fixed;
   left: 50%;
-  bottom: 40px;
+  bottom: calc(var(--status-h, 0px) + 16px);
   z-index: 6;
   transform: translateX(-50%);
   padding: 8px 16px;
