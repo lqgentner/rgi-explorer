@@ -15,8 +15,14 @@ const PAGE_URL = "https://lqgentner.github.io/rgi-explorer/";
  * harness hands the test the one the modules are using. */
 let created = [];
 
+/* The map options the page may pass. Any other name is a typo MapLibre would ignore. */
+const MAP_OPTIONS = new Set(["container", "style", "center", "zoom", "attributionControl"]);
+
 export class FakeMap {
   constructor(options = {}) {
+    for (const name of Object.keys(options)) {
+      if (!MAP_OPTIONS.has(name)) throw new Error(`unknown map option '${name}'`);
+    }
     created.push(this);
     this.options = options;
     this.rendered = [];
@@ -34,6 +40,8 @@ export class FakeMap {
     this.moving = false;
     this.center = { lng: options.center?.[0] ?? 0, lat: options.center?.[1] ?? 0 };
     this.zoom = options.zoom ?? 0;
+    this.pitch = 0;
+    this.bearing = 0;
     for (const layer of options.style?.layers ?? []) {
       if (this.layers.has(layer.id)) throw new Error(`layer '${layer.id}' added twice`);
       if (layer.source && !this.sources.has(layer.source)) {
@@ -170,6 +178,24 @@ export class FakeMap {
     if (options.zoom !== undefined) this.zoom = options.zoom;
     this.calls.push(`jumpTo ${options.center} z${options.zoom}`);
     this.fire("moveend");
+  }
+
+  /** An animated move; the fake ends it at once. */
+  easeTo(options) {
+    if (options.center) this.center = { lng: options.center[0], lat: options.center[1] };
+    if (options.zoom !== undefined) this.zoom = options.zoom;
+    if (options.pitch !== undefined) this.pitch = options.pitch;
+    if (options.bearing !== undefined) this.bearing = options.bearing;
+    this.calls.push(`easeTo ${JSON.stringify(options)}`);
+    this.fire("moveend");
+  }
+
+  getPitch() {
+    return this.pitch;
+  }
+
+  getBearing() {
+    return this.bearing;
   }
 
   /** Whether the style and the tiles in view have loaded. */

@@ -19,6 +19,11 @@ test("the harness exposes the map the page modules construct", async () => {
   assert.ok(page.document.getElementById("map"));
 });
 
+test("an unknown map option throws", () => {
+  assert.throws(() => new FakeMap({ attribution: false }), /unknown map option 'attribution'/);
+  assert.doesNotThrow(() => new FakeMap({ attributionControl: false }));
+});
+
 test("a duplicate source or layer id throws", () => {
   const map = new FakeMap();
   map.addSource("glaciers", source);

@@ -214,6 +214,24 @@ test("terrain adds its source once and switches on and off", async () => {
   assert.equal(map.getTerrain(), null);
 });
 
+test("3D tilts the camera after the terrain is set, and 2D levels it and faces north", async () => {
+  const { rgiMap, map } = await build();
+  rgiMap.setTerrain(true);
+  const on = map.calls.lastIndexOf("+terrain");
+  assert.equal(map.calls[on + 1], 'easeTo {"pitch":60}');
+  assert.equal(map.getPitch(), 60);
+  map.bearing = 30;
+  rgiMap.setTerrain(false);
+  assert.equal(map.calls.at(-1), 'easeTo {"pitch":0,"bearing":0}');
+  assert.equal(map.getPitch(), 0);
+  assert.equal(map.getBearing(), 0);
+});
+
+test("MapLibre adds no attribution control of its own", async () => {
+  const { map } = await build();
+  assert.equal(map.options.attributionControl, false);
+});
+
 test("North Asia and Antarctic Mainland fit without throwing", async () => {
   const { rgiMap, map } = await build();
   rgiMap.fitBbox({ xmin: -180, ymin: -90, xmax: 180, ymax: -63.2 }, 0);

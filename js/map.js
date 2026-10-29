@@ -6,6 +6,8 @@ import { adaptStyle, mergeStyles, TOGGLES } from "./styles.js";
 const SELECTION_RED = "#d93025";
 const COMPLEX_GREY = "#5f6368";
 const MAX_LAT = 85.05;
+/* The camera tilt in 3D, in degrees from straight down. */
+const TERRAIN_PITCH = 60;
 const NONE = { visibility: "none" };
 const EMPTY = { type: "FeatureCollection", features: [] };
 const WORLD = {
@@ -157,11 +159,13 @@ export async function createMap(container, catalog, state) {
   registerProtocol();
   const { maplibregl } = globalThis;
   const view = state.view ?? DEFAULT_VIEW;
+  /* The status line holds every credit, so MapLibre adds no attribution control. */
   const map = new maplibregl.Map({
     container,
     style: buildStyle(liberty, rgi, state),
     center: [view.lon, view.lat],
     zoom: view.zoom,
+    attributionControl: false,
   });
   await new Promise((resolve, reject) => {
     const fail = (event) => {
@@ -231,6 +235,7 @@ export async function createMap(container, catalog, state) {
         });
       }
       map.setTerrain(on ? { source: "terrain", exaggeration: 1 } : null);
+      map.easeTo(on ? { pitch: TERRAIN_PITCH } : { pitch: 0, bearing: 0 });
     },
 
     fitBbox({ xmin, ymin, xmax, ymax }, padding, center) {

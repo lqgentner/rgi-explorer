@@ -23,6 +23,7 @@ test("?glacier= with a view hash opens the card without moving the map", async (
   assert.equal(page.map.lastFit, undefined);
   assert.equal(page.map.getZoom(), 9);
   assert.equal(page.map.getTerrain().source, "terrain", "3D applies once the map has loaded");
+  assert.equal(page.map.getPitch(), 60, "a ?3d=1 link opens tilted");
   assert.equal(document.querySelector("#controls .terrain-btn").getAttribute("aria-pressed"), "true");
   assert.equal(window.location.hash, "#9/46.2/8.3");
   assert.equal(new URL(window.location.href).searchParams.get("3d"), "1");
