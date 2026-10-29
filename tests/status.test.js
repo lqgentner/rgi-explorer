@@ -123,3 +123,16 @@ test("the status line hides the scale bar when there is no scale", () => {
   mountStatus(root, { map: new FakeMap({ zoom: NaN }), onMove() {} }, catalog, () => ({ base: "standard", terrain: false }));
   assert.equal(root.querySelector(".scale").hidden, true);
 });
+
+test("the status line height is published as --status-h on mount and refresh", () => {
+  const root = document.createElement("div");
+  let height = 54;
+  root.getBoundingClientRect = () => ({ height });
+  const rgiMap = { map: new FakeMap({ center: [8, 46.48], zoom: 11 }), onMove: () => {} };
+  const status = mountStatus(root, rgiMap, catalog, () => ({ base: "standard", terrain: false }));
+  const read = () => document.documentElement.style.getPropertyValue("--status-h");
+  assert.equal(read(), "54px");
+  height = 70;
+  status.refresh();
+  assert.equal(read(), "70px");
+});

@@ -121,10 +121,22 @@ export function mountStatus(root, rgiMap, catalog, getState) {
   }
   drawCredits();
 
+  /* On desktop the map ends where the status line begins; the phone has no status line. */
+  const publishHeight = () => {
+    if (phone) return;
+    const height = root.getBoundingClientRect().height;
+    document.documentElement.style.setProperty("--status-h", `${height}px`);
+  };
+  if (!phone) {
+    publishHeight();
+    if (typeof ResizeObserver === "function") new ResizeObserver(publishHeight).observe(root);
+  }
+
   return {
     refresh() {
       if (!phone) drawScaleNow();
       drawCredits();
+      publishHeight();
     },
   };
 }
