@@ -10,8 +10,8 @@ Consortium.
 
 ```sh
 pixi install
-pixi run serve    # http://localhost:8000/
-pixi run test     # Python and JavaScript tests
+pixi run --locked serve    # http://localhost:8000/
+pixi run --locked test     # Python and JavaScript tests
 ```
 
 The catalog may not be published yet. Serve a local copy under `/catalog/`.
@@ -19,8 +19,33 @@ The first directory that holds a file wins, so a catalog tree and a staging
 tree of data files work together:
 
 ```sh
-pixi run serve --catalog-dir ../rgi-catalog/catalog --catalog-dir ../rgi-catalog/staging
+pixi run --locked serve -- --catalog-dir ../rgi-catalog/catalog --catalog-dir ../rgi-catalog/staging
 ```
+
+Then open `http://localhost:8000/?catalog=catalog/catalog.json`. The `catalog`
+query parameter replaces the published catalog address. A relative value
+resolves against the page.
+
+## Smoke test
+
+The smoke test reads a real catalog. It checks the five collections, the column
+descriptions, the tile layers and the GeoParquet, including its compression.
+It skips in `pixi run test`.
+
+```sh
+pixi run --locked smoke    # the published catalog
+SMOKE_CATALOG=http://localhost:8000/catalog/catalog.json pixi run --locked smoke
+```
+
+`SMOKE_CATALOG` points the test at another catalog, for example the local
+server above. A weekly workflow runs the test against the published catalog.
+
+## Deployment
+
+The site deploys to GitHub Pages from `main` through
+`.github/workflows/deploy.yml`. The workflow runs the tests, copies the page
+files and the libraries into `_site/` and publishes it. The data stays in the
+mirror and never enters the site.
 
 ## Toolchain
 
