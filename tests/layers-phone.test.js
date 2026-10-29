@@ -19,7 +19,9 @@ test("the phone layer button opens a pane with map types and RGI layers", () => 
   });
   const fab = root.querySelector('button[aria-label="Layers"]');
   assert.ok(fab.querySelector("use").getAttribute("href").endsWith("#layers-2"));
-  const pane = root.querySelector(".layers-pane");
+  const pane = [...document.querySelectorAll(".layers-pane")].at(-1);
+  assert.equal(root.querySelector(".layers-pane"), null);
+  assert.equal(pane.parentElement, document.body, "the pane stacks above the bottom sheet, outside #layers");
   assert.equal(pane.hidden, true);
   fab.click();
   assert.equal(pane.hidden, false);
@@ -49,7 +51,7 @@ test("Escape closes the pane and returns focus to the layers button", () => {
   mountLayers(root, { base: "standard", layers: new Set(), onBase() {}, onToggle() {}, zoom: () => 12 });
   const fab = root.querySelector('button[aria-label="Layers"]');
   fab.click();
-  const pane = root.querySelector(".layers-pane");
+  const pane = [...document.querySelectorAll(".layers-pane")].at(-1);
   pane.querySelector('button[aria-label="Close"]').dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
   assert.equal(pane.hidden, true);
   assert.equal(document.activeElement, fab);

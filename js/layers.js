@@ -155,7 +155,12 @@ export function mountLayers(root, { base, layers, onBase, onToggle, zoom }) {
     pane.addEventListener("keydown", (event) => {
       if (event.key === "Escape") closePane();
     });
-    root.append(open, pane);
+    /*
+     * The pane goes in the body. Inside root it would share root's stacking
+     * context, which sits below the bottom sheet.
+     */
+    root.append(open);
+    document.body.append(pane);
     api.setBase = (next) => {
       current = next;
       syncBase();

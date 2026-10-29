@@ -502,12 +502,17 @@ button:focus-visible {
   left: 12px;
   right: 12px;
   bottom: 68px;
+  z-index: 5;
   padding: 12px;
   border-radius: 8px;
   background: var(--surface);
   box-shadow: var(--shadow);
   font-size: 12px;
   color: var(--text);
+}
+
+.credits-panel a {
+  color: inherit;
 }
 
 .credits-panel .credits {

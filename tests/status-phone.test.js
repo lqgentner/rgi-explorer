@@ -19,7 +19,9 @@ test("the phone has no scale bar, and an info button opens the credits", () => {
   assert.equal(root.querySelector(".scale-bar"), null);
   const button = root.querySelector("button");
   assert.ok(button.querySelector("use").getAttribute("href").endsWith("#info"));
-  const panel = root.querySelector(".credits-panel");
+  const panel = [...document.querySelectorAll(".credits-panel")].at(-1);
+  assert.equal(root.querySelector(".credits-panel"), null);
+  assert.equal(panel.parentElement, document.body, "the panel stacks above the bottom sheet, outside #status");
   assert.equal(panel.hidden, true);
   button.click();
   assert.equal(panel.hidden, false);
@@ -41,7 +43,8 @@ test("Escape closes the credits panel and returns focus to the info button", () 
   mountStatus(root, { map: new FakeMap({ zoom: 5 }), onMove() {} }, catalog, () => ({ base: "standard", terrain: false }));
   const button = root.querySelector("button");
   button.click();
-  root.querySelector(".credits-panel").dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
-  assert.equal(root.querySelector(".credits-panel").hidden, true);
+  const panel = [...document.querySelectorAll(".credits-panel")].at(-1);
+  panel.querySelector(".credit").dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  assert.equal(panel.hidden, true);
   assert.equal(document.activeElement, button);
 });

@@ -93,13 +93,20 @@ export function mountStatus(root, rgiMap, catalog, getState) {
       panel.hidden = !panel.hidden;
       info.setAttribute("aria-expanded", String(!panel.hidden));
     });
-    root.addEventListener("keydown", (event) => {
+    const onKey = (event) => {
       if (event.key !== "Escape" || panel.hidden) return;
       panel.hidden = true;
       info.setAttribute("aria-expanded", "false");
       info.focus();
-    });
-    root.append(info, panel);
+    };
+    root.addEventListener("keydown", onKey);
+    panel.addEventListener("keydown", onKey);
+    /*
+     * The panel goes in the body. Inside root it would share root's stacking
+     * context, which sits below the bottom sheet.
+     */
+    root.append(info);
+    document.body.append(panel);
   } else {
     root.append(scale, list);
     rgiMap.onMove(({ zoom, lat }) => drawScale(lat, zoom));
