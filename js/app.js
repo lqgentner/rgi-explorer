@@ -61,14 +61,9 @@ function rowsOf(columns) {
   return columns[names[0]].map((_, i) => Object.fromEntries(names.map((name) => [name, columns[name][i]])));
 }
 
-/** The regions table as row objects, or none when it cannot be read. */
+/** The regions table as row objects. */
 async function loadRegions(url) {
-  try {
-    return rowsOf(await readColumns(await openParquet(url), REGION_COLUMNS));
-  } catch (error) {
-    console.warn("regions:", error.message);
-    return [];
-  }
+  return rowsOf(await readColumns(await openParquet(url), REGION_COLUMNS));
 }
 
 /**
@@ -400,12 +395,20 @@ async function start() {
     fail(CATALOG_ERROR, error);
     return;
   }
+  const [mapResult, regionsResult] = await Promise.allSettled([
+    createMap(el("map"), catalog, state),
+    loadRegions(catalog.collections.regions.dataUrl),
+  ]);
+  if (regionsResult.status === "rejected") {
+    fail(CATALOG_ERROR, regionsResult.reason);
+    return;
+  }
+  if (mapResult.status === "rejected") {
+    fail(MAP_ERROR, mapResult.reason);
+    return;
+  }
   try {
-    const [rgiMap, regions] = await Promise.all([
-      createMap(el("map"), catalog, state),
-      loadRegions(catalog.collections.regions.dataUrl),
-    ]);
-    wire(catalog, rgiMap, regions, catalogUrl === CATALOG_URL ? null : new URL(catalogUrl).host);
+    wire(catalog, mapResult.value, regionsResult.value, catalogUrl === CATALOG_URL ? null : new URL(catalogUrl).host);
   } catch (error) {
     fail(MAP_ERROR, error);
   }
