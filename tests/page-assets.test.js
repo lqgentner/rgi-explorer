@@ -227,6 +227,11 @@ test("every js/ module but app.js is preloaded", () => {
   for (const module of modules) assert.ok(preloaded.has(module), `index.html does not preload ${module}`);
 });
 
+test("no module is preloaded twice", () => {
+  const hrefs = [...page().querySelectorAll('link[rel="modulepreload"]')].map((link) => link.getAttribute("href"));
+  assert.deepEqual(hrefs.filter((href, i) => hrefs.indexOf(href) !== i), []);
+});
+
 test("the page has the containers the modules fill", () => {
   const document = page();
   for (const id of ["map", "sidebar", "search", "layers", "controls", "status", "sheet"]) {

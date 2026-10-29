@@ -51,6 +51,17 @@ test("a point in a hole is outside and a point in the ring is inside", () => {
   assert.equal(pointInRings([11, 5], [square, hole]), false);
 });
 
+test("a point in the second of several concatenated pieces is inside", () => {
+  const first = [[0, 0], [4, 0], [4, 4], [0, 4], [0, 0]];
+  const second = [[10, 10], [14, 10], [14, 14], [10, 14], [10, 10]];
+  const secondHole = [[11, 11], [12, 11], [12, 12], [11, 12], [11, 11]];
+  const rings = [first, second, secondHole];
+  assert.equal(pointInRings([12.5, 12.5], rings), true);
+  assert.equal(pointInRings([11.5, 11.5], rings), false);
+  assert.equal(pointInRings([7, 7], rings), false);
+  assert.equal(pointInRings([2, 2], rings), true);
+});
+
 test("Aletsch picks the 2021 photo via GLIMS ID", () => {
   const [f] = pickFiles(WD.results.bindings, RINGS, GLIMS);
   assert.equal(f.file, FILE_2021);
@@ -311,4 +322,47 @@ test("without a bbox the area stays empty until the parquet read supplies it", a
   await settle();
   assert.equal(bare.root.querySelector(".photo img"), null);
   assert.equal(bare.root.querySelector(".photo-placeholder"), null);
+});
+
+test("a late crop error for A does not touch B and a crop error after close does not throw", async () => {
+  const { root, card } = setup();
+  await card.open(OPEN("A", { bbox: BBOX }));
+  await settle();
+  const oldImg = root.querySelector(".photo img");
+  const other = { xmin: 1, ymin: 2, xmax: 3, ymax: 4 };
+  await card.open(OPEN("B", { bbox: other }));
+  await settle();
+  const crop = root.querySelector(".photo img");
+  assert.equal(crop.getAttribute("src"), esriCrop(other, 816, 400));
+  oldImg.dispatchEvent(new window.Event("error"));
+  assert.equal(root.querySelector(".photo img").getAttribute("src"), esriCrop(other, 816, 400));
+  assert.equal(root.querySelector(".photo-placeholder"), null);
+  card.close();
+  assert.doesNotThrow(() => crop.dispatchEvent(new window.Event("error")));
+});
+
+test("the crop image is kept when the card re-renders with the same bbox", async () => {
+  const { openParquet } = await load("js/parquet.js");
+  const real = globalThis.hyparquet;
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  globalThis.hyparquet = {
+    ...real,
+    parquetMetadataAsync: async () => ({ row_groups: [{ num_rows: 1n }] }),
+    parquetReadObjects: async () => { await gate; return [{ bbox: BBOX, hypso_z0_m: null, hypso_permille: null, rgi6_links: null }]; },
+  };
+  try {
+    const handle = await openParquet({});
+    const { root, card } = setup({ parquet: { handle, rowOf: async () => 0 } });
+    const done = card.open({ rgiId: "A", row: 0, props: { display_name: "A", bbox: BBOX } });
+    await settle();
+    const img = root.querySelector(".photo img");
+    assert.ok(img);
+    release();
+    await done;
+    assert.equal(root.querySelector(".photo img"), img);
+    assert.equal(root.querySelectorAll(".photo-credit").length, 1);
+  } finally {
+    globalThis.hyparquet = real;
+  }
 });

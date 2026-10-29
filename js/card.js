@@ -214,9 +214,14 @@ export function mountCard(root, ctx) {
   const plainBlock = () => h("div", { class: "photo-placeholder", style: { background: "var(--line)" } });
 
   function imageryCrop(bbox) {
-    const image = h("img", { src: esriCrop(bbox, ...CROP_SIZE), alt: "Satellite imagery of the glacier", loading: "lazy" });
+    const mine = current;
+    const src = esriCrop(bbox, ...CROP_SIZE);
+    const existing = photo.querySelector("img.photo-crop");
+    if (existing?.getAttribute("src") === src) return [...photo.childNodes];
+    const image = h("img", { class: "photo-crop", src, alt: "Satellite imagery of the glacier", loading: "lazy" });
     image.addEventListener("error", () => {
-      current.photos.cropFailed = true;
+      if (current !== mine) return;
+      mine.photos.cropFailed = true;
       renderPhotoArea();
     });
     return [image, h("p", { class: "photo-credit" }, IMAGERY_CREDIT)];
