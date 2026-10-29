@@ -16,6 +16,16 @@ function parseView(hash) {
   return { zoom, lat, lon };
 }
 
+/*
+ * The toggles a `layers` value names. A missing value, or a value that names no
+ * known layer, gives the default. An empty value turns every toggle off.
+ */
+function parseLayers(value) {
+  if (value === null) return new Set(DEFAULT_LAYERS);
+  const known = LAYERS.filter((name) => value.split(",").includes(name));
+  return value !== "" && known.length === 0 ? new Set(DEFAULT_LAYERS) : new Set(known);
+}
+
 /** Read the state from a page URL; a missing or invalid part takes its default. */
 export function parseState(url) {
   const params = url.searchParams;
@@ -26,10 +36,7 @@ export function parseState(url) {
     glacier: GLACIER_ID.test(glacier ?? "") ? glacier : null,
     view: parseView(url.hash),
     base: BASES.includes(base) ? base : "standard",
-    layers:
-      layers === null
-        ? new Set(DEFAULT_LAYERS)
-        : new Set(LAYERS.filter((name) => layers.split(",").includes(name))),
+    layers: parseLayers(layers),
     terrain: params.get("3d") === "1",
   };
 }

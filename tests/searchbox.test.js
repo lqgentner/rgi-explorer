@@ -236,3 +236,25 @@ test("a late Photon response keeps the arrow-key selection on the same hit", asy
   assert.equal(rows()[1].getAttribute("aria-selected"), "true");
   assert.equal(input.getAttribute("aria-activedescendant"), rows()[1].id);
 });
+
+test("setClosable shows a Close button that calls its function, and null hides it", () => {
+  document.body.replaceChildren();
+  const root = document.createElement("div");
+  document.body.append(root);
+  const search = mountSearch(root, { onPick() {}, loadGlacierIndex: async () => index, regions, view: () => ({ lat: 0, lon: 0, zoom: 1 }) });
+  const close = root.querySelector('button[aria-label="Close"]');
+  assert.ok(close, "the button is in the search bar");
+  assert.equal(close.hidden, true, "hidden while nothing can close");
+  assert.ok(close.querySelector("svg use").getAttribute("href").endsWith("#x"));
+
+  const calls = [];
+  search.setClosable(() => calls.push("close"));
+  assert.equal(close.hidden, false);
+  close.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+  assert.deepEqual(calls, ["close"]);
+
+  search.setClosable(null);
+  assert.equal(close.hidden, true);
+  close.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+  assert.deepEqual(calls, ["close"], "a hidden button calls nothing");
+});

@@ -29,6 +29,9 @@ export class FakeMap {
     this.handlers = {};
     this.calls = [];
     this.terrain = null;
+    /* What loaded() and isMoving() answer; a test sets them to stage a busy map. */
+    this.tilesLoaded = true;
+    this.moving = false;
     this.center = { lng: options.center?.[0] ?? 0, lat: options.center?.[1] ?? 0 };
     this.zoom = options.zoom ?? 0;
     for (const layer of options.style?.layers ?? []) {
@@ -167,6 +170,16 @@ export class FakeMap {
     if (options.zoom !== undefined) this.zoom = options.zoom;
     this.calls.push(`jumpTo ${options.center} z${options.zoom}`);
     this.fire("moveend");
+  }
+
+  /** Whether the style and the tiles in view have loaded. */
+  loaded() {
+    return this.tilesLoaded;
+  }
+
+  /** Whether a camera animation or a gesture is under way. */
+  isMoving() {
+    return this.moving;
   }
 
   getCenter() {

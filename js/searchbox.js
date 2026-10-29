@@ -16,6 +16,8 @@ const ICONS = { glacier: "mountain-snow", region: "square-dashed", place: "map-p
  * @param {() => Promise<object>} options.loadGlacierIndex  called once, on first focus or input
  * @param {object[]} options.regions
  * @param {() => {lat: number, lon: number, zoom: number}} options.view
+ * @returns {{setClosable(close: (() => void) | null): void}}  shows a Close button
+ *   that calls `close`, or hides it for null
  */
 export function mountSearch(root, { onPick, loadGlacierIndex, regions, view }) {
   const listId = "search-list";
@@ -30,7 +32,14 @@ export function mountSearch(root, { onPick, loadGlacierIndex, regions, view }) {
     placeholder: "Search glaciers, regions and places",
   });
   const list = h("ul", { id: listId, role: "listbox", hidden: true });
-  root.append(input, list);
+  const closeButton = h(
+    "button",
+    { type: "button", class: "icon-button search-close", "aria-label": "Close", hidden: true },
+    icon("x"),
+  );
+  let onClose = null;
+  closeButton.addEventListener("click", () => onClose?.());
+  root.append(input, closeButton, list);
 
   let glacierIndex = null;
   let indexLoad = null;
@@ -185,4 +194,11 @@ export function mountSearch(root, { onPick, loadGlacierIndex, regions, view }) {
     const row = event.target.closest('[role="option"]');
     if (row) pick(hits[[...list.children].indexOf(row)]);
   });
+
+  return {
+    setClosable(close) {
+      onClose = close ?? null;
+      closeButton.hidden = !onClose;
+    },
+  };
 }

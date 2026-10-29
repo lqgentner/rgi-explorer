@@ -136,12 +136,21 @@ function nextIdle(map, signal) {
   });
 }
 
-/** Every ring of the glacier's rendered pieces, from all tiles that hold one. */
+/** A map with its tiles loaded and no camera move under way, which fires no further idle. */
+const isSettled = (map) => map.loaded() && !map.isMoving();
+
+/** Every ring of the glacier's rendered pieces, from all tiles that hold one; none on error. */
 function ringsOf(map, rgiId) {
-  const pieces = map.querySourceFeatures("data", {
-    sourceLayer: "glaciers",
-    filter: ["==", ["get", "rgi_id"], rgiId],
-  });
+  let pieces;
+  try {
+    pieces = map.querySourceFeatures("data", {
+      sourceLayer: "glaciers",
+      filter: ["==", ["get", "rgi_id"], rgiId],
+    });
+  } catch (error) {
+    console.warn("outline pieces:", error.message);
+    return [];
+  }
   return pieces.flatMap(({ geometry }) => {
     if (geometry?.type === "Polygon") return geometry.coordinates;
     if (geometry?.type === "MultiPolygon") return geometry.coordinates.flat();
@@ -208,12 +217,28 @@ function wire(catalog, rgiMap, regions) {
   /* The glacier on the card, and the fit that a search pick started for it. */
   let shown = null;
   let fitting = null;
+  /*
+   * Each explicit camera request takes the next number. A fit that waits for a
+   * read moves the camera only if no request came after it.
+   */
+  let camera = 0;
 
   const padding = () => {
     if (phone) return { top: PHONE_TOP, right: GAP, bottom: (popupPadding()?.bottom ?? 0) + GAP, left: GAP };
     return { top: GAP, right: GAP, bottom: GAP, left: (shown ? CARD_WIDTH : 0) + GAP };
   };
   const fitTo = (bbox) => rgiMap.fitBbox(bbox, padding());
+
+  /** Fit the glacier's bbox once its read returns, unless another camera request came first. */
+  function fitGlacierLater(glacier) {
+    const mine = ++camera;
+    return glaciers.factsOf(glacier).then(
+      (facts) => {
+        if (mine === camera && shown === glacier && isBbox(facts.bbox)) fitTo(facts.bbox);
+      },
+      () => {},
+    );
+  }
 
   /* Photos wait for the fit and the tiles it loads, so the outline pieces are on the map. */
   async function photosOf(glacier, signal) {
@@ -222,7 +247,7 @@ function wire(catalog, rgiMap, regions) {
     for (const [key, value] of Object.entries(facts)) if (value !== null && value !== undefined) props[key] = value;
     if (!isBbox(props.bbox) || signal.aborted) return [];
     await fitting;
-    await nextIdle(map, signal);
+    if (!isSettled(map)) await nextIdle(map, signal);
     if (signal.aborted) return [];
     return findPhotos({ rgiId: glacier.rgiId, props }, ringsOf(map, glacier.rgiId), { signal });
   }
@@ -249,6 +274,7 @@ function wire(catalog, rgiMap, regions) {
     state.glacier = null;
     save();
     rgiMap.select(null);
+    search.setClosable(null);
     useData.close();
     card.close();
     showCard(false);
@@ -267,14 +293,10 @@ function wire(catalog, rgiMap, regions) {
     photos: photosOf,
     onClose: closeGlacier,
     onZoom(bbox) {
-      if (isBbox(bbox)) fitTo(bbox);
-      else if (shown) {
-        const mine = shown;
-        glaciers.factsOf(mine).then(
-          (facts) => shown === mine && isBbox(facts.bbox) && fitTo(facts.bbox),
-          () => {},
-        );
-      }
+      if (isBbox(bbox)) {
+        camera += 1;
+        fitTo(bbox);
+      } else if (shown) fitGlacierLater(shown);
     },
     async onShare() {
       try {
@@ -303,14 +325,8 @@ function wire(catalog, rgiMap, regions) {
     rgiMap.showComplex(null);
     rgiMap.select(glacier.rgiId);
     showCard(true);
-    fitting = fit
-      ? glaciers.factsOf(glacier).then(
-          (facts) => {
-            if (shown === glacier && isBbox(facts.bbox)) fitTo(facts.bbox);
-          },
-          () => {},
-        )
-      : null;
+    if (!phone) search.setClosable(closeGlacier);
+    fitting = fit ? fitGlacierLater(glacier) : null;
     card.open(glacier);
     if (phone) setSheetOpen(false);
   }
@@ -321,11 +337,17 @@ function wire(catalog, rgiMap, regions) {
     else if (shown) closeGlacier();
   });
 
-  mountSearch(el("search"), {
+  const search = mountSearch(el("search"), {
     onPick(hit) {
-      if (hit.kind === "glacier") openGlacier({ rgiId: hit.rgiId, row: hit.row }, true);
-      else if (hit.kind === "region" && isBbox(hit.bbox)) fitTo(hit.bbox);
-      else if (hit.kind === "place") map.jumpTo({ center: hit.center, zoom: PLACE_ZOOM });
+      if (hit.kind === "glacier") {
+        openGlacier({ rgiId: hit.rgiId, row: hit.row }, true);
+      } else if (hit.kind === "region" && isBbox(hit.bbox)) {
+        camera += 1;
+        fitTo(hit.bbox);
+      } else if (hit.kind === "place") {
+        camera += 1;
+        map.jumpTo({ center: hit.center, zoom: PLACE_ZOOM });
+      }
     },
     loadGlacierIndex: () => glaciers.index(),
     regions,
@@ -356,21 +378,17 @@ function wire(catalog, rgiMap, regions) {
 
 async function start() {
   save();
-  let catalog;
-  let rgiMap;
-  let regions;
   try {
-    catalog = await loadCatalog(resolveCatalogUrl(new URLSearchParams(location.search)));
-    [rgiMap, regions] = await Promise.all([
+    const catalog = await loadCatalog(resolveCatalogUrl(new URLSearchParams(location.search)));
+    const [rgiMap, regions] = await Promise.all([
       createMap(el("map"), catalog, state),
       loadRegions(catalog.collections.regions.dataUrl),
     ]);
+    wire(catalog, rgiMap, regions);
   } catch (error) {
     el("status").textContent = LOAD_ERROR;
     console.error("startup:", error);
-    return;
   }
-  wire(catalog, rgiMap, regions);
 }
 
 start();

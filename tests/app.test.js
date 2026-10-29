@@ -28,7 +28,11 @@ const ZERMATT = {
 };
 const jsonResponse = (data) => new Response(JSON.stringify(data), { status: 200 });
 
-function extra(url) {
+/* While set, reads of the glaciers file wait for this promise. */
+let hold = null;
+
+async function extra(url, init) {
+  if (hold && url === GLACIERS_URL && (init.method ?? "GET") === "GET") await hold;
   const u = new URL(url);
   if (u.host === "photon.komoot.io") return jsonResponse(u.searchParams.get("q") === "zermatt" ? ZERMATT : { features: [] });
   if (u.host === "query.wikidata.org") return jsonResponse(fixture("wikidata/aletsch.json"));
@@ -84,6 +88,7 @@ test("searching aletsch and picking it opens the card, selects it and fits its b
     { sourceLayer: "glaciers", properties: { rgi_id: ALETSCH }, geometry: { type: "Polygon", coordinates: RINGS.slice(0, 25) } },
     { sourceLayer: "glaciers", properties: { rgi_id: ALETSCH }, geometry: { type: "MultiPolygon", coordinates: [RINGS.slice(25)] } },
   ];
+  map.tilesLoaded = false;
   await search("aletsch");
   await pick("Grosser Aletsch Gletscher");
 
@@ -115,6 +120,8 @@ test("both tabs render from the glacier's row", async () => {
 
 test("the photo lookup waits for the map, reads the outline pieces and fills the photo area", async () => {
   await waitFor(() => map.handlers.idle?.length);
+  assert.equal(log.filter(({ url }) => url.startsWith("https://query.wikidata.org/")).length, 0, "no lookup before the tiles load");
+  map.tilesLoaded = true;
   map.fire("idle");
   await waitFor(() => $("#card .photo img"));
   assert.ok(map.calls.includes("querySourceFeatures data"));
@@ -161,6 +168,29 @@ test("clicking a glacier opens the card and writes ?glacier=", async () => {
   assert.equal(fits(), before, "a click does not move the map");
 });
 
+test("a click on a settled map looks up photos at once, not after the idle cap", async () => {
+  const sparql = await waitFor(
+    () => log.find(({ url }) => url.startsWith("https://query.wikidata.org/") && url.includes("G001000E46000N")),
+    1000,
+  );
+  assert.ok(sparql);
+  await waitFor(() => $("#card .photo img.photo-crop"), 1000);
+});
+
+test("a failing outline query still leaves the imagery crop", async () => {
+  map.querySourceFeatures = () => {
+    throw new Error("the source is gone");
+  };
+  try {
+    map.rendered = [{ layer: { id: "glaciers-fill" }, properties: { rgi_id: "RGI2000-v7.0-G-11-00003", o1region: "11" } }];
+    map.fire("click", { point: { x: 220, y: 220 } });
+    await waitFor(() => log.some(({ url }) => url.startsWith("https://query.wikidata.org/") && url.includes("G003000E46000N")), 1000);
+    await waitFor(() => $("#card .photo img.photo-crop"), 1000);
+  } finally {
+    delete map.querySourceFeatures;
+  }
+});
+
 test("clicking empty map closes the card", () => {
   map.rendered = [];
   map.fire("click", { point: { x: 10, y: 10 } });
@@ -170,12 +200,56 @@ test("clicking empty map closes the card", () => {
   assert.equal(map.layout("selection-outline").visibility, "none");
 });
 
+test("the search bar's Close button closes the card on desktop", async () => {
+  const close = $('#search button[aria-label="Close"]');
+  assert.equal(close.hidden, true, "no glacier, no Close");
+  map.rendered = [{ layer: { id: "glaciers-fill" }, properties: { rgi_id: MORTERATSCH, display_name: "Morteratsch", o1region: "11" } }];
+  map.fire("click", { point: { x: 200, y: 200 } });
+  assert.equal(close.hidden, false);
+  click(close);
+  assert.equal($("#card").hidden, true);
+  assert.equal(params().get("glacier"), null);
+  assert.equal(map.layout("selection-outline").visibility, "none");
+  assert.equal(close.hidden, true);
+  const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
+  assert.match(css, /#card \.card-close\s*\{\s*display:\s*none;/, "the desktop card hides its own Close");
+  await settle();
+});
+
+test("a region pick made while a glacier's bbox is read keeps the region fit", async () => {
+  await search("athabasca");
+  const row = await waitFor(() => [...document.querySelectorAll("#search li")]
+    .find((li) => li.querySelector(".title").textContent === "Athabasca Glacier"));
+  let release;
+  hold = new Promise((resolve) => {
+    release = resolve;
+  });
+  click(row);
+  assert.equal(params().get("glacier"), "RGI2000-v7.0-G-03-00002");
+  await search("central europe");
+  await pick("Central Europe", "RGI region · 11");
+  assert.deepEqual(map.lastFit.bounds, [[-1.5, 41], [20, 48.5]]);
+  release();
+  hold = null;
+  await waitFor(() => $("#card .card-title")?.textContent === "Athabasca Glacier");
+  await settle(20);
+  assert.deepEqual(map.lastFit.bounds, [[-1.5, 41], [20, 48.5]], "the late glacier fit is dropped");
+  map.rendered = [];
+  map.fire("click", { point: { x: 1, y: 1 } });
+  assert.equal($("#card").hidden, true);
+});
+
 test("a region pick fits the region's bbox and a place pick jumps to zoom 12", async () => {
   await search("central europe");
   await pick("Central Europe", "RGI region · 11");
   await waitFor(() => map.lastFit.bounds[0][0] === -1.5);
   assert.deepEqual(map.lastFit.bounds, [[-1.5, 41], [20, 48.5]]);
   assert.equal(map.lastFit.options.padding.left, 24, "no card, no card padding");
+
+  await search("north asia");
+  await pick("North Asia", "RGI region · 10");
+  await waitFor(() => map.lastFit.bounds[0][0] === -180);
+  assert.deepEqual(map.lastFit.bounds, [[-180, 31], [180, 78]], "a 360° region fits the world's width");
 
   await search("zermatt");
   await pick("Zermatt");

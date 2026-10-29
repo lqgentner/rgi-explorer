@@ -89,3 +89,13 @@ test("querySourceFeatures throws on a missing source and matches by source layer
     /unsupported filter/,
   );
 });
+
+test("loaded and isMoving answer what the test stages", () => {
+  const map = new FakeMap();
+  assert.equal(map.loaded(), true);
+  assert.equal(map.isMoving(), false);
+  map.tilesLoaded = false;
+  map.moving = true;
+  assert.equal(map.loaded(), false);
+  assert.equal(map.isMoving(), true);
+});

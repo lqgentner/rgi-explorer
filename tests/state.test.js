@@ -89,3 +89,10 @@ test("a malformed catalog parameter falls back to the published catalog", () => 
   assert.equal(resolveCatalogUrl(new URLSearchParams("catalog=http://"), "https://x/"), CATALOG_URL);
   assert.equal(resolveCatalogUrl(new URLSearchParams("catalog=catalog/c.json"), undefined), CATALOG_URL);
 });
+
+test("a layers value with no known name takes the default toggles", () => {
+  const url = new URL("https://x/rgi-explorer/?layers=bogus,nope");
+  const s = parseState(url);
+  assert.deepEqual([...s.layers], ["regions"]);
+  assert.equal(writeState(s, url), "https://x/rgi-explorer/");
+});
