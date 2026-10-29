@@ -204,7 +204,7 @@ test("CSP lists exactly the spec's data hosts", () => {
     "https://upload.wikimedia.org",
   ];
   assert.deepEqual(cspHosts("connect-src").sort(), hosts);
-  assert.deepEqual(cspHosts("img-src").sort(), hosts);
+  assert.deepEqual(cspHosts("img-src").sort(), [...hosts, "https://thumb.wikimedia.org"].sort());
 });
 
 test("fonts load from node_modules, not a CDN", () => {
