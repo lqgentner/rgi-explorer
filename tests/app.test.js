@@ -78,6 +78,9 @@ test("the page mounts the search, the controls and the status line, with no card
   assert.ok($("#controls .terrain-btn"));
   assert.ok($("#controls .zoom-control"));
   assert.match($("#status").textContent, /not endorsed by the RGI Consortium/);
+  assert.doesNotMatch($("#status").textContent, /Custom catalog/);
+  assert.equal($("#status").getAttribute("aria-live"), null, "a base or 3D switch does not re-announce the credits");
+  assert.equal($("#status").getAttribute("role"), null);
   assert.equal($("#card").hidden, true);
   assert.equal($("#sheet").hidden, true);
   assert.equal(window.location.search, "");

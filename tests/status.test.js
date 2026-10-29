@@ -32,6 +32,7 @@ test("credits name Esri only on imagery and Mapterhorn only in 3D", () => {
   assert.deepEqual(texts(plain), [
     "© OpenStreetMap contributors",
     "OpenFreeMap",
+    "© OpenMapTiles",
     catalog.citation,
     "License: CC-BY-4.0",
     UNOFFICIAL,
@@ -40,12 +41,19 @@ test("credits name Esri only on imagery and Mapterhorn only in 3D", () => {
   assert.deepEqual(texts(both), [
     "© OpenStreetMap contributors",
     "OpenFreeMap",
+    "© OpenMapTiles",
     esri,
     "Mapterhorn",
     catalog.citation,
     "License: CC-BY-4.0",
     UNOFFICIAL,
   ]);
+});
+
+test("a custom catalog is named first, as text", () => {
+  const list = credits({ base: "standard", terrain: false, catalog, customCatalog: "localhost:8000" });
+  assert.deepEqual(list[0], { text: "Custom catalog: localhost:8000" });
+  assert.equal(credits({ base: "standard", terrain: false, catalog, customCatalog: null })[0].text, "© OpenStreetMap contributors");
 });
 
 test("credits always end with the unofficial note", () => {
@@ -95,10 +103,11 @@ test("credits render as text, never markup", () => {
 
 test("credits carry links only for OpenStreetMap and a web license", () => {
   const links = (c) => credits({ base: "standard", terrain: false, catalog: c }).filter((x) => x.href);
-  assert.deepEqual(links(catalog).map((x) => x.href), ["https://www.openstreetmap.org/copyright", catalog.license.href]);
+  const fixed = ["https://www.openstreetmap.org/copyright", "https://www.openmaptiles.org/"];
+  assert.deepEqual(links(catalog).map((x) => x.href), [...fixed, catalog.license.href]);
   for (const href of ["javascript:alert(1)", "not a url", null]) {
     const list = links({ ...catalog, license: { id: "X", href } });
-    assert.deepEqual(list.map((x) => x.href), ["https://www.openstreetmap.org/copyright"]);
+    assert.deepEqual(list.map((x) => x.href), fixed);
   }
 });
 

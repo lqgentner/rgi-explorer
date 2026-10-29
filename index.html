@@ -61,7 +61,9 @@
     </aside>
     <div id="layers"></div>
     <div id="controls"></div>
-    <div id="status" role="status" aria-live="polite"></div>
+    <div id="status"></div>
+    <!-- The polite live region holds only short notices and startup errors. -->
+    <div id="notice" class="notice" role="status" aria-live="polite"></div>
     <!-- The phone's bottom sheet. The band holds the handle and the card's header,
          which the compact sheet shows; the body holds the photo and the tabs. -->
     <div id="sheet" hidden>

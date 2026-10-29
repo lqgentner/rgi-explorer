@@ -6,7 +6,7 @@
 
 import { mountCard } from "./card.js";
 import { loadCatalog } from "./catalog.js";
-import { resolveCatalogUrl, TIMEOUT_MS } from "./config.js";
+import { CATALOG_URL, resolveCatalogUrl, TIMEOUT_MS } from "./config.js";
 import { mountLayers, mountTerrain, mountZoom } from "./layers.js";
 import { createMap } from "./map.js";
 import { openParquet, readColumns, readRow, SEARCH_COLUMNS } from "./parquet.js";
@@ -16,7 +16,7 @@ import { mountSearch } from "./searchbox.js";
 import { initSheet, popupPadding, setSheetOpen } from "./sheet.js";
 import { parseState, writeState } from "./state.js";
 import { mountStatus } from "./status.js";
-import { el, h, PHONE } from "./ui.js";
+import { el, PHONE } from "./ui.js";
 import { mountUseData } from "./usedata.js";
 
 const CARD_WIDTH = 408;
@@ -27,7 +27,8 @@ const PLACE_ZOOM = 12;
 const NOTICE_MS = 2000;
 const REGION_COLUMNS = ["level", "o1region", "o2region", "full_name", "bbox"];
 const FACT_COLUMNS = ["bbox", "glims_id"];
-const LOAD_ERROR = "The catalog could not be loaded.";
+const CATALOG_ERROR = "The catalog could not be loaded.";
+const MAP_ERROR = "The map could not be loaded.";
 
 /*
  * Repeat visits read JSON from sw.js's cache while it revalidates. Skip localhost,
@@ -158,7 +159,11 @@ function ringsOf(map, rgiId) {
   });
 }
 
-function wire(catalog, rgiMap, regions) {
+/**
+ * @param {string | null} customCatalog  the host of a catalog that ?catalog=
+ *   chose instead of the published one, or null
+ */
+function wire(catalog, rgiMap, regions, customCatalog) {
   const phone = PHONE.matches;
   const { map } = rgiMap;
   const regionNames = new Map(
@@ -167,9 +172,7 @@ function wire(catalog, rgiMap, regions) {
   const glaciers = glacierFile(catalog.collections.glaciers.dataUrl, regionNames);
   if (state.terrain) rgiMap.setTerrain(true);
 
-  /* A polite live region for short confirmations. */
-  const notice = h("div", { class: "notice", role: "status", "aria-live": "polite" });
-  document.body.append(notice);
+  const notice = el("notice");
   let noticeTimer = null;
   const announce = (text) => {
     notice.textContent = text;
@@ -207,7 +210,7 @@ function wire(catalog, rgiMap, regions) {
     },
   });
   mountZoom(el("controls"), rgiMap);
-  status = mountStatus(el("status"), rgiMap, catalog, () => state);
+  status = mountStatus(el("status"), rgiMap, catalog, () => ({ ...state, customCatalog }));
   rgiMap.onMove((view) => {
     state.view = view;
     save();
@@ -382,18 +385,29 @@ function wire(catalog, rgiMap, regions) {
   }
 }
 
+function fail(message, error) {
+  el("notice").textContent = message;
+  console.error("startup:", error);
+}
+
 async function start() {
   save();
+  const catalogUrl = resolveCatalogUrl(new URLSearchParams(location.search));
+  let catalog;
   try {
-    const catalog = await loadCatalog(resolveCatalogUrl(new URLSearchParams(location.search)));
+    catalog = await loadCatalog(catalogUrl);
+  } catch (error) {
+    fail(CATALOG_ERROR, error);
+    return;
+  }
+  try {
     const [rgiMap, regions] = await Promise.all([
       createMap(el("map"), catalog, state),
       loadRegions(catalog.collections.regions.dataUrl),
     ]);
-    wire(catalog, rgiMap, regions);
+    wire(catalog, rgiMap, regions, catalogUrl === CATALOG_URL ? null : new URL(catalogUrl).host);
   } catch (error) {
-    el("status").textContent = LOAD_ERROR;
-    console.error("startup:", error);
+    fail(MAP_ERROR, error);
   }
 }
 

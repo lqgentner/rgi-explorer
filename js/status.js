@@ -9,6 +9,7 @@ const EARTH_CIRCUMFERENCE = 40075016.686;
 const TILE_SIZE = 512;
 const OSM = "© OpenStreetMap contributors";
 const OSM_COPYRIGHT = "https://www.openstreetmap.org/copyright";
+const OPENMAPTILES = "https://www.openmaptiles.org/";
 const ESRI = "Esri, Maxar, Earthstar Geographics, and the GIS User Community";
 const UNOFFICIAL = "RGI Explorer and the RGI mirror are unofficial and not endorsed by the RGI Consortium.";
 
@@ -39,11 +40,17 @@ export function scaleBar(mpp, maxPx = 80) {
   return { px: Math.round(meters / mpp), label };
 }
 
-/** The credits for what the map shows, in reading order, as `{ text, href? }`. */
-export function credits({ base, terrain, catalog }) {
+/**
+ * The credits for what the map shows, in reading order, as `{ text, href? }`.
+ * With `customCatalog`, the host of a catalog that ?catalog= chose, a note
+ * names it first.
+ */
+export function credits({ base, terrain, catalog, customCatalog }) {
   return [
+    customCatalog ? { text: `Custom catalog: ${customCatalog}` } : null,
     { text: OSM, href: OSM_COPYRIGHT },
     { text: "OpenFreeMap" },
+    { text: "© OpenMapTiles", href: OPENMAPTILES },
     base === "imagery" ? { text: ESRI } : null,
     terrain ? { text: "Mapterhorn" } : null,
     { text: catalog.citation },
@@ -55,7 +62,7 @@ export function credits({ base, terrain, catalog }) {
 /**
  * Draw the scale bar and the credits.
  *
- * @param getState  returns the current `{ base, terrain }`
+ * @param getState  returns the current `{ base, terrain, customCatalog? }`
  * @returns {{refresh(): void}}  redraws both, after a base map or terrain change
  */
 export function mountStatus(root, rgiMap, catalog, getState) {

@@ -105,7 +105,8 @@ Nothing raster-specific, and none of glace-viewer's visual style, is copied.
 One config value pins the catalog root:
 `https://data.source.coop/lqgentner/rgi/catalog.json`. A `?catalog=` URL
 parameter overrides it for development, for example to point at
-`rgi_catalog preview` running locally.
+`rgi_catalog preview` running locally. The status line then shows "Custom
+catalog:" and the catalog's host.
 
 The explorer walks the STAC links from the root to the five RGI 7.0
 collections: `rgi-v7-0-glaciers`, `-regions`, `-complexes`, `-centerlines`
@@ -419,6 +420,7 @@ The status line, or the ⓘ on the phone, lists:
 
 - © OpenStreetMap contributors;
 - OpenFreeMap;
+- © OpenMapTiles;
 - Esri, when imagery is shown;
 - Mapterhorn, when 3D is on;
 - the RGI 7.0 Consortium citation and license from the catalog's metadata;

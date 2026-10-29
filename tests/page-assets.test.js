@@ -232,7 +232,7 @@ test("no module is preloaded twice", () => {
 
 test("the page has the containers the modules fill", () => {
   const document = page();
-  for (const id of ["map", "sidebar", "search", "layers", "controls", "status", "sheet"]) {
+  for (const id of ["map", "sidebar", "search", "layers", "controls", "status", "notice", "sheet"]) {
     assert.ok(document.getElementById(id), `#${id} is missing`);
   }
 });

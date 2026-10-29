@@ -1,4 +1,4 @@
-/* A failure while the page mounts its parts says so in the status line. */
+/* A failure while the page mounts its parts says the map could not load. */
 
 import assert from "node:assert/strict";
 import { test } from "node:test";
@@ -8,7 +8,7 @@ import * as hyparquet from "hyparquet";
 import { FakeMap, load, loadPage, waitFor } from "./helpers/browser.js";
 import { makeParquet, servedFetch } from "./helpers/served.js";
 
-test("a mount that throws leaves the load message and one logged error", async () => {
+test("a mount that throws leaves the map message and one logged error", async () => {
   const { document } = await loadPage({ fetch: servedFetch(makeParquet()) });
   globalThis.hyparquet = hyparquet;
   globalThis.maplibregl.Map = class extends FakeMap {
@@ -26,6 +26,6 @@ test("a mount that throws leaves the load message and one logged error", async (
   } finally {
     console.error = original;
   }
-  assert.equal(document.querySelector("#status").textContent, "The catalog could not be loaded.");
+  assert.equal(document.querySelector("#notice").textContent, "The map could not be loaded.");
   assert.equal(errors.length, 1);
 });
