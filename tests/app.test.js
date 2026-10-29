@@ -120,10 +120,11 @@ test("both tabs render from the glacier's row", async () => {
 
 test("the photo lookup waits for the map, reads the outline pieces and fills the photo area", async () => {
   await waitFor(() => map.handlers.idle?.length);
+  assert.ok($("#card .photo img.photo-crop"), "the imagery crop shows while the lookup waits");
   assert.equal(log.filter(({ url }) => url.startsWith("https://query.wikidata.org/")).length, 0, "no lookup before the tiles load");
   map.tilesLoaded = true;
   map.fire("idle");
-  await waitFor(() => $("#card .photo img"));
+  await waitFor(() => $("#card .photo img:not(.photo-crop)"));
   assert.ok(map.calls.includes("querySourceFeatures data"));
   const sparql = log.find(({ url }) => url.startsWith("https://query.wikidata.org/"));
   assert.match(new URL(sparql.url).searchParams.get("query"), /P6799 "G008032E46504N"/, "the GLIMS ID comes from the row");

@@ -236,7 +236,8 @@ test("a photo for A arriving after B opens is dropped", async () => {
   card.open(OPEN("B", { bbox: BBOX }));
   resolvers.A([photo(1)]);
   await settle();
-  assert.equal(root.querySelector(".photo img"), null, "A's photo never reaches B's card");
+  assert.ok(root.querySelector(".photo img.photo-crop"), "A's photo never reaches B's card, which keeps its crop");
+  assert.equal(root.querySelectorAll(".photo img").length, 1);
   resolvers.B([photo(2)]);
   await settle();
   assert.equal(root.querySelector(".photo img").getAttribute("src"), photo(2).src);
@@ -297,6 +298,24 @@ test("with no photos the card shows the Esri crop and its credit", async () => {
   assert.equal(root.querySelector(".photo img"), null);
   assert.ok(root.querySelector(".photo-placeholder"));
   assert.equal(root.querySelector(".photo-placeholder").style.background, "var(--line)");
+});
+
+test("the crop shows while the photo lookup runs, and photos replace it when they arrive", async () => {
+  let resolve;
+  const { root, card } = setup({ photos: () => new Promise((r) => { resolve = r; }) });
+  card.open(OPEN("A", { bbox: BBOX }));
+  assert.equal(root.querySelector(".photo img.photo-crop").getAttribute("src"), esriCrop(BBOX, 816, 400));
+  resolve([photo(1)]);
+  await settle();
+  assert.equal(root.querySelector(".photo img.photo-crop"), null);
+  assert.equal(root.querySelector(".photo img").getAttribute("src"), photo(1).src);
+});
+
+test("a crop that fails while the photo lookup runs leaves the plain block", async () => {
+  const { root, card } = setup({ photos: () => new Promise(() => {}) });
+  card.open(OPEN("A", { bbox: BBOX }));
+  root.querySelector(".photo img.photo-crop").dispatchEvent(new window.Event("error"));
+  assert.ok(root.querySelector(".photo-placeholder"));
 });
 
 test("without a bbox the area stays empty until the parquet read supplies it", async () => {

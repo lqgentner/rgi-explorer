@@ -210,13 +210,17 @@ export function mountCard(root, ctx) {
     renderPhotoArea();
   }
 
-  /** The photo area: a carousel of photos, or the imagery crop when there are none. */
+  /**
+   * The photo area: a carousel once photos arrive. Until then, and when there
+   * are none, the imagery crop as soon as the bbox is known. A plain block
+   * when the crop fails.
+   */
   function renderPhotoArea() {
     const { photos, cropFailed } = current.photos;
     const { bbox } = current.props;
     if (photos?.length) photo.replaceChildren(...carousel(photos));
-    else if (photos && cropFailed) photo.replaceChildren(plainBlock());
-    else if (photos && bbox) photo.replaceChildren(...imageryCrop(bbox));
+    else if (cropFailed) photo.replaceChildren(plainBlock());
+    else if (bbox) photo.replaceChildren(...imageryCrop(bbox));
     else photo.replaceChildren();
   }
 
