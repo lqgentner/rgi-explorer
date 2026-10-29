@@ -50,8 +50,18 @@ test("the staged libraries hold every module the import map reaches", () => {
     bare++;
     assert.ok(specifier in imports, `${from} imports ${specifier}, which the import map lacks`);
   });
-  // PMTiles imports fflate and the compressors import fzstd; none found means the lexer changed.
+  // PMTiles imports fflate; none found means the lexer changed.
   assert.ok(bare > 0, "the walk read the libraries' imports");
+});
+
+test("every bare import in js/ is in the import map", () => {
+  const imports = importMap();
+  const names = [];
+  walk([path.join(REPO, "js", "app.js")], (specifier, from) => {
+    names.push(specifier);
+    assert.ok(specifier in imports, `${from} imports ${specifier}, which the import map lacks`);
+  });
+  assert.ok(names.includes("fzstd"), "js/parquet.js imports fzstd");
 });
 
 /* MapLibre builds its worker URL from its own module's URL, and the page's

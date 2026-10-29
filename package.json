@@ -19,8 +19,6 @@
     "fflate": "0.8.3",
     "fzstd": "0.1.1",
     "hyparquet": "1.31.5",
-    "hyparquet-compressors": "1.1.2",
-    "hysnappy": "1.1.1",
     "lucide-static": "1.63.0",
     "maplibre-gl": "6.16.0",
     "pmtiles": "4.5.0"

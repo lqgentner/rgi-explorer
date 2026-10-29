@@ -22,8 +22,10 @@ bundling.
 - The page's libraries are npm `dependencies`, loaded unchanged from
   `./node_modules/` through the import map in `index.html`.
 - Use exact versions in `package.json` and commit `package-lock.json`.
-- Map every bare import that a library makes. `fzstd` and `hysnappy` are
-  direct dependencies because `hyparquet-compressors` imports them.
+- Map every bare import that a library makes.
+- Load no library that compiles WebAssembly. The CSP has no
+  `'wasm-unsafe-eval'`. `js/parquet.js` decodes ZSTD with `fzstd`, which is
+  plain JavaScript.
 - Start every import-map address with `./`. Browsers ignore others.
 - Give each library a license in `assets/third-party-licenses.txt`.
 - `stage-libraries.test.js` walks the import graph as a browser does.

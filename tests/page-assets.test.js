@@ -90,8 +90,6 @@ test("every library the page loads is a runtime dependency in package.json", () 
     "fflate",
     "fzstd",
     "hyparquet",
-    "hyparquet-compressors",
-    "hysnappy",
     "maplibre-gl",
     "pmtiles",
   ]);

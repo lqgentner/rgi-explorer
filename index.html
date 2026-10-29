@@ -6,7 +6,7 @@
     <!-- Hashes allow the two inline scripts below; page-assets.test.js checks them.
          MapLibre may run its worker from a blob. Each data host is listed by name. -->
     <meta http-equiv="Content-Security-Policy"
-          content="default-src 'self'; script-src 'self' 'sha256-AhyLtkIet4TfpNSBThIRmXCJKZI9sEC8lAIme8DixnU=' 'sha256-DWKQrEMHzwPpL+gX7XQ/AJ00ymmgtL5GSVRQqg0o5ro='; style-src 'self'; img-src 'self' data: blob: https://data.source.coop https://tiles.openfreemap.org https://server.arcgisonline.com https://tiles.mapterhorn.com https://photon.komoot.io https://query.wikidata.org https://commons.wikimedia.org https://upload.wikimedia.org https://thumb.wikimedia.org; connect-src 'self' data: blob: https://data.source.coop https://tiles.openfreemap.org https://server.arcgisonline.com https://tiles.mapterhorn.com https://photon.komoot.io https://query.wikidata.org https://commons.wikimedia.org https://upload.wikimedia.org; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'none'" />
+          content="default-src 'self'; script-src 'self' 'sha256-z2jQvAgLi0GFMbcOty+feMaDR0K/DtAC9cra4nfKIjM=' 'sha256-DWKQrEMHzwPpL+gX7XQ/AJ00ymmgtL5GSVRQqg0o5ro='; style-src 'self'; img-src 'self' data: blob: https://data.source.coop https://tiles.openfreemap.org https://server.arcgisonline.com https://tiles.mapterhorn.com https://photon.komoot.io https://query.wikidata.org https://commons.wikimedia.org https://upload.wikimedia.org https://thumb.wikimedia.org; connect-src 'self' data: blob: https://data.source.coop https://tiles.openfreemap.org https://server.arcgisonline.com https://tiles.mapterhorn.com https://photon.komoot.io https://query.wikidata.org https://commons.wikimedia.org https://upload.wikimedia.org; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'none'" />
     <title>RGI Explorer</title>
     <meta name="description"
           content="Explore the Randolph Glacier Inventory 7.0 on a map: every glacier outline, its attributes and its region." />
@@ -17,8 +17,7 @@
 
     <!-- Parse the import map before any module fetch. npm installs the libraries,
          and scripts/stage-libraries.mjs copies each target's directory for Pages.
-         PMTiles needs the bare fflate mapping, and hyparquet-compressors the
-         fzstd and hysnappy ones. -->
+         PMTiles needs the bare fflate mapping, and js/parquet.js the fzstd one. -->
     <script type="importmap">
       {
         "imports": {
@@ -26,9 +25,7 @@
           "pmtiles": "./node_modules/pmtiles/dist/esm/index.js",
           "fflate": "./node_modules/fflate/esm/browser.js",
           "hyparquet": "./node_modules/hyparquet/src/index.js",
-          "hyparquet-compressors": "./node_modules/hyparquet-compressors/src/index.js",
           "fzstd": "./node_modules/fzstd/esm/index.mjs",
-          "hysnappy": "./node_modules/hysnappy/js/index.js",
           "@leeoniya/ufuzzy": "./node_modules/@leeoniya/ufuzzy/dist/uFuzzy.mjs"
         }
       }

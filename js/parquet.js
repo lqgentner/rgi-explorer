@@ -1,9 +1,16 @@
 /* Reads GeoParquet columns by row group over HTTP range requests. */
 
-import { compressors } from "hyparquet-compressors";
+import { decompress } from "fzstd";
 
 export const SEARCH_COLUMNS = ["rgi_id", "display_name", "glac_name"];
 export const CARD_COLUMNS = ["bbox", "hypso_z0_m", "hypso_permille", "rgi6_links"];
+
+/*
+ * The mirror's files are ZSTD-compressed. hyparquet decodes SNAPPY and
+ * uncompressed pages itself. fzstd is plain JavaScript, so no WebAssembly
+ * compiles under the page's CSP.
+ */
+const compressors = { ZSTD: (input) => decompress(input) };
 
 const files = new WeakMap();
 const reads = new WeakMap();
