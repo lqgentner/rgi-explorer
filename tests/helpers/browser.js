@@ -105,6 +105,24 @@ export class FakeMap {
     return this.rendered.filter((feature) => layers.includes(feature.layer?.id));
   }
 
+  /**
+   * The features a test put in `sourceFeatures` for a source and source layer.
+   * Only an `["==", ["get", key], value]` filter is understood.
+   */
+  querySourceFeatures(id, { sourceLayer, filter } = {}) {
+    if (!this.sources.has(id)) throw new Error(`query of missing source '${id}'`);
+    let match = () => true;
+    if (filter) {
+      const [op, [get, key] = [], value] = filter;
+      if (op !== "==" || get !== "get") throw new Error(`unsupported filter ${JSON.stringify(filter)}`);
+      match = (feature) => feature.properties?.[key] === value;
+    }
+    this.calls.push(`querySourceFeatures ${id}`);
+    return (this.sourceFeatures ?? []).filter(
+      (feature) => (feature.source ?? id) === id && feature.sourceLayer === sourceLayer && match(feature),
+    );
+  }
+
   setLayoutProperty(id, key, value) {
     const layer = this.layers.get(id);
     if (!layer) throw new Error(`setLayoutProperty on missing layer '${id}'`);
@@ -260,6 +278,17 @@ export async function loadPage({ url = PAGE_URL, fetch, phone = false } = {}) {
 /** Let every already-resolved promise chain run to completion. */
 export async function settle(turns = 6) {
   for (let i = 0; i < turns; i += 1) await new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+/** Wait until `check()` is truthy, polling each turn; reject after `ms`. */
+export async function waitFor(check, ms = 3000) {
+  const end = Date.now() + ms;
+  for (;;) {
+    const value = check();
+    if (value) return value;
+    if (Date.now() > end) throw new Error(`waitFor timed out: ${check}`);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
 }
 
 /** Import a module by repo-relative path, sharing one module graph per file. */

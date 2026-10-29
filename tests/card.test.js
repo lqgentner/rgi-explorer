@@ -364,3 +364,27 @@ test("a late readRow for A is ignored after B opens", async () => {
     globalThis.hyparquet = real;
   }
 });
+
+test("with a band, the header and actions sit in the band and the photo and tabs in the root", async () => {
+  const band = document.createElement("div");
+  const { root, card } = setup({ band });
+  await card.open({ rgiId: IDS[0], props: OVERVIEW_PROPS });
+  assert.equal(text(band, ".card-title"), "Grosser Aletsch Gletscher");
+  assert.equal(text(band, ".card-area"), "81.8 km²");
+  assert.ok([...band.querySelectorAll("button")].some((b) => b.textContent === "Use this data"));
+  assert.ok(band.querySelector(".card-close"));
+  assert.equal(root.querySelector(".card-title"), null);
+  assert.ok(root.querySelector(".photo"));
+  assert.ok(root.querySelector("[role=tablist]"));
+  card.close();
+  assert.equal(root.hidden, true);
+});
+
+test("the header names the area when it is known, and nothing when it is not", async () => {
+  const { root, card } = setup();
+  await card.open({ rgiId: IDS[0], props: OVERVIEW_PROPS });
+  assert.equal(text(root, ".card-area"), "81.8 km²");
+  const bare = setup({ parquet: { handle, rowOf: async () => null } });
+  await bare.card.open({ rgiId: IDS[4], props: {} });
+  assert.equal(bare.root.querySelector(".card-area"), null);
+});

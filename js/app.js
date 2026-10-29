@@ -1,12 +1,33 @@
-import { loadCatalog } from "./catalog.js";
-import { resolveCatalogUrl } from "./config.js";
-import { createMap } from "./map.js";
-import { parseState } from "./state.js";
-import { el } from "./ui.js";
-
 /*
- * Startup. Reads the catalog, builds the map from it and registers the service worker.
+ * Startup and wiring. Reads the page state and the catalog, builds the map,
+ * and connects the search, the controls, the status line, the glacier card and
+ * "Use this data". Every change of state is written back to the page address.
  */
+
+import { mountCard } from "./card.js";
+import { loadCatalog } from "./catalog.js";
+import { resolveCatalogUrl, TIMEOUT_MS } from "./config.js";
+import { mountLayers, mountTerrain, mountZoom } from "./layers.js";
+import { createMap } from "./map.js";
+import { openParquet, readColumns, readRow, SEARCH_COLUMNS } from "./parquet.js";
+import { findPhotos } from "./photo.js";
+import { buildGlacierIndex } from "./search.js";
+import { mountSearch } from "./searchbox.js";
+import { initSheet, popupPadding, setSheetOpen } from "./sheet.js";
+import { parseState, writeState } from "./state.js";
+import { mountStatus } from "./status.js";
+import { el, h, PHONE } from "./ui.js";
+import { mountUseData } from "./usedata.js";
+
+const CARD_WIDTH = 408;
+const GAP = 24;
+/* The phone's search bar covers the top of the map. */
+const PHONE_TOP = 72;
+const PLACE_ZOOM = 12;
+const NOTICE_MS = 2000;
+const REGION_COLUMNS = ["level", "o1region", "o2region", "full_name", "bbox"];
+const FACT_COLUMNS = ["bbox", "glims_id"];
+const LOAD_ERROR = "The catalog could not be loaded.";
 
 /*
  * Repeat visits read JSON from sw.js's cache while it revalidates. Skip localhost,
@@ -23,9 +44,333 @@ function registerServiceWorker() {
 
 registerServiceWorker();
 
-async function start() {
-  const catalog = await loadCatalog(resolveCatalogUrl(new URLSearchParams(location.search)));
-  return createMap(el("map"), catalog, parseState(new URL(location.href)));
+const state = parseState(new URL(location.href));
+const hadView = state.view !== null;
+
+function save() {
+  history.replaceState(null, "", writeState(state, new URL(location.href)));
 }
 
-start().catch((error) => console.error("startup:", error));
+const isBbox = (bbox) =>
+  Boolean(bbox) && ["xmin", "ymin", "xmax", "ymax"].every((key) => Number.isFinite(bbox[key]));
+
+/** Row objects from a table of columns. */
+function rowsOf(columns) {
+  const names = Object.keys(columns);
+  return columns[names[0]].map((_, i) => Object.fromEntries(names.map((name) => [name, columns[name][i]])));
+}
+
+/** The regions table as row objects, or none when it cannot be read. */
+async function loadRegions(url) {
+  try {
+    return rowsOf(await readColumns(await openParquet(url), REGION_COLUMNS));
+  } catch (error) {
+    console.warn("regions:", error.message);
+    return [];
+  }
+}
+
+/**
+ * The glaciers GeoParquet, opened on first use, and its search index, read on
+ * first use. A failed open or read is tried again on the next use.
+ */
+function glacierFile(url, regionNames) {
+  let opening = null;
+  let indexing = null;
+  const file = {
+    handle: null,
+    open() {
+      opening ??= openParquet(url).then(
+        (handle) => {
+          file.handle = handle;
+          return handle;
+        },
+        (error) => {
+          opening = null;
+          throw error;
+        },
+      );
+      return opening;
+    },
+    index() {
+      indexing ??= file
+        .open()
+        .then((handle) => readColumns(handle, SEARCH_COLUMNS))
+        .then((columns) => buildGlacierIndex(columns, regionNames))
+        .catch((error) => {
+          indexing = null;
+          throw error;
+        });
+      return indexing;
+    },
+    /** The row of an RGI ID, or null when the index does not hold it or cannot be read. */
+    async rowOf(rgiId) {
+      try {
+        return (await file.index()).byId.get(rgiId) ?? null;
+      } catch {
+        return null;
+      }
+    },
+    /** The bbox and GLIMS ID of a glacier, `{}` when its row is unknown. */
+    async factsOf(glacier) {
+      const row = glacier.row ?? (await file.rowOf(glacier.rgiId));
+      if (row === null || row === undefined) return {};
+      return readRow(await file.open(), row, FACT_COLUMNS);
+    },
+  };
+  return file;
+}
+
+/** Resolve on the map's next idle, after TIMEOUT_MS, or on abort, whichever comes first. */
+function nextIdle(map, signal) {
+  return new Promise((resolve) => {
+    const done = () => {
+      clearTimeout(timer);
+      map.off("idle", done);
+      signal.removeEventListener("abort", done);
+      resolve();
+    };
+    const timer = setTimeout(done, TIMEOUT_MS);
+    map.on("idle", done);
+    signal.addEventListener("abort", done, { once: true });
+  });
+}
+
+/** Every ring of the glacier's rendered pieces, from all tiles that hold one. */
+function ringsOf(map, rgiId) {
+  const pieces = map.querySourceFeatures("data", {
+    sourceLayer: "glaciers",
+    filter: ["==", ["get", "rgi_id"], rgiId],
+  });
+  return pieces.flatMap(({ geometry }) => {
+    if (geometry?.type === "Polygon") return geometry.coordinates;
+    if (geometry?.type === "MultiPolygon") return geometry.coordinates.flat();
+    return [];
+  });
+}
+
+function wire(catalog, rgiMap, regions) {
+  const phone = PHONE.matches;
+  const { map } = rgiMap;
+  const regionNames = new Map(
+    regions.filter((region) => Number(region.level) === 1).map((region) => [region.o1region, region.full_name]),
+  );
+  const glaciers = glacierFile(catalog.collections.glaciers.dataUrl, regionNames);
+  if (state.terrain) rgiMap.setTerrain(true);
+
+  /* A polite live region for short confirmations. */
+  const notice = h("div", { class: "notice", role: "status", "aria-live": "polite" });
+  document.body.append(notice);
+  let noticeTimer = null;
+  const announce = (text) => {
+    notice.textContent = text;
+    clearTimeout(noticeTimer);
+    noticeTimer = setTimeout(() => {
+      notice.textContent = "";
+    }, NOTICE_MS);
+  };
+
+  let status = null;
+  const layers = mountLayers(el("layers"), {
+    base: state.base,
+    layers: state.layers,
+    zoom: () => map.getZoom(),
+    onBase(base) {
+      state.base = base;
+      rgiMap.setBase(base);
+      save();
+      status?.refresh();
+    },
+    onToggle(name, on) {
+      if (on) state.layers.add(name);
+      else state.layers.delete(name);
+      rgiMap.setToggle(name, on);
+      save();
+    },
+  });
+  mountTerrain(el("controls"), {
+    on: state.terrain,
+    onChange(on) {
+      state.terrain = on;
+      rgiMap.setTerrain(on);
+      save();
+      status?.refresh();
+    },
+  });
+  mountZoom(el("controls"), rgiMap);
+  status = mountStatus(el("status"), rgiMap, catalog, () => state);
+  rgiMap.onMove((view) => {
+    state.view = view;
+    save();
+    layers.refreshZoom();
+  });
+
+  /* The glacier on the card, and the fit that a search pick started for it. */
+  let shown = null;
+  let fitting = null;
+
+  const padding = () => {
+    if (phone) return { top: PHONE_TOP, right: GAP, bottom: (popupPadding()?.bottom ?? 0) + GAP, left: GAP };
+    return { top: GAP, right: GAP, bottom: GAP, left: (shown ? CARD_WIDTH : 0) + GAP };
+  };
+  const fitTo = (bbox) => rgiMap.fitBbox(bbox, padding());
+
+  /* Photos wait for the fit and the tiles it loads, so the outline pieces are on the map. */
+  async function photosOf(glacier, signal) {
+    const facts = await glaciers.factsOf(glacier).catch(() => ({}));
+    const props = { ...glacier.props };
+    for (const [key, value] of Object.entries(facts)) if (value !== null && value !== undefined) props[key] = value;
+    if (!isBbox(props.bbox) || signal.aborted) return [];
+    await fitting;
+    await nextIdle(map, signal);
+    if (signal.aborted) return [];
+    return findPhotos({ rgiId: glacier.rgiId, props }, ringsOf(map, glacier.rgiId), { signal });
+  }
+
+  const useData = mountUseData(phone ? el("sheet") : document.body, { catalog });
+
+  let cardRoot = el("card");
+  let band = null;
+  if (phone) {
+    el("card").hidden = true;
+    cardRoot = el("sheet-body");
+    band = el("sheet-head");
+  }
+  initSheet();
+
+  function showCard(on) {
+    document.body.classList.toggle("card-open", on);
+    if (phone) el("sheet").hidden = !on;
+  }
+
+  function closeGlacier() {
+    shown = null;
+    fitting = null;
+    state.glacier = null;
+    save();
+    rgiMap.select(null);
+    useData.close();
+    card.close();
+    showCard(false);
+  }
+
+  const card = mountCard(cardRoot, {
+    catalog,
+    regions,
+    band,
+    parquet: {
+      get handle() {
+        return glaciers.handle;
+      },
+      rowOf: (rgiId) => glaciers.rowOf(rgiId),
+    },
+    photos: photosOf,
+    onClose: closeGlacier,
+    onZoom(bbox) {
+      if (isBbox(bbox)) fitTo(bbox);
+      else if (shown) {
+        const mine = shown;
+        glaciers.factsOf(mine).then(
+          (facts) => shown === mine && isBbox(facts.bbox) && fitTo(facts.bbox),
+          () => {},
+        );
+      }
+    },
+    async onShare() {
+      try {
+        await globalThis.navigator.clipboard.writeText(location.href);
+      } catch {
+        return;
+      }
+      announce("Link copied");
+    },
+    onUseData(glacier) {
+      if (phone) setSheetOpen(true);
+      useData.open({ rgiId: glacier.rgiId, o1region: glacier.props?.o1region });
+    },
+    onAction(action) {
+      if (action.type === "pin") rgiMap.pin(action.lonlat);
+      else if (action.type === "complex") rgiMap.showComplex(action.id);
+    },
+  });
+
+  /** Open a glacier's card and select it; with `fit`, fit the map to its bbox. */
+  function openGlacier(glacier, fit) {
+    shown = glacier;
+    state.glacier = glacier.rgiId;
+    save();
+    rgiMap.pin(null);
+    rgiMap.showComplex(null);
+    rgiMap.select(glacier.rgiId);
+    showCard(true);
+    fitting = fit
+      ? glaciers.factsOf(glacier).then(
+          (facts) => {
+            if (shown === glacier && isBbox(facts.bbox)) fitTo(facts.bbox);
+          },
+          () => {},
+        )
+      : null;
+    card.open(glacier);
+    if (phone) setSheetOpen(false);
+  }
+
+  map.on("click", (event) => {
+    const props = rgiMap.glacierAt(event.point);
+    if (props?.rgi_id) openGlacier({ rgiId: props.rgi_id, props }, false);
+    else if (shown) closeGlacier();
+  });
+
+  mountSearch(el("search"), {
+    onPick(hit) {
+      if (hit.kind === "glacier") openGlacier({ rgiId: hit.rgiId, row: hit.row }, true);
+      else if (hit.kind === "region" && isBbox(hit.bbox)) fitTo(hit.bbox);
+      else if (hit.kind === "place") map.jumpTo({ center: hit.center, zoom: PLACE_ZOOM });
+    },
+    loadGlacierIndex: () => glaciers.index(),
+    regions,
+    view() {
+      const { lng, lat } = map.getCenter();
+      return { lat, lon: lng, zoom: map.getZoom() };
+    },
+  });
+
+  /* A shared link's glacier opens once the index places it; an ID it lacks is dropped. */
+  if (state.glacier) {
+    const rgiId = state.glacier;
+    glaciers.index().then(
+      (index) => {
+        if (state.glacier !== rgiId || shown) return;
+        const row = index.byId.get(rgiId);
+        if (row === undefined) {
+          state.glacier = null;
+          save();
+          return;
+        }
+        openGlacier({ rgiId, row }, !hadView);
+      },
+      (error) => console.warn("glacier index:", error.message),
+    );
+  }
+}
+
+async function start() {
+  save();
+  let catalog;
+  let rgiMap;
+  let regions;
+  try {
+    catalog = await loadCatalog(resolveCatalogUrl(new URLSearchParams(location.search)));
+    [rgiMap, regions] = await Promise.all([
+      createMap(el("map"), catalog, state),
+      loadRegions(catalog.collections.regions.dataUrl),
+    ]);
+  } catch (error) {
+    el("status").textContent = LOAD_ERROR;
+    console.error("startup:", error);
+    return;
+  }
+  wire(catalog, rgiMap, regions);
+}
+
+start();

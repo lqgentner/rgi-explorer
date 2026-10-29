@@ -69,3 +69,23 @@ test("a style with a duplicate layer or a missing source throws at construction"
     /missing source/,
   );
 });
+
+test("querySourceFeatures throws on a missing source and matches by source layer and rgi_id", () => {
+  const map = new FakeMap();
+  map.addSource("data", { type: "vector" });
+  assert.throws(() => map.querySourceFeatures("nope", { sourceLayer: "glaciers" }), /missing source/);
+  map.sourceFeatures = [
+    { sourceLayer: "glaciers", properties: { rgi_id: "a" } },
+    { sourceLayer: "glaciers", properties: { rgi_id: "b" } },
+    { sourceLayer: "complexes", properties: { rgi_id: "a" } },
+  ];
+  const found = map.querySourceFeatures("data", {
+    sourceLayer: "glaciers",
+    filter: ["==", ["get", "rgi_id"], "a"],
+  });
+  assert.deepEqual(found, [map.sourceFeatures[0]]);
+  assert.throws(
+    () => map.querySourceFeatures("data", { sourceLayer: "glaciers", filter: ["in", "a"] }),
+    /unsupported filter/,
+  );
+});

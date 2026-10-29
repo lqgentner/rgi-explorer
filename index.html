@@ -53,6 +53,8 @@
     <link rel="modulepreload" href="js/hypsometry.js" />
     <link rel="modulepreload" href="js/photo.js" />
     <link rel="modulepreload" href="js/card.js" />
+    <link rel="modulepreload" href="js/sheet.js" />
+    <link rel="modulepreload" href="js/usedata.js" />
   </head>
   <body>
     <div id="map"></div>
@@ -63,7 +65,16 @@
     <div id="layers"></div>
     <div id="controls"></div>
     <div id="status" role="status" aria-live="polite"></div>
-    <div id="sheet"></div>
+    <!-- The phone's bottom sheet. The band holds the handle and the card's header,
+         which the compact sheet shows; the body holds the photo and the tabs. -->
+    <div id="sheet" hidden>
+      <div id="sheet-band">
+        <button type="button" id="sheet-handle" aria-controls="sheet-body"
+                aria-expanded="false"></button>
+        <div id="sheet-head"></div>
+      </div>
+      <div id="sheet-body"></div>
+    </div>
 
     <!-- Expose library globals before app.js so tests can substitute fakes. -->
     <script type="module">

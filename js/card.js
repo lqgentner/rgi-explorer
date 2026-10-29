@@ -1,6 +1,6 @@
 /* The glacier card: photo area, header, actions and the Overview and Hypsometry tabs. */
 
-import { ATTRIBUTE_COLUMNS, GROUP_TITLES, missingAttributes, nonEmpty, overviewRows } from "./columns.js";
+import { ATTRIBUTE_COLUMNS, DISPLAY, GROUP_TITLES, formatArea, missingAttributes, nonEmpty, overviewRows } from "./columns.js";
 import { renderHypsometry } from "./hypsometry.js";
 import { CARD_COLUMNS, readRow } from "./parquet.js";
 import { esriCrop } from "./photo.js";
@@ -14,6 +14,7 @@ const SHOWN_LINKS = 3;
 const CROP_SIZE = [816, 400];
 const IMAGERY_CREDIT = "Imagery: Esri, Maxar, Earthstar Geographics";
 const isHttp = (url) => /^https?:\/\//i.test(url ?? "");
+const AREA_UNIT = DISPLAY.find((d) => d.column === "area_km2").unit;
 
 /** The first-order region code inside an RGI ID, such as "11" in RGI2000-v7.0-G-11-02596. */
 const regionOfId = (rgiId) => /-G-(\d{2})-/.exec(rgiId ?? "")?.[1] ?? null;
@@ -35,7 +36,8 @@ function infoButton(label, description) {
 
 /**
  * Mounts the card into `root` and returns `{ open(glacier), close() }`.
- * `glacier` is `{ rgiId, row?, props? }`.
+ * `glacier` is `{ rgiId, row?, props? }`. With `ctx.band`, the close button,
+ * the header and the actions go there and the rest stays in `root`.
  */
 export function mountCard(root, ctx) {
   const state = { tab: "overview", rgi6Open: false, moreOpen: false, submissionOpen: false };
@@ -71,8 +73,10 @@ export function mountCard(root, ctx) {
     ]),
   );
   tablist.append(...Object.values(tabs));
+  const top = ctx.band ? [] : [closeButton, head, actions];
   const section = h("section", { class: "card", "aria-label": "Glacier", hidden: true },
-    photo, closeButton, head, actions, tablist, ...Object.values(panels));
+    photo, ...top, tablist, ...Object.values(panels));
+  ctx.band?.append(closeButton, head, actions);
   root.hidden = true;
   root.append(section);
 
@@ -117,7 +121,12 @@ export function mountCard(root, ctx) {
     const code = nonEmpty(props.o1region) ?? regionOfId(rgiId);
     const region = (ctx.regions ?? []).find((r) => Number(r.level) === 1 && r.o1region === code)?.full_name;
     const subtitle = name ? [rgiId, region].filter(Boolean).join(" · ") : (region ?? "");
-    head.replaceChildren(h("h2", { class: "card-title" }, name ?? rgiId), subtitle ? h("p", { class: "card-subtitle" }, subtitle) : null);
+    const area = Number.isFinite(props.area_km2) ? `${formatArea(props.area_km2)} ${AREA_UNIT}` : null;
+    head.replaceChildren(
+      h("h2", { class: "card-title" }, name ?? rgiId),
+      subtitle ? h("p", { class: "card-subtitle" }, subtitle) : null,
+      area ? h("p", { class: "card-area" }, area) : null,
+    );
   }
 
   function renderValue(row) {
