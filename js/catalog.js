@@ -11,21 +11,22 @@ const defaultFetchJson = (url) =>
 
 const resolve = (href, base) => new URL(href, base).href;
 
-/** Collects every collection under a catalog, following `child` links depth-first. */
-async function walk(url, fetchJson, seen, found) {
-  if (seen.has(url)) return;
+/**
+ * Every RGI collection under a catalog, in link order. The children of one
+ * catalog are fetched in parallel. `seen` stops a URL from being read twice.
+ */
+async function walk(url, fetchJson, seen) {
+  if (seen.has(url)) return [];
   seen.add(url);
   const json = await fetchJson(url);
   if (json.type === "Collection") {
     const match = COLLECTION_ID.exec(json.id ?? "");
-    if (match) {
-      found.push({ major: Number(match[1]), minor: Number(match[2]), name: match[3], url, json });
-    }
-    return;
+    return match ? [{ major: Number(match[1]), minor: Number(match[2]), name: match[3], url, json }] : [];
   }
-  for (const link of json.links ?? []) {
-    if (link.rel === "child") await walk(resolve(link.href, url), fetchJson, seen, found);
-  }
+  const children = (json.links ?? [])
+    .filter((link) => link.rel === "child")
+    .map((link) => walk(resolve(link.href, url), fetchJson, seen));
+  return (await Promise.all(children)).flat();
 }
 
 function toCollection({ url, json }) {
@@ -58,8 +59,7 @@ function toColumns(glaciers) {
  * citation and the license. Rejects when a collection is missing.
  */
 export async function loadCatalog(rootUrl, fetchJson = defaultFetchJson) {
-  const found = [];
-  await walk(rootUrl, fetchJson, new Set(), found);
+  const found = await walk(rootUrl, fetchJson, new Set());
   if (!found.length) throw new Error("The catalog holds no RGI collections");
 
   const top = found.reduce((best, c) =>

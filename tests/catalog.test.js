@@ -89,3 +89,28 @@ test("the highest version wins whatever the link order", async () => {
   assert.equal(c.version, "7.1");
   assert.match(c.collections.glaciers.dataUrl, /\/v7\.1\/glaciers\//);
 });
+
+test("the children of one catalog are fetched in parallel", async () => {
+  const plain = fixtureFetch();
+  let open = 0;
+  let most = 0;
+  const fetchJson = async (url) => {
+    open += 1;
+    most = Math.max(most, open);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    open -= 1;
+    return plain(url);
+  };
+  const c = await loadCatalog(ROOT, fetchJson);
+  assert.equal(c.version, "7.0");
+  assert.ok(most >= 5, `the five collections load together, not one by one (at most ${most} at once)`);
+});
+
+test("a child that fails to load rejects the walk", async () => {
+  const plain = fixtureFetch();
+  const fetchJson = async (url) => {
+    if (url.includes("/centerlines/")) throw new Error("centerlines: HTTP 503");
+    return plain(url);
+  };
+  await assert.rejects(loadCatalog(ROOT, fetchJson), /centerlines: HTTP 503/);
+});
