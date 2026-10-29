@@ -17,7 +17,7 @@ const ROOT = process.env.SMOKE_CATALOG || CATALOG_URL;
 const LAYERS = ["glaciers", "regions", "region-labels", "glacier-labels", "centerlines", "intersects"];
 const GLACIER_COUNT = 274531;
 
-test("the live catalog serves the data the page reads", { skip: process.env.SMOKE !== "1" }, async (t) => {
+test("the live catalog serves the data the page reads", { skip: process.env.SMOKE !== "1", timeout: 120_000 }, async (t) => {
   const catalog = await loadCatalog(ROOT);
   const { glaciers } = catalog.collections;
 
@@ -49,7 +49,7 @@ test("the live catalog serves the data the page reads", { skip: process.env.SMOK
   await t.test("reads the GeoParquet", async () => {
     const handle = await openParquet(glaciers.dataUrl);
     const rows = handle.groups.reduce((sum, group) => sum + group.count, 0);
-    assert.equal(rows, GLACIER_COUNT);
+    assert.equal(rows, GLACIER_COUNT, "the glacier count changed: update GLACIER_COUNT for a new mirror revision");
 
     const names = new Set(handle.metadata.schema.map((element) => element.name));
     for (const column of SEARCH_COLUMNS) assert.ok(names.has(column), `no column ${column}`);

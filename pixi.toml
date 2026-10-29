@@ -13,7 +13,7 @@ requires-pixi = ">=0.80"
 [dependencies]
 python = "3.12.*"
 nodejs = "24.*"
-# The smoke test reads the staged GeoParquet to compare it with the page's reads.
+# pyarrow writes the GeoParquet fixtures that the JavaScript tests read.
 pyarrow = "*"
 
 [tasks]
