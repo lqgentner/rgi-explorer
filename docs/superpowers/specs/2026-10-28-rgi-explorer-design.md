@@ -307,7 +307,8 @@ From top to bottom:
    - RGI 6.0 overlaps from `rgi6_links`;
    - glacier complex (click to outline the whole complex);
    - topography DEM;
-   - GLIMS ID (links to the GLIMS viewer).
+   - GLIMS ID (links to the GLIMS viewer in a new tab, marked with an
+     external-link icon).
 4. **Classification:**
    - primary class;
    - terminus type;

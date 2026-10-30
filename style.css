@@ -889,6 +889,13 @@ button:focus-visible {
   color: var(--accent);
 }
 
+.row-value a.external .icon {
+  width: 0.9em;
+  height: 0.9em;
+  margin-left: 0.2em;
+  vertical-align: -0.1em;
+}
+
 .link-id {
   display: block;
 }

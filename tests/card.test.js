@@ -226,6 +226,8 @@ test("the GLIMS ID links to the GLIMS page", async () => {
   const link = rowOfLabel(root, "GLIMS ID").querySelector("a");
   assert.equal(link.href, "https://www.glims.org/maps/info.html?anlys_id=753957");
   assert.equal(link.textContent, "G008032E46504N");
+  assert.equal(link.target, "_blank");
+  assert.ok(link.querySelector("svg.icon use").getAttribute("href").endsWith("#external-link"), "an icon marks the new tab");
 });
 
 test("+ N more expands the RGI 6.0 overlaps in place", async () => {

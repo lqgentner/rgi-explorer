@@ -162,7 +162,11 @@ export function mountCard(root, ctx) {
 
   function renderValue(row) {
     if (row.list) return renderLinks(row);
-    if (row.link) return h("a", { href: row.link, target: "_blank", rel: "noopener noreferrer" }, row.value);
+    if (row.link) {
+      /* The icon says the link leaves the explorer for a new tab. */
+      const attrs = { class: "external", href: row.link, target: "_blank", rel: "noopener noreferrer", title: "Opens in a new tab" };
+      return h("a", attrs, row.value, icon("external-link"));
+    }
     if (row.action) {
       const node = h("button", { type: "button", class: "link" }, row.value);
       node.addEventListener("click", () => ctx.onAction?.(row.action));
