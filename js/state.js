@@ -4,9 +4,10 @@ export const LAYERS = ["regions", "centerlines", "intersects"];
 export const DEFAULT_LAYERS = new Set(["regions"]);
 
 const GLACIER_ID = /^RGI2000-v7\.0-G-\d{2}-\d{5}$/;
+const COMPLEX_ID = /^RGI2000-v7\.0-C-\d{2}-\d{5}$/;
 const NUMBER = /^-?\d+(\.\d+)?$/;
 const BASES = ["standard", "imagery"];
-const OWNED = ["glacier", "base", "layers", "3d"];
+const OWNED = ["glacier", "complex", "base", "layers", "3d"];
 
 function parseView(hash) {
   const parts = hash.replace(/^#/, "").split("/");
@@ -26,14 +27,19 @@ function parseLayers(value) {
   return value !== "" && known.length === 0 ? new Set(DEFAULT_LAYERS) : new Set(known);
 }
 
-/** Read the state from a page URL; a missing or invalid part takes its default. */
+/**
+ * Read the state from a page URL; a missing or invalid part takes its default.
+ * One panel is open at a time, so a glacier wins over a complex.
+ */
 export function parseState(url) {
   const params = url.searchParams;
-  const glacier = params.get("glacier");
+  const glacier = GLACIER_ID.test(params.get("glacier") ?? "") ? params.get("glacier") : null;
+  const complex = params.get("complex");
   const base = params.get("base");
   const layers = params.get("layers");
   return {
-    glacier: GLACIER_ID.test(glacier ?? "") ? glacier : null,
+    glacier,
+    complex: !glacier && COMPLEX_ID.test(complex ?? "") ? complex : null,
     view: parseView(url.hash),
     base: BASES.includes(base) ? base : "standard",
     layers: parseLayers(layers),
@@ -53,6 +59,7 @@ export function writeState(state, url) {
   const query = params.size ? [params.toString()] : [];
 
   if (state.glacier) query.push(`glacier=${encodeURIComponent(state.glacier)}`);
+  if (state.complex) query.push(`complex=${encodeURIComponent(state.complex)}`);
   if (state.base !== "standard") query.push(`base=${state.base}`);
   const layers = LAYERS.filter((name) => state.layers.has(name));
   const isDefault =

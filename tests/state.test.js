@@ -116,3 +116,15 @@ test("startView reads the browser's zone", () => {
   assert.equal(view.zoom, DEFAULT_VIEW.zoom);
   assert.ok(Math.abs(view.lon) <= 180 && Math.abs(view.lat) <= 90);
 });
+
+test("the address holds a complex, and a glacier wins over a complex", () => {
+  const base = "https://x/rgi-explorer/";
+  const id = "RGI2000-v7.0-C-11-01323";
+  assert.equal(parseState(new URL(`${base}?complex=${id}`)).complex, id);
+  assert.equal(parseState(new URL(`${base}?complex=C-11-01323`)).complex, null);
+  assert.equal(parseState(new URL(base)).complex, null);
+  const both = parseState(new URL(`${base}?glacier=RGI2000-v7.0-G-11-02596&complex=${id}`));
+  assert.deepEqual([both.glacier, both.complex], ["RGI2000-v7.0-G-11-02596", null]);
+  const written = writeState({ ...parseState(new URL(base)), complex: id }, new URL(`${base}?complex=old`));
+  assert.equal(written, `${base}?complex=${id}`);
+});
