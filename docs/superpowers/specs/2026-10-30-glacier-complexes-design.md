@@ -142,7 +142,7 @@ already its ID.
   hide them, so the member outlines are drawn again above it. The glacier
   tiles carry `complex_id`, so that layer can filter on it.
 - **Fit.** Opening a complex always fits the view to the whole complex's
-  bbox, with the same padding as a glacier. This holds however it opens: from
+  bbox, with the same padding and the same room around it as a glacier. This holds however it opens: from
   the "Glacier complex" link on a glacier card and from a search hit. A
   shared `?complex=` link fits only when the address holds no view, as a
   shared `?glacier=` link does, so the sender's view is kept. A complex is often much larger than the glacier it was

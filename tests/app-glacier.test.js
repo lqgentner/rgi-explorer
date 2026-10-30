@@ -21,7 +21,10 @@ test("?glacier= with a known ID opens the card, selects it and fits it", async (
   await waitFor(() => document.querySelector("#card .card-title")?.textContent === "Morteratsch");
   assert.equal(document.querySelector("#card").hidden, false);
   await waitFor(() => page.map.lastFit);
-  assert.deepEqual(page.map.lastFit.bounds, [[8.1, 46.1], [8.11, 46.11]]);
+  /* The glacier's bbox with half its size free on every side. */
+  const [dx, dy] = [(8.11 - 8.1) * 0.5, (46.11 - 46.1) * 0.5];
+  assert.deepEqual(page.map.lastFit.bounds, [[8.1 - dx, 46.1 - dy], [8.11 + dx, 46.11 + dy]]);
+  assert.equal(page.map.lastFit.options.maxZoom, 15);
   assert.deepEqual(page.map.getLayer("selection-outline").filter, ["==", ["get", "rgi_id"], ID]);
   assert.equal(new URL(window.location.href).searchParams.get("glacier"), ID);
   page.map.fire("idle");

@@ -17,7 +17,12 @@ const fixture = (p) => JSON.parse(fs.readFileSync(new URL(`./fixtures/${p}`, imp
 const RINGS = fixture("aletsch-rings.json");
 const ALETSCH = "RGI2000-v7.0-G-11-02596";
 const MORTERATSCH = "RGI2000-v7.0-G-11-00001";
-const ALETSCH_BBOX = [[7.931361, 46.397437], [8.087402, 46.563295]];
+/* A glacier fit leaves half the glacier's size free on every side, so the map around it shows. */
+const around = ([[x0, y0], [x1, y1]]) => {
+  const [dx, dy] = [(x1 - x0) * 0.5, (y1 - y0) * 0.5];
+  return [[x0 - dx, y0 - dy], [x1 + dx, y1 + dy]];
+};
+const ALETSCH_BBOX = around([[7.931361, 46.397437], [8.087402, 46.563295]]);
 const PYTHON = `import geopandas as gpd\n\nurl = "${GLACIERS_URL}"\ngdf = gpd.read_parquet(url, filters=[("rgi_id", "==", "${ALETSCH}")])\n`;
 
 const ZERMATT = {
@@ -104,6 +109,7 @@ test("searching aletsch and picking it opens the card, selects it and fits its b
 
   await waitFor(() => map.lastFit);
   assert.deepEqual(map.lastFit.bounds, ALETSCH_BBOX);
+  assert.equal(map.lastFit.options.maxZoom, 15, "a small glacier keeps its surroundings in view");
   assert.equal(map.lastFit.options.padding.left, 408 + 24, "the fit keeps clear of the card");
   assert.equal(window.location.hash, "#2/30/10", "the view the fit ends at is written");
   assert.equal(params().get("glacier"), ALETSCH);

@@ -231,7 +231,8 @@ elsewhere closes it.
   - draws its outline in red (`#d93025`), dashed and about 2 px wide;
   - dims the rest of the map a little, the way Google Maps highlights an area;
   - fits the view to the glacier's bbox, padded so the sidebar or sheet
-    doesn't cover it.
+    doesn't cover it, with half the glacier's size free on every side and
+    no closer than zoom 15, so the map around it shows for orientation.
 - **Clicking the map** selects the glacier under the pointer. Only glaciers
   are selectable: a complex opens from search or from a glacier's card.
   Clicking empty map closes the card or the complex panel.

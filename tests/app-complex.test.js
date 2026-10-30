@@ -14,7 +14,12 @@ import { makeParquet, servedFetch } from "./helpers/served.js";
 
 const ALETSCH = "RGI2000-v7.0-G-11-02596";
 const COMPLEX = "RGI2000-v7.0-C-11-01323";
-const COMPLEX_BBOX = [[7.931361, 46.397437], [8.31, 46.61]];
+/* The whole complex, with half its size free on every side. */
+const around = ([[x0, y0], [x1, y1]]) => {
+  const [dx, dy] = [(x1 - x0) * 0.5, (y1 - y0) * 0.5];
+  return [[x0 - dx, y0 - dy], [x1 + dx, y1 + dy]];
+};
+const COMPLEX_BBOX = around([[7.931361, 46.397437], [8.31, 46.61]]);
 
 const page = await loadPage({
   url: `https://lqgentner.github.io/rgi-explorer/?glacier=${ALETSCH}`,

@@ -26,6 +26,12 @@ const GAP = 24;
 const PHONE_TOP = 72;
 const PLACE_ZOOM = 12;
 /*
+ * A glacier or complex fit leaves this share of its size free on every side,
+ * and stops at FIT_MAX_ZOOM, so the map around it shows for orientation.
+ */
+const FIT_MARGIN = 0.5;
+const FIT_MAX_ZOOM = 15;
+/*
  * The imagery crop at twice the photo's CSS size. On desktop the search bar
  * covers the photo's top 72px, so the glacier sits in the rows below.
  */
@@ -308,13 +314,19 @@ function wire(catalog, rgiMap, regions, customCatalog) {
     return { top: GAP, right: GAP, bottom: GAP, left: (shown || shownComplex ? CARD_WIDTH : 0) + GAP };
   };
   const fitTo = (bbox) => rgiMap.fitBbox(bbox, padding());
+  /** Fit a glacier or a complex with room around it. */
+  const fitAround = ({ xmin, ymin, xmax, ymax }) => {
+    const [dx, dy] = [(xmax - xmin) * FIT_MARGIN, (ymax - ymin) * FIT_MARGIN];
+    const wide = { xmin: xmin - dx, ymin: ymin - dy, xmax: xmax + dx, ymax: ymax + dy };
+    rgiMap.fitBbox(wide, padding(), undefined, { maxZoom: FIT_MAX_ZOOM });
+  };
 
   /** Fit the glacier's bbox once its read returns, unless another camera request came first. */
   function fitGlacierLater(glacier) {
     const mine = ++camera;
     return glaciers.factsOf(glacier).then(
       (facts) => {
-        if (mine === camera && shown === glacier && isBbox(facts.bbox)) fitTo(facts.bbox);
+        if (mine === camera && shown === glacier && isBbox(facts.bbox)) fitAround(facts.bbox);
       },
       () => {},
     );
@@ -377,7 +389,7 @@ function wire(catalog, rgiMap, regions, customCatalog) {
     onZoom(bbox) {
       if (isBbox(bbox)) {
         camera += 1;
-        fitTo(bbox);
+        fitAround(bbox);
       } else if (shown) fitGlacierLater(shown);
     },
     async onShare() {
@@ -413,7 +425,7 @@ function wire(catalog, rgiMap, regions, customCatalog) {
     onZoom(bbox) {
       if (isBbox(bbox)) {
         camera += 1;
-        fitTo(bbox);
+        fitAround(bbox);
       } else if (shownComplex) fitComplexLater(shownComplex);
     },
     async onShare() {
@@ -439,7 +451,7 @@ function wire(catalog, rgiMap, regions, customCatalog) {
     const mine = ++camera;
     complexes.read(complexId).then(
       (props) => {
-        if (mine === camera && shownComplex === complexId && isBbox(props?.bbox)) fitTo(props.bbox);
+        if (mine === camera && shownComplex === complexId && isBbox(props?.bbox)) fitAround(props.bbox);
       },
       () => {},
     );

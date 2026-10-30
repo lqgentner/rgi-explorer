@@ -450,7 +450,7 @@ export async function createMap(container, catalog, state) {
       map.easeTo(on ? { pitch: TERRAIN_PITCH } : { pitch: 0, bearing: 0 });
     },
 
-    fitBbox({ xmin, ymin, xmax, ymax }, padding, center) {
+    fitBbox({ xmin, ymin, xmax, ymax }, padding, center, options = {}) {
       if (xmax - xmin >= 360 && center) {
         map.jumpTo({ center, zoom: 3 });
         return;
@@ -460,7 +460,7 @@ export async function createMap(container, catalog, state) {
           [xmin, clampLat(ymin)],
           [xmax, clampLat(ymax)],
         ],
-        { padding },
+        { padding, ...options },
       );
     },
 
