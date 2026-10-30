@@ -267,6 +267,9 @@ elsewhere closes it.
 - **Typing an RGI ID** (full, or the region-and-number part, for example
   `11-02596`) puts that glacier first. A complex ID (`C-11-01323`) finds that
   complex, and a bare `11-01323` lists the glacier and then the complex.
+- **The search bar names the open glacier or complex** (its title), however
+  it was opened: from search, the map, a link or another panel. Closing the
+  panel empties it. Someone typing in it keeps their text.
 - **RGI regions** come from the regions GeoParquet (`full_name`, codes), which
   is small. Picking one fits the region's bbox.
 - **OSM places** come from Photon (`photon.komoot.io`), queried with a

@@ -400,17 +400,17 @@ function wire(catalog, rgiMap, regions, customCatalog) {
       }
       announce("Link copied");
     },
+    /* The search box names the open glacier, however it was opened. */
+    onTitle(title) {
+      if (shown) search.setText(title);
+    },
     onUseData(glacier) {
       if (phone) setSheetOpen(true);
       useData.open({ kind: "glacier", rgiId: glacier.rgiId, o1region: glacier.props?.o1region });
     },
     onAction(action) {
       if (action.type === "pin") rgiMap.pin(action.lonlat);
-      else if (action.type === "complex") {
-        /* The search text names the glacier this replaces. */
-        search.clear();
-        openComplex(action.id, true);
-      }
+      else if (action.type === "complex") openComplex(action.id, true);
     },
   });
 
@@ -440,9 +440,9 @@ function wire(catalog, rgiMap, regions, customCatalog) {
       if (phone) setSheetOpen(true);
       useData.open(target);
     },
-    onOpenGlacier(rgiId) {
-      search.clear();
-      openGlacier({ rgiId }, true);
+    onOpenGlacier: (rgiId) => openGlacier({ rgiId }, true),
+    onTitle(title) {
+      if (shownComplex) search.setText(title);
     },
   });
 

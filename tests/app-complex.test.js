@@ -31,7 +31,11 @@ await load("js/app.js");
 const map = await waitFor(() => page.map);
 
 const $ = (sel) => document.querySelector(sel);
-const click = (node) => node.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+/* A press moves the focus to what it presses, as in a browser. */
+const click = (node) => {
+  node.focus?.();
+  node.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+};
 const params = () => new URL(window.location.href).searchParams;
 const glacierCard = () => $("#card section.card:not(.complex-card)");
 const complexCard = () => $("#card section.complex-card");
@@ -52,6 +56,7 @@ async function searchAndPick(text, title) {
 
 test("the Glacier complex row opens the complex panel and fits the whole complex", async () => {
   await waitFor(() => rowOfLabel("Glacier complex"));
+  assert.equal($("#search input").value, "Grosser Aletsch Gletscher", "a glacier opened from the address is named too");
   click(rowOfLabel("Glacier complex").querySelector("button.link"));
   await waitFor(() => complexCard() && !complexCard().hidden);
   assert.equal(glacierCard().hidden, true);
@@ -94,20 +99,24 @@ test("search opens a complex by its ID", async () => {
   assert.deepEqual(map.getLayer("complex-outline").filter, ["==", ["get", "rgi_id"], "RGI2000-v7.0-C-11-00001"]);
 });
 
-test("moving between the panels clears the search text of the last pick", async () => {
+test("the search box names the open panel however it was opened", async () => {
   const input = $("#search input");
   assert.equal(input.value, "RGI2000-v7.0-C-11-00001", "a pick keeps its title");
   await waitFor(() => complexCard().querySelectorAll("table.members button").length === 1);
   click(complexCard().querySelector("table.members button"));
-  await waitFor(() => glacierCard().querySelector(".card-title")?.textContent === "Morteratsch");
-  assert.equal(input.value, "", "a member glacier opened from the table clears it");
+  await waitFor(() => input.value === "Morteratsch");
+  assert.equal(glacierCard().querySelector(".card-title").textContent, "Morteratsch");
 
-  await searchAndPick("morteratsch", "Morteratsch");
-  assert.equal(input.value, "Morteratsch");
   await waitFor(() => rowOfLabel("Glacier complex"));
   click(rowOfLabel("Glacier complex").querySelector("button.link"));
   await waitFor(() => !complexCard().hidden);
-  assert.equal(input.value, "", "the complex opened from the card clears it");
+  assert.equal(input.value, "RGI2000-v7.0-C-11-00001", "the complex opened from the card");
+
+  map.rendered = [{ layer: { id: "glaciers-fill" }, properties: { rgi_id: ALETSCH, display_name: "Grosser Aletsch Gletscher", o1region: "11" } }];
+  map.getCanvas().focus?.();
+  input.blur();
+  map.fire("click", { point: { x: 200, y: 200 } });
+  assert.equal(input.value, "Grosser Aletsch Gletscher", "a glacier opened on the map");
 });
 
 test("a map click leaves the complex", async () => {

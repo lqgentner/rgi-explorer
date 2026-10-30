@@ -48,6 +48,7 @@ export function markCurrent(root, section) {
  * Mounts the card into `root` and returns `{ open(glacier), close() }`.
  * `glacier` is `{ rgiId, row?, props? }`. With `ctx.band`, the close button,
  * the header and the actions go there and the rest stays in `root`.
+ * `ctx.onTitle(title)` hears the title each time the header draws.
  */
 export function mountCard(root, ctx) {
   const state = { tab: "overview", rgi6Open: false, moreOpen: false, submissionOpen: false };
@@ -138,6 +139,7 @@ export function mountCard(root, ctx) {
     const region = (ctx.regions ?? []).find((r) => Number(r.level) === 1 && r.o1region === code)?.full_name;
     const subtitle = ["Glacier", name ? rgiId : null, region].filter(Boolean).join(" · ");
     const area = Number.isFinite(props.area_km2) ? `${formatArea(props.area_km2)} ${AREA_UNIT}` : null;
+    ctx.onTitle?.(name ?? rgiId);
     head.replaceChildren(
       h("h2", { class: "card-title" }, name ?? rgiId),
       subtitle ? h("p", { class: "card-subtitle" }, subtitle) : null,

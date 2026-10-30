@@ -325,3 +325,18 @@ test("a complex ID lists the complex with its own icon and picks it", async () =
   assert.equal(picks[0].kind, "complex");
   assert.equal(picks[0].complexId, "RGI2000-v7.0-C-11-01323");
 });
+
+test("setText names the open panel and closes the list, unless someone is typing", async () => {
+  const { input, type, rows, api } = setup();
+  input.blur();
+  type("alet");
+  await flush();
+  assert.equal(rows().length > 0, true);
+  api.setText("Grosser Aletsch Gletscher");
+  assert.equal(input.value, "Grosser Aletsch Gletscher");
+  assert.equal(rows().length, 0);
+  input.focus();
+  api.setText("Morteratsch");
+  assert.equal(input.value, "Grosser Aletsch Gletscher", "a focused input is the user's");
+  input.blur();
+});

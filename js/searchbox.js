@@ -16,8 +16,10 @@ const ICONS = { glacier: "mountain-snow", complex: "group", region: "square-dash
  * @param {() => Promise<object>} options.loadGlacierIndex  called once, on first focus or input
  * @param {object[]} options.regions
  * @param {() => {lat: number, lon: number, zoom: number}} options.view
- * @returns {{setClosable(close: (() => void) | null): void, clear(): void}}
+ * @returns {{setClosable(close: (() => void) | null): void, setText(text: string): void, clear(): void}}
  *   setClosable shows a Close button that calls `close`, or hides it for null.
+ *   setText puts the open panel's title in the input and closes the list,
+ *   unless the input has the focus, where someone may be typing.
  *   clear empties the input and closes the list.
  */
 export function mountSearch(root, { onPick, loadGlacierIndex, regions, view }) {
@@ -204,6 +206,9 @@ export function mountSearch(root, { onPick, loadGlacierIndex, regions, view }) {
     setClosable(close) {
       onClose = close ?? null;
       closeButton.hidden = !onClose;
+    },
+    setText(text) {
+      if (document.activeElement !== input) reset(text);
     },
     clear() {
       reset("");
