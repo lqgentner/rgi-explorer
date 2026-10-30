@@ -223,7 +223,7 @@ test("tabs switch by click and arrow key and mark the selection", async () => {
   assert.equal(root.querySelectorAll('[role="tabpanel"]').length, 2);
 });
 
-test("the ⓘ shows the column description verbatim", async () => {
+test("the info button shows the column description verbatim", async () => {
   const { root, card } = setup();
   await card.open({ rgiId: IDS[0], row: 0, props: OVERVIEW_PROPS });
   const row = rowOfLabel(root, "Primary class");

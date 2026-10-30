@@ -55,8 +55,9 @@ export function mountComplexCard(root, ctx) {
       ...complexRows(props, ctx.catalog.complexColumns ?? new Map(), ctx.regions).map((row) => {
         const [info, popover] = infoButton(row.label, row.description);
         return h("div", { class: "row" },
-          h("div", { class: "row-label" }, row.label, info),
+          h("div", { class: "row-label" }, row.label),
           h("div", { class: "row-value" }, row.value),
+          info,
           popover);
       }),
     );

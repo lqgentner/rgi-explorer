@@ -30,7 +30,7 @@ function button(label, className, onClick, glyph) {
 
 export function infoButton(label, description) {
   if (!description) return [null, null];
-  const button = h("button", { type: "button", class: "info", "aria-label": `About ${label}` }, "ⓘ");
+  const button = h("button", { type: "button", class: "info", "aria-label": `About ${label}` }, icon("circle-question-mark"));
   return [button, popover(button, "info-popover", description)];
 }
 
@@ -251,8 +251,9 @@ export function mountCard(root, ctx) {
   function renderRow(row) {
     const [info, popover] = infoButton(row.label, row.description);
     return h("div", { class: row.more ? "row more" : "row", hidden: row.more && !state.moreOpen },
-      h("div", { class: "row-label" }, row.label, info),
+      h("div", { class: "row-label" }, row.label),
       h("div", { class: "row-value" }, renderValue(row)),
+      info,
       popover);
   }
 

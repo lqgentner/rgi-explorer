@@ -1052,7 +1052,9 @@ table.members .num {
   margin-bottom: 12px;
 }
 
+/* A tile's info button sits in its bottom right corner, beside the value. */
 .key-tile {
+  position: relative;
   padding: 8px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -1062,20 +1064,27 @@ table.members .num {
   font-size: 12px;
 }
 
+.key-tile .info {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+}
+
 .key-value {
+  padding-right: 16px;
   font-size: 16px;
   font-weight: 600;
 }
 
 .group {
-  margin-top: 12px;
+  margin-top: 20px;
 }
 
 .group h3,
 .group summary {
-  margin: 0 0 4px;
+  margin: 0 0 5px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
 }
 
@@ -1083,12 +1092,23 @@ table.members .num {
   cursor: pointer;
 }
 
+/* A label, its value, and the info button in a column of its own on the right. */
 .row {
   display: grid;
-  grid-template-columns: 9em 1fr;
-  gap: 2px 8px;
-  padding: 4px 0;
+  grid-template-columns: 9em 1fr auto;
+  gap: 2px 12px;
+  padding: 5px 0;
   border-top: 1px solid var(--line);
+}
+
+.row > .info {
+  grid-column: 3;
+  align-self: start;
+  margin: 3px 0 0;
+}
+
+.row > .popover {
+  grid-column: 1 / -1;
 }
 
 .row-label {
@@ -1102,7 +1122,7 @@ table.members .num {
 /*
  * Popovers from js/ui.js sit over the page, below their button or above it when
  * there is no room. Without anchor positioning the script sets top and left.
- * The 4px gap matches POPOVER_GAP there.
+ * The 8px gap matches POPOVER_GAP there.
  */
 .popover {
   width: max-content;
@@ -1118,17 +1138,47 @@ table.members .num {
   line-height: 1.4;
 }
 
+/*
+ * It starts 10px left of its button, so the arrow clears its corner, and 8px
+ * off it, so the arrow's tip clears the button. Match POPOVER_SHIFT and POPOVER_GAP.
+ */
 .popover[popover] {
   position: fixed;
   inset: auto;
+  overflow: visible;
 }
 
 @supports (anchor-name: --a) {
   .popover[popover] {
-    margin: 4px 0;
+    margin: 8px 0 8px -10px;
     position-area: bottom span-right;
     position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline;
   }
+}
+
+/*
+ * A small arrow on the side facing the button, under its centre; js/ui.js sets
+ * both. It sits in the padding box, inside the popover's 1px border.
+ */
+.popover[data-side]::before {
+  position: absolute;
+  left: calc(var(--arrow-x, 16px) - 5px);
+  width: 8px;
+  height: 8px;
+  border: solid var(--line);
+  border-width: 1px 0 0 1px;
+  background: var(--surface);
+  content: "";
+}
+
+.popover[data-side="below"]::before {
+  top: -5px;
+  transform: rotate(45deg);
+}
+
+.popover[data-side="above"]::before {
+  bottom: -5px;
+  transform: rotate(225deg);
 }
 
 .info {
@@ -1137,7 +1187,15 @@ table.members .num {
   border: 0;
   background: none;
   color: var(--muted);
+  line-height: 0;
+  vertical-align: middle;
   cursor: pointer;
+}
+
+.info .icon {
+  width: 14px;
+  height: 14px;
+  stroke-width: 1.5;
 }
 
 .link {

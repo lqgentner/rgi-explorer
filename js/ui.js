@@ -54,8 +54,14 @@ export function icon(name) {
 /* Native popovers light-dismiss; anchor positioning keeps one beside its button. */
 const POPOVERS = typeof HTMLElement !== "undefined" && "popover" in HTMLElement.prototype;
 const ANCHORS = globalThis.CSS?.supports?.("anchor-name: --a") ?? false;
-/* The gap between a button and its popover, in pixels. Match .popover in style.css. */
-const POPOVER_GAP = 4;
+/*
+ * The gap between a button and its popover, and how far the popover starts
+ * left of the button, in pixels. Match .popover in style.css.
+ */
+const POPOVER_GAP = 8;
+const POPOVER_SHIFT = 10;
+/* The arrow keeps this far from the popover's sides, clear of its rounded corners. */
+const ARROW_INSET = 12;
 let anchors = 0;
 
 /** Place a popover under its button's left edge, or above it when there is no room below. */
@@ -64,8 +70,17 @@ function place(node, button) {
   const { width, height } = node.getBoundingClientRect();
   const below = at.bottom + POPOVER_GAP;
   const top = below + height <= window.innerHeight ? below : Math.max(0, at.top - POPOVER_GAP - height);
-  const left = Math.max(8, Math.min(at.left, window.innerWidth - width - 8));
+  const left = Math.max(8, Math.min(at.left - POPOVER_SHIFT, window.innerWidth - width - 8));
   Object.assign(node.style, { top: `${top}px`, left: `${left}px` });
+}
+
+/** Point the popover's arrow at its button, from whichever side it opened on. */
+function aim(node, button) {
+  const at = button.getBoundingClientRect();
+  const box = node.getBoundingClientRect();
+  const x = Math.max(ARROW_INSET, Math.min(at.left + at.width / 2 - box.left, box.width - ARROW_INSET));
+  node.dataset.side = box.top >= at.top ? "below" : "above";
+  node.style.setProperty("--arrow-x", `${x}px`);
 }
 
 /**
@@ -91,16 +106,33 @@ export function popover(button, className, ...children) {
     button.style.setProperty("anchor-name", name);
     node.style.setProperty("position-anchor", name);
   }
-  /* Without anchors the popover cannot follow a scroll, so a scroll closes it while it is open. */
+  /*
+   * Without anchors the popover cannot follow a scroll, so a scroll closes it
+   * while it is open. With them a scroll can flip it, so the arrow follows.
+   */
   let scrolling = null;
   node.addEventListener("toggle", (event) => {
     const open = event.newState === "open";
     button.setAttribute("aria-expanded", String(open));
     scrolling?.abort();
-    if (!open || ANCHORS) return;
-    place(node, button);
+    if (!open) return;
     scrolling = new AbortController();
-    window.addEventListener("scroll", () => node.hidePopover(), { capture: true, once: true, signal: scrolling.signal });
+    const { signal } = scrolling;
+    if (!ANCHORS) {
+      place(node, button);
+      aim(node, button);
+      window.addEventListener("scroll", () => node.hidePopover(), { capture: true, once: true, signal });
+      return;
+    }
+    aim(node, button);
+    let frame = 0;
+    const follow = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => aim(node, button));
+    };
+    window.addEventListener("scroll", follow, { capture: true, passive: true, signal });
+    window.addEventListener("resize", follow, { signal });
+    signal.addEventListener("abort", () => cancelAnimationFrame(frame));
   });
   return node;
 }
