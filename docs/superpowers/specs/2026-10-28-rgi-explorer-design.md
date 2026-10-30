@@ -174,15 +174,16 @@ elsewhere closes it.
   toggles slides out to the right from behind the card, and the card keeps
   its size. Open, the bottom line names the map a click swaps to, and
   hovering the picture zooms it slightly and rings it in dark grey. On a touch screen the first tap opens the
-  control and a press elsewhere closes it. Each toggle has a small preview
-  tile drawn from the layer's real data at a fixed place (High Mountain
-  Asia's regions, the Aletsch glacier's centerlines and ice divides), in the
-  map's colors.
+  control and a press elsewhere closes it. Each toggle has a small static preview
+  tile drawn from the layer's real data at a fixed place (the Caucasus and
+  Middle East region and its two subregions, with finer dashes than the
+  map's; the Hardangerjøkulen complex's centerlines and intersects), in the
+  map's colors. It does not follow the view.
   `scripts/make_layer_previews.py` cuts them from the GeoParquet files into
   `js/previews.js`:
   - RGI regions, on by default;
   - Centerlines, off by default;
-  - Ice divides, off by default.
+  - Intersects, off by default.
 - **3D button**, then **+ / −**, at the bottom right.
 - **Status line** over the map's bottom right corner, translucent and only
   as wide as its text. It holds a compact scale bar and the credits,
@@ -231,7 +232,7 @@ elsewhere closes it.
   region labels come from the archive, in Noto Sans, the only fonts Liberty's
   glyph server holds.
 - A toggle whose layer has no data at the current zoom (centerlines below 8,
-  ice divides below 10) stays usable. In the phone's pane it shows "visible
+  intersects below 10) stays usable. In the phone's pane it shows "visible
   from zoom N".
 - **Selecting a glacier:**
   - draws its outline in red (`#d93025`), dashed and about 2 px wide;

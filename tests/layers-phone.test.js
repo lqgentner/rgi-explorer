@@ -63,11 +63,11 @@ test("a phone toggle hidden at this zoom says so, and refreshZoom updates the hi
   const api = mountLayers(root, { base: "standard", layers: new Set(), onBase() {}, onToggle() {}, zoom: () => zoom });
   const pane = [...document.querySelectorAll(".layers-pane")].at(-1);
   const toggle = (label) => [...pane.querySelectorAll(".layer-toggle")].find((b) => b.textContent.includes(label));
-  assert.ok(toggle("Ice divides").textContent.includes("visible from zoom 10"));
+  assert.ok(toggle("Intersects").textContent.includes("visible from zoom 10"));
   assert.ok(toggle("Centerlines").textContent.includes("visible from zoom 8"));
   assert.ok(!toggle("RGI regions").textContent.includes("visible from"));
   zoom = 9;
   api.refreshZoom();
   assert.ok(!toggle("Centerlines").textContent.includes("visible from"));
-  assert.ok(toggle("Ice divides").textContent.includes("visible from zoom 10"));
+  assert.ok(toggle("Intersects").textContent.includes("visible from zoom 10"));
 });

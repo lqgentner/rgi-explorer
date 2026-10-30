@@ -1,4 +1,4 @@
-/* The layer previews follow the view once the map rests. */
+/* The base map pictures follow the view once the map rests; the toggle previews stay fixed. */
 
 import assert from "node:assert/strict";
 import test, { mock } from "node:test";
@@ -8,55 +8,34 @@ import { FakeMap, loadPage, load } from "./helpers/browser.js";
 const { window, document } = await loadPage();
 const { mountLayers } = await load("js/layers.js");
 
-/* A map with the RGI source, which the previews query. */
-const fakeMap = (center, zoom) => new FakeMap({ center, zoom, style: { sources: { data: { type: "vector" } }, layers: [] } });
-
 mock.timers.enable({ apis: ["setTimeout"] });
 
 function setup(base = "standard", standardPicture = async () => "data:image/jpeg;standard") {
   const root = document.createElement("div");
-  const map = fakeMap([0, 0], 11);
-  map.sourceFeatures = [
-    {
-      sourceLayer: "intersects",
-      geometry: { type: "LineString", coordinates: [[-0.01, 0], [0.01, 0]] },
-      properties: {},
-      tile: { z: 11, x: 1023, y: 1023 },
-    },
-  ];
+  const map = new FakeMap({ center: [0, 0], zoom: 11 });
   const api = mountLayers(root, { base, layers: new Set(), onBase() {}, onToggle() {}, zoom: () => map.getZoom(), map, standardPicture });
-  const tile = (name) => root.querySelector(`.layer-toggle[data-name="${name}"] svg`);
   const rest = () => {
     map.fire("idle");
     mock.timers.tick(500);
   };
-  return { root, map, tile, rest, api, image: root.querySelector(".layers-thumb img") };
+  return { root, map, rest, api, image: root.querySelector(".layers-thumb img") };
 }
 
-test("the toggle previews draw the view once the map rests and the panel shows", () => {
-  const { root, map, tile, rest } = setup();
-  rest();
-  assert.ok(!tile("intersects").classList.contains("live"), "a hidden panel waits");
+test("the toggle previews stay fixed when the map rests", () => {
+  const { root, rest } = setup();
+  const before = root.querySelector('.layer-toggle[data-name="intersects"] svg').outerHTML;
   root.firstElementChild.dispatchEvent(new window.Event("pointerenter"));
-  assert.ok(tile("intersects").classList.contains("live"));
-  assert.equal(tile("intersects").querySelectorAll("clipPath").length, 1);
-  const divide = tile("intersects").querySelector("path[clip-path]");
-  assert.equal(divide.getAttribute("clip-path"), "url(#preview-intersects-0)");
-  assert.ok(!tile("centerlines").classList.contains("live"), "a toggle without data in view keeps its fixed preview");
-
-  map.sourceFeatures = [];
   rest();
-  assert.ok(!tile("intersects").classList.contains("live"));
+  assert.equal(root.querySelector('.layer-toggle[data-name="intersects"] svg').outerHTML, before);
 });
 
 test("a move before the delay ends waits for the next rest", () => {
-  const { root, map, tile } = setup();
-  root.firstElementChild.dispatchEvent(new window.Event("pointerenter"));
+  const { map, image } = setup();
   map.fire("idle");
   mock.timers.tick(300);
   map.fire("movestart");
   mock.timers.tick(500);
-  assert.ok(!tile("intersects").classList.contains("live"));
+  assert.doesNotMatch(image.dataset.want, /arcgisonline/);
 });
 
 const flush = async () => {

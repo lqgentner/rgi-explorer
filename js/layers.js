@@ -4,9 +4,9 @@
  */
 
 import { GLACIERS, PREVIEWS } from "./previews.js";
-import { PALETTE, REGION_DASH, REGION2_MINZOOM, TOGGLE_MINZOOM } from "./styles.js";
+import { PALETTE, REGION_DASH, TOGGLE_MINZOOM } from "./styles.js";
 import { PHONE, h, icon } from "./ui.js";
-import { imageryUrl, viewShapes } from "./viewpreview.js";
+import { imageryUrl } from "./viewpreview.js";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
@@ -18,15 +18,14 @@ const BASES = {
 const TOGGLES = [
   { name: "regions", label: "RGI regions" },
   { name: "centerlines", label: "Centerlines" },
-  { name: "intersects", label: "Ice divides" },
+  { name: "intersects", label: "Intersects" },
 ];
 
-/* The source layers the previews draw, and their sizes in pixels. */
-const PREVIEW_LAYERS = ["glaciers", "region-boundaries", "centerlines", "intersects"];
+/* The previews' size in pixels: the square that js/previews.js draws in. */
 const PREVIEW_PX = 48;
 /* The thumbnail's image, at twice its CSS size. */
 const THUMB_PX = 192;
-/* How long the map rests before the previews follow it. */
+/* How long the map rests before the base map pictures follow it. */
 const PREVIEW_DELAY_MS = 500;
 
 const NOTICE_KEY = "rgi-explorer.terrain-notice";
@@ -45,8 +44,12 @@ function svg(tag, attrs = {}, ...children) {
 const PREVIEW_LAND = "#eceff1";
 
 const line = (color, width) => ({ fill: "none", stroke: color, "stroke-width": width });
-/* A region outline, dashed as on the map. */
-const regionLine = (level, color, width) => ({ ...line(color, width), "stroke-dasharray": REGION_DASH[level].map((n) => n * width).join(" ") });
+/* A region outline, dashed as on the map but finer, to read at the preview's small size. */
+const PREVIEW_DASH = 0.5;
+const regionLine = (level, color, width) => ({
+  ...line(color, width),
+  "stroke-dasharray": REGION_DASH[level].map((n) => n * width * PREVIEW_DASH).join(" "),
+});
 const GLACIER_PAINT = { fill: PALETTE.glacier, stroke: PALETTE.glacierOutline, "stroke-width": 0.5 };
 
 /** The paths each fixed preview draws, bottom first, as `[d, attributes]`. */
@@ -64,64 +67,16 @@ function previewPaths(name) {
   return [[GLACIERS, GLACIER_PAINT], [PREVIEWS.intersects.divide, line(PALETTE.divide, 1.25)]];
 }
 
-/**
- * The paths a preview of the view draws, bottom first, as `[shape, attributes]`,
- * or null when none of the toggle's own lines show in the view.
- */
-function livePaths(name, shapes, zoom) {
-  const pick = (layer, keep, attrs) =>
-    (shapes.layers[layer] ?? []).filter((shape) => keep(shape.properties)).map((shape) => [shape, attrs]);
-  const all = () => true;
-  let own;
-  if (name === "regions") {
-    own = [
-      ...(zoom >= REGION2_MINZOOM ? pick("region-boundaries", (p) => Number(p.level) === 2, regionLine(2, PALETTE.region2, 0.75)) : []),
-      ...pick("region-boundaries", (p) => Number(p.level) === 1, regionLine(1, PALETTE.region1, 1.25)),
-    ];
-  } else if (name === "centerlines") {
-    own = [
-      ...pick("centerlines", (p) => p.is_main !== true, line(PALETTE.centerline, 0.5)),
-      ...pick("centerlines", (p) => p.is_main === true, line(PALETTE.centerline, 1.5)),
-    ];
-  } else {
-    own = pick("intersects", all, line(PALETTE.divide, 1.25));
-  }
-  if (!own.some(([shape]) => shape.seen)) return null;
-  return name === "regions" ? own : [...pick("glaciers", all, GLACIER_PAINT), ...own];
-}
-
-/**
- * Draw a toggle's preview into `tile`: the view's own data from `shapes`, or
- * the layer's data at a fixed place when the view holds none of it.
- */
-function drawPreview(tile, name, shapes, zoom) {
-  const live = shapes ? livePaths(name, shapes, zoom) : null;
-  const parts = [svg("rect", { width: PREVIEW_PX, height: PREVIEW_PX, fill: PREVIEW_LAND })];
-  const path = (d, attrs) => svg("path", { d, "stroke-linejoin": "round", "stroke-linecap": "round", "fill-rule": "evenodd", ...attrs });
-  if (live) {
-    const ids = new Map(shapes.clips.map((clip, i) => [clip.key, `preview-${name}-${i}`]));
-    parts.push(
-      svg(
-        "defs",
-        {},
-        ...shapes.clips.map(({ key, x, y, width, height }) => svg("clipPath", { id: ids.get(key) }, svg("rect", { x, y, width, height }))),
-      ),
-    );
-    for (const [{ clip, d }, attrs] of live) {
-      parts.push(path(d, clip ? { ...attrs, "clip-path": `url(#${ids.get(clip)})` } : attrs));
-    }
-  } else {
-    for (const [d, attrs] of previewPaths(name)) parts.push(path(d, attrs));
-  }
-  tile.replaceChildren(...parts);
-  tile.classList.toggle("live", Boolean(live));
-}
-
-/** A small picture of what a toggle draws, in the map's colors. */
+/** A small picture of what a toggle draws, in the map's colors, from js/previews.js. */
 function preview(name) {
-  const tile = svg("svg", { class: "layer-preview", viewBox: `0 0 ${PREVIEW_PX} ${PREVIEW_PX}`, "aria-hidden": "true" });
-  drawPreview(tile, name, null, 0);
-  return tile;
+  const path = ([d, attrs]) =>
+    svg("path", { d, "stroke-linejoin": "round", "stroke-linecap": "round", "fill-rule": "evenodd", ...attrs });
+  return svg(
+    "svg",
+    { class: "layer-preview", viewBox: `0 0 ${PREVIEW_PX} ${PREVIEW_PX}`, "aria-hidden": "true" },
+    svg("rect", { width: PREVIEW_PX, height: PREVIEW_PX, fill: PREVIEW_LAND }),
+    ...previewPaths(name).map(path),
+  );
 }
 
 /**
@@ -149,11 +104,10 @@ function toggleButtons({ layers, onToggle, zoom, hints }) {
   const on = new Set(layers);
   const parts = TOGGLES.map(({ name, label }) => {
     const hint = hints ? h("span", { class: "layer-hint" }) : null;
-    const tile = preview(name);
     const button = h(
       "button",
       { type: "button", class: "layer-toggle", dataset: { name } },
-      tile,
+      preview(name),
       h("span", { class: "layer-name" }, label),
       hint,
     );
@@ -164,7 +118,7 @@ function toggleButtons({ layers, onToggle, zoom, hints }) {
       sync();
       onToggle(name, next);
     });
-    return { name, button, hint, tile };
+    return { name, button, hint };
   });
 
   function sync() {
@@ -184,11 +138,6 @@ function toggleButtons({ layers, onToggle, zoom, hints }) {
   return {
     buttons: parts.map((p) => p.button),
     refreshZoom,
-    /** Redraw the previews from `shapes`, the view's data, or from the fixed data for null. */
-    drawPreviews(shapes) {
-      const z = zoom();
-      for (const { name, tile } of parts) drawPreview(tile, name, shapes, z);
-    },
     setLayers(set) {
       on.clear();
       for (const name of set) on.add(name);
@@ -198,11 +147,11 @@ function toggleButtons({ layers, onToggle, zoom, hints }) {
 }
 
 /**
- * Draw the base map and RGI layer controls. With `map`, the previews show the
- * view once the map has rested for PREVIEW_DELAY_MS: the RGI toggles draw the
- * loaded tiles, the imagery picture is one Esri export, and the standard
- * picture comes from `standardPicture(px)`, a promise of an image URL or null.
- * A preview that is hidden catches up when it shows.
+ * Draw the base map and RGI layer controls. The RGI toggles show fixed
+ * previews. With `map`, the base map pictures show the view once the map has
+ * rested for PREVIEW_DELAY_MS: the imagery picture is one Esri export, and the
+ * standard picture comes from `standardPicture(px)`, a promise of an image URL
+ * or null. A picture that is hidden catches up when it shows.
  *
  * @returns {{setBase(base: string): void, setLayers(set: Iterable<string>): void, refreshZoom(): void}}
  */
@@ -220,21 +169,15 @@ export function mountLayers(root, { base, layers, onBase, onToggle, zoom, map = 
     imagery: () => Promise.resolve(imageryUrl(map, THUMB_PX)),
     standard: () => standardPicture?.(THUMB_PX) ?? Promise.resolve(null),
   };
-  /* Whether each preview lags the view, and where it shows: set below for the phone or the desktop. */
-  let togglesBehind = false;
+  /* The pictures that lag the view, and where each shows: set below for the phone or the desktop. */
   const picturesBehind = new Set();
-  let togglesShown = () => false;
   let pictureImage = () => null;
   /* The latest picture of the view that loaded, by base map. */
   const latest = {};
 
-  /** Bring the previews that show up to the view. */
+  /** Bring the pictures that show up to the view. */
   function catchUp() {
     if (!map) return;
-    if (togglesBehind && togglesShown()) {
-      togglesBehind = false;
-      toggles.drawPreviews(viewShapes(map, PREVIEW_LAYERS, PREVIEW_PX));
-    }
     for (const key of picturesBehind) {
       const img = pictureImage(key);
       if (!img) continue;
@@ -247,9 +190,8 @@ export function mountLayers(root, { base, layers, onBase, onToggle, zoom, map = 
       });
     }
   }
-  /* Mark every preview behind the view, and catch up the ones that show. */
+  /* Mark every picture behind the view, and catch up the ones that show. */
   const follow = () => {
-    togglesBehind = true;
     for (const key of Object.keys(BASES)) picturesBehind.add(key);
     catchUp();
   };
@@ -299,7 +241,6 @@ export function mountLayers(root, { base, layers, onBase, onToggle, zoom, map = 
       catchUp();
       close.focus();
     });
-    togglesShown = () => !pane.hidden;
     pictureImage = (key) => (pane.hidden ? null : tiles.find((t) => t.key === key).img);
     const closePane = () => {
       pane.hidden = true;
@@ -355,7 +296,6 @@ export function mountLayers(root, { base, layers, onBase, onToggle, zoom, map = 
   };
   setOpen(false);
   let openAtPress = null;
-  togglesShown = isOpen;
   pictureImage = (key) => (other() === key ? image : null);
   wrapper.addEventListener("pointerenter", (event) => {
     if (event.pointerType !== "touch") setOpen(true);

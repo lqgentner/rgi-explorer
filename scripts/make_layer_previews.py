@@ -24,8 +24,11 @@ SIZE = 48
 TOLERANCE = 0.5
 
 # A preview's place: its center as lon and lat, and its width in degrees.
-REGIONS = ((82.0, 36.0), 34.0)  # Where High Mountain Asia's regions meet.
-ALETSCH = ((8.03, 46.49), 0.1)
+REGIONS = ((43.0, 37.88), 30.0)  # Caucasus and Middle East, near square in Mercator.
+REGION = "12"  # The one first-order region the preview draws, without its neighbours.
+# A round complex in Norway. The previews draw its glaciers only, not the
+# small ones around it: the window's largest complex names them.
+HARDANGERJOKULEN = ((7.4125, 60.538), 0.27)
 
 
 def mercator(lon, lat):
@@ -95,20 +98,26 @@ def main(directory, out):
     previews = {}
 
     bbox, pixels = window(REGIONS)
-    regions = read(directory, "regions", bbox, ["level"])
+    regions = read(directory, "regions", bbox, ["level", "o1region"])
+    regions = regions[regions.o1region == REGION]
     previews["regions"] = {
         f"region{level}": path(pixels(g.boundary) for g in regions[regions.level == level].geometry)
         for level in (2, 1)
     }
 
-    bbox, pixels = window(ALETSCH)
-    glaciers = path(pixels(g) for g in read(directory, "glaciers", bbox).geometry)
-    lines = read(directory, "centerlines", bbox, ["is_main"])
+    bbox, pixels = window(HARDANGERJOKULEN)
+    complexes = read(directory, "complexes", bbox, ["area_km2", "glacier_ids"])
+    members = set(complexes.loc[complexes.area_km2.idxmax(), "glacier_ids"])
+    glaciers = read(directory, "glaciers", bbox, ["rgi_id"])
+    glaciers = path(pixels(g) for g in glaciers[glaciers.rgi_id.isin(members)].geometry)
+    lines = read(directory, "centerlines", bbox, ["rgi_g_id", "is_main"])
+    lines = lines[lines.rgi_g_id.isin(members)]
     previews["centerlines"] = {
         "centerline": path(pixels(g) for g in lines[~lines.is_main].geometry),
         "centerlineMain": path(pixels(g) for g in lines[lines.is_main].geometry),
     }
-    divides = read(directory, "intersects", bbox)
+    divides = read(directory, "intersects", bbox, ["rgi_g_id_1", "rgi_g_id_2"])
+    divides = divides[divides.rgi_g_id_1.isin(members) & divides.rgi_g_id_2.isin(members)]
     previews["intersects"] = {"divide": path(pixels(g) for g in divides.geometry)}
 
     body = json.dumps(previews, indent=2)
@@ -117,7 +126,7 @@ def main(directory, out):
         " * SVG paths for the layer previews, in a 48 px square. Generated from the RGI\n"
         " * data by scripts/make_layer_previews.py; do not edit by hand.\n"
         " */\n\n"
-        "/** The glacier outlines under the centerlines and ice divides previews. */\n"
+        "/** The glacier outlines under the centerlines and intersects previews. */\n"
         f"export const GLACIERS = {json.dumps(glaciers)};\n\n"
         f"export const PREVIEWS = {body};\n"
     )
