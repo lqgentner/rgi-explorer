@@ -23,6 +23,7 @@ const MAP_OPTIONS = new Set([
   "zoom",
   "attributionControl",
   "transformCameraUpdate",
+  "zoomLevelsToOverscale",
   "interactive",
   "pixelRatio",
   "canvasContextAttributes",

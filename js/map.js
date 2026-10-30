@@ -356,6 +356,14 @@ export async function createMap(container, catalog, state) {
     center: [view.lon, clampLat(view.lat)],
     zoom: view.zoom,
     attributionControl: false,
+    /*
+     * Past a source's maxzoom MapLibre cuts the deepest tile into smaller ones
+     * by default, keeping only the source layers a visible style layer reads,
+     * and caches the cut. A layer shown later, such as the complex selection,
+     * then finds its source layer missing at those zooms. Undefined stretches
+     * the deepest tile instead, with every source layer in it.
+     */
+    zoomLevelsToOverscale: undefined,
     transformCameraUpdate: ({ center }) =>
       Math.abs(center.lat) > MAX_LAT ? { center: new maplibregl.LngLat(center.lng, clampLat(center.lat)) } : {},
   });

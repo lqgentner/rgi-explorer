@@ -382,6 +382,12 @@ test("MapLibre adds no attribution control of its own", async () => {
   assert.equal(map.options.attributionControl, false);
 });
 
+test("past the archive's deepest zoom the tiles are stretched, not cut", async () => {
+  const { map } = await build();
+  assert.ok("zoomLevelsToOverscale" in map.options, "MapLibre's default cuts the deepest tile");
+  assert.equal(map.options.zoomLevelsToOverscale, undefined);
+});
+
 test("the centre stops at the Mercator edge, from a link and from the camera", async () => {
   const { map } = await build("#2/90/10");
   assert.deepEqual(map.options.center, [10, 85.05]);
