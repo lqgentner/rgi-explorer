@@ -187,6 +187,8 @@ function wire(catalog, rgiMap, regions, customCatalog) {
   const layers = mountLayers(el("layers"), {
     base: state.base,
     layers: state.layers,
+    map,
+    standardPicture: (px) => rgiMap.standardPicture(px),
     zoom: () => map.getZoom(),
     onBase(base) {
       state.base = base;

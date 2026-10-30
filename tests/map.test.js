@@ -29,7 +29,7 @@ async function build(search = "") {
   const { createMap } = await load("js/map.js");
   const catalog = await loadCatalog(ROOT);
   const rgiMap = await createMap(page.document.getElementById("map"), catalog, parseState(new URL(url)));
-  return { rgiMap, map: page.map };
+  return { rgiMap, map: page.map, page };
 }
 
 const rgiId = "RGI2000-v7.0-G-01-00001";
@@ -74,35 +74,45 @@ test("glaciers are white with a grey outline and regions have no fill", async ()
   const { map } = await build();
   assert.equal(map.getLayer("glaciers-fill").paint["fill-color"], "#ffffff");
   assert.equal(map.getLayer("glaciers-outline").paint["line-color"], "#80868b");
-  const regionFills = [...map.layers.values()].filter((l) => l["source-layer"] === "regions" && l.type === "fill");
+  const regionFills = [...map.layers.values()].filter((l) => /^region/.test(l["source-layer"] ?? "") && l.type === "fill");
   assert.deepEqual(regionFills, []);
 });
 
-test("the glacier fill lets imagery show through", async () => {
+test("over imagery glaciers are white outlines without a fill, and region outlines turn light", async () => {
   const { rgiMap, map } = await build("?base=imagery");
-  const opacity = (id) => map.getLayer(id).paint["fill-opacity"];
-  assert.equal(opacity("glaciers-fill"), 0.35);
+  const paint = (id, key) => map.getLayer(id).paint[key];
+  assert.equal(paint("glaciers-fill", "fill-opacity"), 0);
+  assert.equal(paint("selection-fill", "fill-opacity"), 0);
+  assert.equal(paint("glaciers-outline", "line-color"), "#ffffff");
+  assert.equal(paint("regions-outline-1", "line-color"), "#f1f3f4");
+  assert.equal(paint("regions-outline-2", "line-color"), "#bdc1c6");
   rgiMap.setBase("standard");
-  assert.equal(opacity("glaciers-fill"), 0.85);
-  assert.equal(opacity("selection-fill"), 0.85);
+  assert.equal(paint("glaciers-fill", "fill-opacity"), 0.85);
+  assert.equal(paint("selection-fill", "fill-opacity"), 0.85);
+  assert.equal(paint("glaciers-outline", "line-color"), "#80868b");
+  assert.equal(paint("regions-outline-1", "line-color"), "#5f6368");
   rgiMap.setBase("imagery");
-  assert.equal(opacity("selection-fill"), 0.35);
+  assert.equal(paint("selection-fill", "fill-opacity"), 0);
+  assert.equal(paint("regions-outline-2", "line-color"), "#bdc1c6");
 });
 
-test("the RGI layers draw above Liberty's lines and below its labels", async () => {
+test("the RGI layers draw above Liberty's lines and below its borders and labels", async () => {
   const { map } = await build();
-  assert.ok(map.indexOf("glaciers-fill") > map.indexOf("boundary"));
+  assert.ok(map.indexOf("glaciers-fill") > map.indexOf("road_major"));
+  assert.ok(map.indexOf("glaciers-outline") < map.indexOf("boundary"));
+  assert.ok(map.indexOf("intersects") < map.indexOf("boundary"));
   assert.ok(map.indexOf("glaciers-fill") < map.indexOf("label_place"));
   assert.ok(map.indexOf("regions-outline-1") < map.indexOf("glaciers-fill"));
   assert.ok(map.indexOf("glacier-labels") > map.indexOf("label_country"));
 });
 
-test("imagery shows esri above Liberty's last non-symbol layer and below its first symbol", async () => {
+test("imagery shows esri above Liberty's fills and lines and below its borders and labels", async () => {
   const { rgiMap, map } = await build();
   assert.equal(map.layout("esri").visibility, "none");
   rgiMap.setBase("imagery");
   assert.equal(map.layout("esri").visibility, "visible");
-  assert.equal(map.indexOf("esri"), map.indexOf("boundary") + 1);
+  assert.equal(map.indexOf("esri"), map.indexOf("road_one_way_arrow") + 1);
+  assert.ok(map.indexOf("esri") < map.indexOf("boundary"));
   assert.ok(map.indexOf("esri") < map.indexOf("label_place"));
   assert.ok(map.indexOf("esri") < map.indexOf("glaciers-fill"));
   assert.equal(map.layout("label_place").visibility, undefined);
@@ -114,9 +124,9 @@ test("a symbol between Liberty's lines stays below imagery and the RGI layers", 
   const { map } = await build();
   const arrow = map.indexOf("road_one_way_arrow");
   assert.ok(arrow > -1 && arrow < map.indexOf("boundary"));
-  assert.ok(map.indexOf("esri") > map.indexOf("boundary"));
+  assert.ok(map.indexOf("esri") > arrow);
   assert.ok(map.indexOf("glaciers-fill") > map.indexOf("esri"));
-  assert.ok(map.indexOf("regions-outline-1") > map.indexOf("boundary"));
+  assert.ok(map.indexOf("regions-outline-1") < map.indexOf("boundary"));
   assert.ok(arrow < map.indexOf("esri"));
   assert.ok(map.indexOf("label_place") > map.indexOf("glaciers-outline"));
 });
@@ -188,7 +198,7 @@ test("selection draws a red dashed outline filtered to the ID", async () => {
   assert.deepEqual(outline.filter, ["==", ["get", "rgi_id"], rgiId]);
   assert.equal(outline["source-layer"], "glaciers");
   assert.equal(outline.paint["line-color"], "#d93025");
-  assert.equal(outline.paint["line-width"], 2.5);
+  assert.equal(outline.paint["line-width"], 2);
   assert.deepEqual(outline.paint["line-dasharray"], [2, 1.2]);
   assert.deepEqual(map.getLayer("selection-fill").filter, ["==", ["get", "rgi_id"], rgiId]);
   assert.deepEqual(map.getLayer("selection-fill").paint, map.getLayer("glaciers-fill").paint);
@@ -197,6 +207,24 @@ test("selection draws a red dashed outline filtered to the ID", async () => {
     assert.equal(map.layout(id).visibility, "visible", id);
   }
   assert.ok(map.indexOf("selection-outline") > map.indexOf("glacier-labels"));
+});
+
+test("the selected glacier's name is red and drawn above the selection", async () => {
+  const { rgiMap, map } = await build();
+  const label = map.getLayer("selection-label");
+  assert.equal(label.type, "symbol");
+  assert.equal(label["source-layer"], "glacier-labels");
+  assert.equal(label.paint["text-color"], "#d93025");
+  assert.deepEqual(label.layout["text-field"], map.getLayer("glacier-labels").layout["text-field"]);
+  assert.equal(map.layout("selection-label").visibility, "none");
+  for (const id of ["selection-dim", "selection-fill", "selection-outline"]) {
+    assert.ok(map.indexOf("selection-label") > map.indexOf(id), `above ${id}`);
+  }
+  rgiMap.select(rgiId);
+  assert.deepEqual(map.getLayer("selection-label").filter, ["==", ["get", "rgi_id"], rgiId]);
+  assert.equal(map.layout("selection-label").visibility, "visible");
+  rgiMap.select(null);
+  assert.equal(map.layout("selection-label").visibility, "none");
 });
 
 test("a selected glacier drawn as a dot shows a red dot with a white ring", async () => {
@@ -318,26 +346,32 @@ test("glacierAt returns the properties of the first glacier under the point", as
   assert.deepEqual(rgiMap.glacierAt([5, 5]), { rgi_id: rgiId });
 });
 
-test("glacierAt finds the nearest dot within 6 pixels and prefers an exact hit", async () => {
+test("glacierAt ignores the low-zoom dots", async () => {
   const { rgiMap, map } = await build();
-  const dot = (id, x, y) => ({
-    layer: { id: "glaciers-dots" },
-    geometry: { type: "Point", coordinates: [x, y] },
-    properties: { rgi_id: id },
-  });
-  map.rendered = [dot("far", 105, 100), dot("near", 103, 100)];
-  assert.deepEqual(rgiMap.glacierAt({ x: 100, y: 100 }), { rgi_id: "near" }, "a click beside a dot finds it");
-  assert.equal(rgiMap.glacierAt({ x: 100, y: 120 }), null, "a click far from every dot finds none");
-
-  map.rendered = [dot("near", 103, 100), dot("under", 101, 100)];
-  map.calls = [];
-  assert.deepEqual(rgiMap.glacierAt({ x: 100, y: 100 }), { rgi_id: "under" });
-  assert.deepEqual(map.calls, ["queryRenderedFeatures point"], "an exact hit needs no box query");
-
   map.rendered = [
-    { layer: { id: "glaciers-fill" }, geometry: { type: "Point", coordinates: [104, 100] }, properties: { rgi_id: "outline" } },
+    { layer: { id: "glaciers-dots" }, geometry: { type: "Point", coordinates: [100, 100] }, properties: { rgi_id: "dot" } },
   ];
-  assert.equal(rgiMap.glacierAt({ x: 100, y: 100 }), null, "the box looks for dots only");
+  assert.equal(rgiMap.glacierAt({ x: 100, y: 100 }), null);
+});
+
+test("the standard picture draws Liberty as it comes on one hidden map, at the main map's view", async () => {
+  const { rgiMap, map, page } = await build();
+  map.jumpTo({ center: [8, 46.5], zoom: 9 });
+  assert.equal(await rgiMap.standardPicture(192), "data:image/jpeg;view=9/8/46.5");
+  const mini = page.map;
+  assert.notEqual(mini, map);
+  assert.equal(mini.options.container.className, "picture-map");
+  assert.equal(mini.options.container.style.width, "320px");
+  assert.equal(mini.options.interactive, false);
+  assert.equal(mini.options.pixelRatio, 0.6, "a 320 px view drawn into 192 pixels");
+  assert.deepEqual(mini.options.canvasContextAttributes, { preserveDrawingBuffer: true });
+  assert.equal(mini.getSource("data"), undefined, "no RGI layers");
+  assert.equal(mini.layout("landcover_ice").visibility, undefined, "Liberty's own glaciers show");
+
+  map.jumpTo({ center: [10, 47], zoom: 11 });
+  assert.equal(await rgiMap.standardPicture(192), "data:image/jpeg;view=11/10/47");
+  assert.equal(page.map, mini, "the hidden map is made once");
+  assert.equal(document.querySelectorAll(".picture-map").length, 1);
 });
 
 test("onMove reports the view after the map moves", async () => {

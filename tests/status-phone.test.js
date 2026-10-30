@@ -8,7 +8,7 @@ const { mountStatus } = await load("js/status.js");
 const { mountZoom } = await load("js/layers.js");
 
 const catalog = {
-  citation: "RGI citation",
+  citation: "RGI 7.0 Consortium. (2023). Randolph Glacier Inventory.",
   license: { id: "CC-BY-4.0", href: "https://example.org/license" },
 };
 
@@ -26,7 +26,7 @@ test("the phone has no scale bar, and an info button opens the credits", () => {
   button.click();
   assert.equal(panel.hidden, false);
   assert.equal(button.getAttribute("aria-expanded"), "true");
-  assert.ok(panel.textContent.includes("RGI citation"));
+  assert.ok(panel.textContent.includes("RGI Consortium 2023"));
   button.click();
   assert.equal(panel.hidden, true);
 });

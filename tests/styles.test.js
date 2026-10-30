@@ -22,10 +22,15 @@ test("rgiStyle gives each layer a unique id and a toggle's source layers exist",
   for (const names of Object.values(TOGGLES)) for (const name of names) assert.ok(sourceLayers.has(name), name);
 });
 
-test("rgiStyle draws regions as outlines without a fill", () => {
-  const regions = rgiStyle(PMTILES).layers.filter((l) => l["source-layer"] === "regions");
-  assert.ok(regions.length > 0);
-  assert.ok(regions.every((l) => l.type === "line"));
+test("rgiStyle draws regions as dashed outlines from the boundary lines, without a fill", () => {
+  const layers = rgiStyle(PMTILES).layers;
+  assert.equal(layers.filter((l) => l["source-layer"] === "regions").length, 0, "the polygons hold each border twice");
+  const outlines = layers.filter((l) => l["source-layer"] === "region-boundaries");
+  assert.deepEqual(outlines.map((l) => l.id).sort(), ["regions-outline-1", "regions-outline-2"]);
+  for (const outline of outlines) {
+    assert.equal(outline.type, "line");
+    assert.ok(Array.isArray(outline.paint["line-dasharray"]), outline.id);
+  }
 });
 
 test("rgiStyle uses only fonts the glyph server holds", () => {

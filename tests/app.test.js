@@ -77,7 +77,7 @@ test("the page mounts the search, the controls and the status line, with no card
   assert.ok($("#layers .layers-thumb"));
   assert.ok($("#controls .terrain-btn"));
   assert.ok($("#controls .zoom-control"));
-  assert.match($("#status").textContent, /not endorsed by the RGI Consortium/);
+  assert.match($("#status").textContent, /GlaciersRGI Consortium 2023/);
   assert.doesNotMatch($("#status").textContent, /Custom catalog/);
   assert.equal($("#status").getAttribute("aria-live"), null, "a base or 3D switch does not re-announce the credits");
   assert.equal($("#status").getAttribute("role"), null);

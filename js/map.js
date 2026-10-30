@@ -1,14 +1,13 @@
 /* The map: base maps, the RGI layers, the selection and the terminus pin. */
 
-import { ESRI_TILES, GLYPHS, LIBERTY_STYLE, startView, TERRAIN_TILEJSON } from "./config.js";
+import { ESRI_TILES, GLYPHS, LIBERTY_STYLE, startView, TERRAIN_TILEJSON, TIMEOUT_MS } from "./config.js";
 import { installSky } from "./sky.js";
-import { GLACIER_OPACITY, rgiStyle, TOGGLES } from "./styles.js";
+import { BASE_PAINT, rgiStyle, TOGGLES } from "./styles.js";
+import { PREVIEW_SPAN } from "./viewpreview.js";
 
 const SELECTION_RED = "#d93025";
 const COMPLEX_GREY = "#5f6368";
 const MAX_LAT = 85.05;
-/* How far from a click, in pixels, a glacier dot still counts as hit. */
-const HIT_PX = 6;
 const POINTS = ["in", ["geometry-type"], ["literal", ["Point", "MultiPoint"]]];
 /* The camera tilt in 3D, in degrees from straight down. */
 const TERRAIN_PITCH = 60;
@@ -54,14 +53,25 @@ function toggleOf(layer) {
   return Object.keys(TOGGLES).find((name) => TOGGLES[name].includes(layer["source-layer"]));
 }
 
-/** One style: Liberty, the imagery layer, the RGI layers and the selection layers. */
-function buildStyle(liberty, rgi, state) {
-  const base = liberty.layers.map((layer) => {
+/** Liberty's layers, with its own glacier fill hidden: RGI is the only glacier layer. */
+function libertyLayers(liberty) {
+  return liberty.layers.map((layer) => {
     const copy = structuredClone(layer);
     if (copy.id === "landcover_ice") copy.layout = { ...copy.layout, ...NONE };
     return copy;
   });
+}
+
+/**
+ * One style: Liberty, the imagery layer, the RGI layers and the selection
+ * layers. The imagery and the RGI fills and lines go above Liberty's fills and
+ * lines but below its country borders, which Liberty draws last, and its labels.
+ */
+function buildStyle(liberty, rgi, state) {
+  const base = libertyLayers(liberty);
   const lastFlat = base.findLastIndex((layer) => !isSymbol(layer));
+  const firstBorder = base.findIndex((layer) => layer["source-layer"] === "boundary");
+  const cut = firstBorder !== -1 && firstBorder <= lastFlat ? firstBorder : lastFlat + 1;
   const esri = {
     id: "esri",
     type: "raster",
@@ -69,13 +79,15 @@ function buildStyle(liberty, rgi, state) {
     layout: { visibility: visibility(state.base === "imagery") },
   };
 
+  const basePaint = BASE_PAINT[state.base] ?? BASE_PAINT.standard;
   const rgiLayers = rgi.layers.map((layer) => {
     const name = toggleOf(layer);
     if (name) layer.layout = { ...layer.layout, visibility: visibility(state.layers.has(name)) };
+    if (basePaint[layer.id]) layer.paint = { ...layer.paint, ...basePaint[layer.id] };
     return layer;
   });
   const glaciersFill = rgiLayers.find((layer) => layer.id === "glaciers-fill");
-  if (glaciersFill) glaciersFill.paint["fill-opacity"] = GLACIER_OPACITY[state.base] ?? GLACIER_OPACITY.standard;
+  const glacierLabels = rgiLayers.find((layer) => layer.id === "glacier-labels");
 
   const selection = [
     {
@@ -99,7 +111,7 @@ function buildStyle(liberty, rgi, state) {
       source: "data",
       "source-layer": "glaciers",
       layout: NONE,
-      paint: { "line-color": SELECTION_RED, "line-width": 2.5, "line-dasharray": [2, 1.2] },
+      paint: { "line-color": SELECTION_RED, "line-width": 2, "line-dasharray": [2, 1.2] },
     },
     {
       id: "selection-dot",
@@ -122,6 +134,20 @@ function buildStyle(liberty, rgi, state) {
       "source-layer": "complexes",
       layout: NONE,
       paint: { "line-color": COMPLEX_GREY, "line-width": 2, "line-dasharray": [3, 2] },
+    },
+    /* The selected glacier's name, in red over its outline. It wins the label collisions, so the plain label of the same name gives way. */
+    {
+      id: "selection-label",
+      type: "symbol",
+      source: "data",
+      "source-layer": "glacier-labels",
+      layout: {
+        ...structuredClone(glacierLabels?.layout ?? {}),
+        "text-size": 13,
+        "text-allow-overlap": true,
+        ...NONE,
+      },
+      paint: { "text-color": SELECTION_RED, "text-halo-color": "#ffffff", "text-halo-width": 1.5 },
     },
     {
       id: "terminus-pin",
@@ -150,10 +176,10 @@ function buildStyle(liberty, rgi, state) {
       pin: { type: "geojson", data: EMPTY },
     },
     layers: [
-      ...base.slice(0, lastFlat + 1),
+      ...base.slice(0, cut),
       esri,
       ...rgiLayers.filter((layer) => !isSymbol(layer)),
-      ...base.slice(lastFlat + 1),
+      ...base.slice(cut),
       ...rgiLayers.filter(isSymbol),
       ...selection,
     ],
@@ -161,6 +187,79 @@ function buildStyle(liberty, rgi, state) {
 }
 
 const clampLat = (lat) => Math.max(-MAX_LAT, Math.min(MAX_LAT, lat));
+
+/**
+ * The Standard map's picture of a view: a hidden map of OpenFreeMap's Liberty
+ * as it comes, its own glaciers included, PREVIEW_SPAN CSS pixels square and
+ * made on first use. It draws at the main map's zoom, so it asks
+ * for the tiles the main map already holds, from the browser's cache; its pixel
+ * ratio shrinks the drawing to the picture's size. `picture(view, px)`
+ * resolves with a JPEG data URL, or null when the map fails or takes longer
+ * than TIMEOUT_MS.
+ */
+function standardPictures(liberty) {
+  let mini = null;
+  let ready = null;
+  let px = 0;
+
+  function make(size) {
+    const { maplibregl } = globalThis;
+    const holder = document.createElement("div");
+    holder.className = "picture-map";
+    holder.setAttribute("aria-hidden", "true");
+    Object.assign(holder.style, { width: `${PREVIEW_SPAN}px`, height: `${PREVIEW_SPAN}px` });
+    document.body.append(holder);
+    px = size;
+    mini = new maplibregl.Map({
+      container: holder,
+      style: {
+        version: 8,
+        ...(liberty.sprite ? { sprite: liberty.sprite } : {}),
+        glyphs: GLYPHS,
+        sources: liberty.sources,
+        layers: liberty.layers,
+      },
+      center: [0, 0],
+      zoom: 0,
+      interactive: false,
+      attributionControl: false,
+      pixelRatio: size / PREVIEW_SPAN,
+      canvasContextAttributes: { preserveDrawingBuffer: true },
+    });
+    ready = new Promise((resolve) => mini.once("load", resolve));
+  }
+
+  /* Resolve on the map's next idle, or with false after TIMEOUT_MS. */
+  const idle = () =>
+    new Promise((resolve) => {
+      const done = (value) => {
+        clearTimeout(timer);
+        mini.off("idle", onIdle);
+        resolve(value);
+      };
+      const onIdle = () => done(true);
+      const timer = setTimeout(() => done(false), TIMEOUT_MS);
+      mini.on("idle", onIdle);
+    });
+
+  return async function picture({ center, zoom }, size) {
+    try {
+      if (!mini) make(size);
+      else if (size !== px) {
+        px = size;
+        mini.setPixelRatio(size / PREVIEW_SPAN);
+      }
+      await ready;
+      const settled = idle();
+      mini.jumpTo({ center, zoom, bearing: 0, pitch: 0 });
+      mini.triggerRepaint();
+      return (await settled) ? mini.getCanvas().toDataURL("image/jpeg", 0.85) : null;
+    } catch (error) {
+      console.warn("standard picture:", error.message);
+      return null;
+    }
+  };
+}
 
 /**
  * Builds the map and resolves once it has loaded. The RGI layers share one
@@ -197,15 +296,27 @@ export async function createMap(container, catalog, state) {
 
   const rgiToggles = rgi.layers.map((layer) => [layer.id, toggleOf(layer)]).filter(([, n]) => n);
   const idFilter = (id) => ["==", ["get", "rgi_id"], id];
-  const SELECTION = ["selection-dim", "selection-fill", "selection-outline", "selection-dot"];
+  const SELECTION = ["selection-dim", "selection-fill", "selection-outline", "selection-dot", "selection-label"];
   const show = (id, on) => map.setLayoutProperty(id, "visibility", visibility(on));
+  const picture = standardPictures(liberty);
 
   const api = {
     map,
 
+    /** A JPEG data URL of the Standard map around the view's centre, `px` pixels square, or null. */
+    standardPicture(px) {
+      const { lng, lat } = map.getCenter();
+      return picture({ center: [lng, lat], zoom: map.getZoom() }, px);
+    },
+
     setBase(base) {
       show("esri", base === "imagery");
-      for (const id of ["glaciers-fill", "selection-fill"]) map.setPaintProperty(id, "fill-opacity", GLACIER_OPACITY[base]);
+      const paint = BASE_PAINT[base];
+      for (const [id, properties] of Object.entries(paint)) {
+        for (const [key, value] of Object.entries(properties)) map.setPaintProperty(id, key, value);
+      }
+      /* The selection redraws the glacier fill above the dimming. */
+      map.setPaintProperty("selection-fill", "fill-opacity", paint["glaciers-fill"]["fill-opacity"]);
     },
 
     setToggle(name, on) {
@@ -218,6 +329,7 @@ export async function createMap(container, catalog, state) {
         map.setFilter("selection-fill", idFilter(rgiId));
         map.setFilter("selection-outline", idFilter(rgiId));
         map.setFilter("selection-dot", ["all", POINTS, idFilter(rgiId)]);
+        map.setFilter("selection-label", idFilter(rgiId));
       }
       for (const id of SELECTION) show(id, on);
       if (!on) {
@@ -271,34 +383,14 @@ export async function createMap(container, catalog, state) {
     },
 
     /**
-     * The properties of the glacier under a screen point, or null. A glacier
-     * under the exact pixel wins. Otherwise the nearest dot within HIT_PX
-     * pixels counts, because the low-zoom dots are only a few pixels wide.
+     * The properties of the glacier outline under a screen point, or null. The
+     * low-zoom dots are not clickable: each stands for the largest of the
+     * glaciers in its pixel, so a click there picks one at random.
      */
     glacierAt(point) {
       const [x, y] = Array.isArray(point) ? point : [point.x, point.y];
-      const [exact] = map.queryRenderedFeatures([x, y], { layers: ["glaciers-fill", "glaciers-dots"] });
-      if (exact) return exact.properties;
-      const near = map.queryRenderedFeatures(
-        [
-          [x - HIT_PX, y - HIT_PX],
-          [x + HIT_PX, y + HIT_PX],
-        ],
-        { layers: ["glaciers-dots"] },
-      );
-      const distance = (feature) => {
-        const { type, coordinates } = feature.geometry ?? {};
-        const lngLat = type === "Point" ? coordinates : type === "MultiPoint" ? coordinates[0] : null;
-        if (!lngLat) return Infinity;
-        const at = map.project(lngLat);
-        return Math.hypot(at.x - x, at.y - y);
-      };
-      let best = null;
-      for (const feature of near) {
-        const d = distance(feature);
-        if (!best || d < best.d) best = { feature, d };
-      }
-      return best ? best.feature.properties : null;
+      const [hit] = map.queryRenderedFeatures([x, y], { layers: ["glaciers-fill"] });
+      return hit ? hit.properties : null;
     },
 
     onMove(callback) {

@@ -9,6 +9,7 @@
   /* Controls over the map and the photo let what is behind them show through. */
   --glass: rgb(255 255 255 / 72%);
   --glass-blur: blur(6px);
+  --photo-glass: rgb(255 255 255 / 45%);
   --space: #10141c;
   --card-w: 408px;
   --slide: 250ms ease-out;
@@ -67,6 +68,14 @@ kbd {
   inset: 0;
 }
 
+/* js/map.js draws the Standard thumbnail on this hidden map, off screen but laid out. */
+.picture-map {
+  position: fixed;
+  top: 0;
+  left: -10000px;
+  pointer-events: none;
+}
+
 /*
  * js/sky.js supplies the globe disc for this halo behind the transparent map
  * canvas, as in glace-viewer. Opacity falls off beyond the limb; the sky class
@@ -100,7 +109,17 @@ kbd {
   vertical-align: middle;
 }
 
-/* The search bar: a white pill with the search icon at the left and Close at the right. */
+/*
+ * The search bar: a white card, as in Google Maps. Its top row holds the
+ * search icon, the input and Close; the results open below a rule in the same
+ * card.
+ */
+#search {
+  border-radius: 24px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
 #search input {
   display: block;
   width: 100%;
@@ -109,11 +128,10 @@ kbd {
   padding: 0 48px;
   border: 0;
   border-radius: 24px;
-  background: var(--surface);
+  background: none;
   color: var(--text);
   font: inherit;
   font-size: 15px;
-  box-shadow: var(--shadow);
   appearance: none;
 }
 
@@ -143,16 +161,14 @@ kbd {
   pointer-events: none;
 }
 
-/* The results: a card under the pill. */
 #search ul {
   list-style: none;
   max-height: min(60dvh, 480px);
-  margin: 8px 0 0;
-  padding: 8px 0;
+  margin: 0;
+  padding: 8px 0 12px;
   overflow-y: auto;
-  border-radius: 16px;
-  background: var(--surface);
-  box-shadow: var(--shadow);
+  border-top: 1px solid var(--line);
+  border-radius: 0 0 24px 24px;
 }
 
 #search li {
@@ -521,7 +537,20 @@ button:focus-visible {
 .credits {
   display: flex;
   flex-wrap: wrap;
-  gap: 0 12px;
+  gap: 0 8px;
+}
+
+/* Each group names what it credits: "Glaciers", "Basemap" and so on. */
+.credit-label {
+  margin-right: 4px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+#status .credit-group + .credit-group::before {
+  content: "|";
+  margin-right: 8px;
+  color: var(--muted);
 }
 
 .credits-panel {
@@ -899,50 +928,73 @@ button:focus-visible {
   height: 100%;
 }
 
-.photo-credit,
-.photo-details {
-  background: var(--glass);
+/*
+ * The controls over a photo are faint glass, so the photo shows through; an
+ * open credit turns more opaque to stay legible.
+ */
+.photo-prev,
+.photo-next,
+.photo-attrib {
+  position: absolute;
+  background: var(--photo-glass);
   backdrop-filter: var(--glass-blur);
+  box-shadow: 0 1px 2px rgb(60 64 67 / 20%);
 }
 
 .photo-prev,
-.photo-next,
-.photo-info {
-  position: absolute;
-  background: var(--glass);
-  backdrop-filter: var(--glass-blur);
-  box-shadow: var(--shadow);
-}
-
-.photo-prev:hover,
-.photo-next:hover,
-.photo-info:hover {
-  background: var(--surface);
+.photo-next {
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 .photo-prev {
   left: 8px;
-  top: 50%;
-  transform: translateY(-50%);
 }
 
 .photo-next {
   right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
 }
 
-.photo-info {
+.photo-prev:hover,
+.photo-next:hover,
+.photo-attrib:hover,
+.photo-attrib.open {
+  background: var(--glass);
+}
+
+/* The credit: an info button that opens out to the right, inside the photo. */
+.photo-attrib {
   left: 8px;
   bottom: 8px;
+  max-width: calc(100% - 16px);
+  display: flex;
+  /* The button keeps the bottom left corner as the text wraps above its line. */
+  align-items: flex-end;
+  border-radius: 16px;
 }
 
-.photo-details p {
+.photo-attrib .photo-info {
+  flex: none;
+  background: none;
+}
+
+.photo-attrib-text {
+  padding: 7px 12px 7px 0;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.photo-attrib-text p {
+  display: inline;
   margin: 0;
 }
 
-.photo-details a {
-  color: var(--accent);
+.photo-attrib-text p + p::before {
+  content: " · ";
+}
+
+.photo-attrib-text a {
+  color: inherit;
 }
 
 /* The card's area line shows only in the phone's compact sheet. */

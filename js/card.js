@@ -27,6 +27,45 @@ function infoButton(label, description) {
 }
 
 /**
+ * A photo credit folded into an info button at the photo's bottom left. A click
+ * opens it out to the right, inside the photo, as MapLibre's compact
+ * attribution does; a press anywhere else but the photo arrows, or Escape,
+ * folds it again. `onToggle(open)` hears each change.
+ */
+function photoCredit(label, className, open, onToggle, ...children) {
+  const button = h("button", { type: "button", class: "icon-button photo-info", "aria-label": label }, icon("info"));
+  const text = h("div", { class: `photo-attrib-text ${className}` }, ...children);
+  const pill = h("div", { class: "photo-attrib" }, button, text);
+  const close = () => {
+    set(false);
+    onToggle(false);
+  };
+  /* The arrows show the next photo's credit, so the credit stays open for them. */
+  const outside = (event) => {
+    if (!pill.isConnected) document.removeEventListener("pointerdown", outside, true);
+    else if (!pill.contains(event.target) && !event.target.closest?.(".photo-prev, .photo-next")) close();
+  };
+  function set(next) {
+    text.hidden = !next;
+    button.setAttribute("aria-expanded", String(next));
+    pill.classList.toggle("open", next);
+    if (next) document.addEventListener("pointerdown", outside, true);
+    else document.removeEventListener("pointerdown", outside, true);
+  }
+  button.addEventListener("click", () => {
+    set(text.hidden);
+    onToggle(!text.hidden);
+  });
+  pill.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape" || text.hidden) return;
+    close();
+    button.focus();
+  });
+  set(open);
+  return pill;
+}
+
+/**
  * Mounts the card into `root` and returns `{ open(glacier), close() }`.
  * `glacier` is `{ rgiId, row?, props? }`. With `ctx.band`, the close button,
  * the header and the actions go there and the rest stays in `root`.
@@ -230,16 +269,19 @@ export function mountCard(root, ctx) {
       mine.photos.cropFailed = true;
       renderPhotoArea();
     });
-    const info = h("button", { type: "button", class: "icon-button photo-info", "aria-label": "Image credit" }, icon("info"));
-    return [image, info, popover(info, "photo-credit", IMAGERY_CREDIT)];
+    return [image, photoCredit("Image credit", "photo-credit", mine.photos.creditOpen, remember(mine), IMAGERY_CREDIT)];
   }
+
+  /* An open credit stays open as the photos change. */
+  const remember = (glacier) => (open) => {
+    glacier.photos.creditOpen = open;
+  };
 
   function carousel(photos) {
     const at = current.photos.index;
     const shown = photos[at];
     const title = head.querySelector(".card-title")?.textContent ?? "";
-    const toggle = h("button", { type: "button", class: "icon-button photo-info", "aria-label": "Photo details" }, icon("info"));
-    const details = popover(toggle, "photo-details",
+    const details = photoCredit("Photo details", "photo-details", current.photos.creditOpen, remember(current),
       h("p", {}, isHttp(shown.page) ? h("a", { href: shown.page, target: "_blank", rel: "noopener noreferrer" }, shown.source) : shown.source),
       shown.author ? h("p", {}, shown.author) : null,
       shown.license
@@ -260,7 +302,6 @@ export function mountCard(root, ctx) {
       h("img", { src: shown.src, alt: `Photo of ${title}`, loading: "lazy" }),
       photos.length > 1 ? step(-1, "prev", "chevron-left") : null,
       photos.length > 1 ? step(1, "next", "chevron-right") : null,
-      toggle,
       details,
     ];
   }
@@ -311,7 +352,7 @@ export function mountCard(root, ctx) {
         rgiId: glacier.rgiId,
         row: glacier.row,
         props: { ...glacier.props },
-        photos: { photos: null, index: 0, cropFailed: false },
+        photos: { photos: null, index: 0, cropFailed: false, creditOpen: false },
       };
       current = mine;
       state.rgi6Open = false;

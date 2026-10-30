@@ -16,7 +16,16 @@ const PAGE_URL = "https://lqgentner.github.io/rgi-explorer/";
 let created = [];
 
 /* The map options the page may pass. Any other name is a typo MapLibre would ignore. */
-const MAP_OPTIONS = new Set(["container", "style", "center", "zoom", "attributionControl"]);
+const MAP_OPTIONS = new Set([
+  "container",
+  "style",
+  "center",
+  "zoom",
+  "attributionControl",
+  "interactive",
+  "pixelRatio",
+  "canvasContextAttributes",
+]);
 
 export class FakeMap {
   constructor(options = {}) {
@@ -254,6 +263,23 @@ export class FakeMap {
 
   fire(event, payload = {}) {
     for (const fn of [...(this.handlers[event] ?? [])]) fn(payload);
+  }
+
+  /** The canvas; `toDataURL` names the view it would show. */
+  getCanvas() {
+    return {
+      toDataURL: (type) => `data:${type};view=${this.zoom}/${this.center.lng}/${this.center.lat}`,
+    };
+  }
+
+  /** A repaint ends at once in an idle map. */
+  triggerRepaint() {
+    this.calls.push("triggerRepaint");
+    queueMicrotask(() => this.fire("idle"));
+  }
+
+  setPixelRatio(ratio) {
+    this.options.pixelRatio = ratio;
   }
 
   zoomIn() {

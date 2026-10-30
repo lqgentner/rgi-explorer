@@ -54,7 +54,7 @@ These would make the project a failure even if everything technically works:
 
 - **Looking official.** The mirror is not endorsed by the RGI Consortium. The
   explorer must not use the RGI logo or anything that implies endorsement.
-  Credits say the explorer and the mirror are unofficial.
+  The README says the explorer and the mirror are unofficial.
 - **Two glacier datasets on one map.** The base map's own OSM glacier fills
   must be hidden so that RGI is the only glacier layer.
 - **Invented facts.** Every field description, unit, code label and
@@ -130,6 +130,7 @@ Measured from the staged 7.0-r1 files:
 | `glaciers` | 0–12 | every glacier attribute except `hypso_permille`, `rgi6_links` and `bbox` |
 | `glacier-labels` | 7–12 | `display_name`, `rgi_id`, `area_km2`, `label_minzoom` |
 | `regions`, `region-labels` | 0–12 | `o1region`, `o2region`, `full_name`, `level` |
+| `region-boundaries` | 0–12 | `level`: each border once, 1 where it bounds a first-order region |
 | `complexes` | 0–12 | `rgi_id`, `area_km2`, centre point |
 | `centerlines` | 8–12 | `rgi_id`, `segment_id`, `strahler_n`, `is_main`, … |
 | `intersects` (ice divides) | 10–12 | `rgi_id`, `rgi_g_id_1`, `rgi_g_id_2`, `length_m` |
@@ -213,16 +214,17 @@ elsewhere closes it.
   There is no IP lookup, which would send the address to a third party, and
   no geolocation prompt.
 - **RGI layers** are drawn from `rgi7.0.pmtiles` with the explorer's own
-  style (`js/styles.js`), not the catalog's. They sit above the base map and
-  below the base map's labels. Glaciers are white with a grey outline, and
-  small ones are dots at low zoom. Over imagery the fill is lighter, so the
-  ice shows through. Regions are outlines without a fill. Glacier labels and
+  style (`js/styles.js`), not the catalog's. They sit above the base map's fills
+  and lines and below its country borders and labels. Glaciers are white with a grey outline, and
+  small ones are dots at low zoom. Over imagery glaciers have no fill and a
+  white outline, so the ice shows, and the region outlines turn light. Regions are dashed outlines without a fill, drawn from
+  `region-boundaries`, which holds each border once. Glacier labels and
   region labels come from the archive, in Noto Sans, the only fonts Liberty's
   glyph server holds.
 - A toggle whose layer has no data at the current zoom (centerlines below 8,
   ice divides below 10) stays usable. It shows "visible from zoom N".
 - **Selecting a glacier:**
-  - draws its outline in red (`#d93025`), dashed and about 2.5 px wide;
+  - draws its outline in red (`#d93025`), dashed and about 2 px wide;
   - dims the rest of the map a little, the way Google Maps highlights an area;
   - fits the view to the glacier's bbox, padded so the sidebar or sheet
     doesn't cover it.
@@ -428,16 +430,14 @@ gdf = gpd.read_parquet(url, filters=[("rgi_id", "==", "RGI2000-v7.0-G-11-02596")
 
 ## Credits
 
-The status line, or the ⓘ on the phone, lists:
+The status line, or the ⓘ on the phone, lists the credits in groups, each
+named for what it draws:
 
-- © OpenStreetMap contributors;
-- OpenFreeMap;
-- © OpenMapTiles;
-- Esri, when imagery is shown;
-- Mapterhorn, when 3D is on;
-- the RGI 7.0 Consortium citation and license from the catalog's metadata;
-- a note that RGI Explorer and the mirror are unofficial and not endorsed by
-  the RGI Consortium.
+- **Glaciers:** "RGI Consortium" and the year of the catalog's citation,
+  linked to the catalog's DOI, whose landing page names the license;
+- **Basemap:** © OpenStreetMap contributors, OpenFreeMap, © OpenMapTiles;
+- **Imagery:** Esri, when imagery is shown;
+- **Terrain:** © Mapterhorn, when 3D is on.
 
 Photo credits sit with the photo.
 

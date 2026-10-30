@@ -14,7 +14,7 @@ globalThis.hyparquet = hyparquet;
 const { SEARCH_COLUMNS, openParquet, readColumns } = await import("../js/parquet.js");
 
 const ROOT = process.env.SMOKE_CATALOG || CATALOG_URL;
-const LAYERS = ["glaciers", "regions", "region-labels", "glacier-labels", "centerlines", "intersects"];
+const LAYERS = ["glaciers", "regions", "region-boundaries", "region-labels", "glacier-labels", "centerlines", "intersects"];
 const GLACIER_COUNT = 274531;
 
 test("the live catalog serves the data the page reads", { skip: process.env.SMOKE !== "1", timeout: 120_000 }, async (t) => {

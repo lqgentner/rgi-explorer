@@ -17,7 +17,9 @@ test("?catalog= shows Custom catalog and the host as text", async () => {
   });
   globalThis.hyparquet = hyparquet;
   await load("js/app.js");
-  const credit = await waitFor(() => document.querySelector("#status .credit"));
-  assert.equal(credit.textContent, "Custom catalog: data.source.coop");
+  const group = await waitFor(() => document.querySelector("#status .credit-group"));
+  assert.equal(group.querySelector(".credit-label").textContent, "Custom catalog");
+  const credit = group.querySelector(".credit");
+  assert.equal(credit.textContent, "data.source.coop");
   assert.equal(credit.tagName, "SPAN", "the host is text, not a link");
 });

@@ -7,22 +7,14 @@ import { PHONE, h, icon } from "./ui.js";
 
 const EARTH_CIRCUMFERENCE = 40075016.686;
 const TILE_SIZE = 512;
-const OSM = "© OpenStreetMap contributors";
-const OSM_COPYRIGHT = "https://www.openstreetmap.org/copyright";
-const OPENMAPTILES = "https://www.openmaptiles.org/";
-const ESRI = "Esri, Maxar, Earthstar Geographics, and the GIS User Community";
-const UNOFFICIAL = "RGI Explorer and the RGI mirror are unofficial and not endorsed by the RGI Consortium.";
+const OSM = { text: "© OpenStreetMap contributors", href: "https://www.openstreetmap.org/copyright" };
+const OPENFREEMAP = { text: "OpenFreeMap", href: "https://openfreemap.org/" };
+const OPENMAPTILES = { text: "© OpenMapTiles", href: "https://www.openmaptiles.org/" };
+const ESRI = { text: "Esri, Maxar, Earthstar Geographics, and the GIS User Community" };
+const MAPTERHORN = { text: "© Mapterhorn", href: "https://mapterhorn.com/attribution" };
+const DOI = /^10\.\d{4,}\/\S+$/;
 
 const MAX_LAT = 85.05;
-
-/** The address when it is http or https, otherwise null. */
-function webUrl(href) {
-  try {
-    return ["http:", "https:"].includes(new URL(href).protocol) ? href : null;
-  } catch {
-    return null;
-  }
-}
 
 /** Ground meters per screen pixel at a latitude in degrees (clamped to the map's) and a zoom level. */
 export function metersPerPixel(lat, zoom) {
@@ -40,22 +32,26 @@ export function scaleBar(mpp, maxPx = 80) {
   return { px: Math.round(meters / mpp), label };
 }
 
+/** "RGI Consortium" and the year of the catalog's citation, when it holds one. */
+function rgiCredit(citation) {
+  const year = /\((\d{4})\)/.exec(citation ?? "")?.[1];
+  return year ? `RGI Consortium ${year}` : "RGI Consortium";
+}
+
 /**
- * The credits for what the map shows, in reading order, as `{ text, href? }`.
- * With `customCatalog`, the host of a catalog that ?catalog= chose, a note
- * names it first.
+ * The credits for what the map shows, in reading order, as groups of
+ * `{ label, items }`, each item `{ text, href? }`. With `customCatalog`, the
+ * host of a catalog that ?catalog= chose, a note names it first.
  */
 export function credits({ base, terrain, catalog, customCatalog }) {
+  const doi = DOI.test(catalog.doi ?? "") ? `https://doi.org/${catalog.doi}` : null;
   return [
-    customCatalog ? { text: `Custom catalog: ${customCatalog}` } : null,
-    { text: OSM, href: OSM_COPYRIGHT },
-    { text: "OpenFreeMap" },
-    { text: "© OpenMapTiles", href: OPENMAPTILES },
-    base === "imagery" ? { text: ESRI } : null,
-    terrain ? { text: "Mapterhorn" } : null,
-    { text: catalog.citation },
-    { text: `License: ${catalog.license.id}`, href: webUrl(catalog.license.href) },
-    { text: UNOFFICIAL },
+    customCatalog ? { label: "Custom catalog", items: [{ text: customCatalog }] } : null,
+    /* The DOI's landing page names the license. */
+    { label: "Glaciers", items: [{ text: rgiCredit(catalog.citation), href: doi }] },
+    { label: "Basemap", items: [OSM, OPENFREEMAP, OPENMAPTILES] },
+    base === "imagery" ? { label: "Imagery", items: [ESRI] } : null,
+    terrain ? { label: "Terrain", items: [MAPTERHORN] } : null,
   ].filter(Boolean);
 }
 
@@ -72,13 +68,18 @@ export function mountStatus(root, rgiMap, catalog, getState) {
   const scaleLine = h("span", { class: "scale-bar" });
   const scale = h("span", { class: "scale", "aria-hidden": "true" }, scaleLabel, scaleLine);
 
+  const item = ({ text, href }) =>
+    href ? h("a", { class: "credit", href, target: "_blank", rel: "noopener" }, text) : h("span", { class: "credit" }, text);
   const drawCredits = () => {
-    const lines = credits({ ...getState(), catalog });
+    const groups = credits({ ...getState(), catalog });
     list.replaceChildren(
-      ...lines.map(({ text, href }) =>
-        href
-          ? h("a", { class: "credit", href, target: "_blank", rel: "noopener" }, text)
-          : h("span", { class: "credit" }, text),
+      ...groups.map(({ label, items }) =>
+        h(
+          "span",
+          { class: "credit-group" },
+          h("span", { class: "credit-label" }, label),
+          ...items.flatMap((entry, i) => (i ? [", ", item(entry)] : [item(entry)])),
+        ),
       ),
     );
   };

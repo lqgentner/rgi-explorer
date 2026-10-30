@@ -67,7 +67,7 @@ test("the input is labelled and the list is a listbox", () => {
   assert.ok(root.querySelector('[role="listbox"]'));
 });
 
-test("the search bar is a pill with a hidden search icon and no native clear control", () => {
+test("the search bar and its results share one card, with a hidden search icon and no native clear control", () => {
   const { root, input } = setup();
   const glyph = root.querySelector("svg.search-icon");
   assert.ok(glyph.querySelector("use").getAttribute("href").endsWith("#search"));
@@ -76,15 +76,21 @@ test("the search bar is a pill with a hidden search icon and no native clear con
 
   const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
   const rule = (selector) => new RegExp(`(^|\\n)${selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*\\{([^}]*)\\}`).exec(css)?.[2] ?? "";
+  const card = rule("#search");
+  for (const declaration of [/border-radius:\s*24px/, /background:\s*var\(--surface\)/, /box-shadow:\s*var\(--shadow\)/]) {
+    assert.match(card, declaration);
+  }
   const pill = rule("#search input");
-  for (const declaration of [/width:\s*100%/, /height:\s*48px/, /border-radius:\s*24px/, /box-shadow:\s*var\(--shadow\)/, /border:\s*0/, /padding:\s*0 48px/]) {
+  for (const declaration of [/width:\s*100%/, /height:\s*48px/, /border:\s*0/, /padding:\s*0 48px/, /background:\s*none/]) {
     assert.match(pill, declaration);
   }
+  assert.doesNotMatch(pill, /box-shadow/, "the card casts the one shadow");
   assert.match(css, /#search input::-webkit-search-cancel-button[^{]*\{[^}]*appearance:\s*none/);
   const results = rule("#search ul");
-  for (const declaration of [/background:\s*var\(--surface\)/, /box-shadow:\s*var\(--shadow\)/, /border-radius:\s*16px/]) {
+  for (const declaration of [/margin:\s*0/, /border-top:\s*1px solid var\(--line\)/]) {
     assert.match(results, declaration);
   }
+  assert.doesNotMatch(results, /box-shadow/, "the results sit inside the search card");
 });
 
 test("the glacier index loads once, on first focus or input, not at mount", async () => {

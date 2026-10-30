@@ -320,6 +320,43 @@ test("the info button reveals source, author and license as text with safe links
   assert.equal(root.querySelector('.photo-details a[href="https://creativecommons.org/licenses/by-sa/4.0"]').textContent, "CC BY-SA 4.0");
 });
 
+test("the photo credit opens out inside the photo and stays open on the next photo", async () => {
+  const { root, card } = setup({ photos: async () => [photo(1), photo(2)] });
+  await card.open(OPEN("A"));
+  await settle();
+  const pill = () => root.querySelector(".photo .photo-attrib");
+  assert.equal(pill().querySelector(".photo-details").hidden, true);
+  assert.equal(pill().querySelector(".popover"), null, "the credit is part of the photo, not a popover");
+  click(pill().querySelector('[aria-label="Photo details"]'));
+  assert.ok(pill().classList.contains("open"));
+  click(root.querySelector('[aria-label="Next photo"]'));
+  assert.ok(pill().classList.contains("open"));
+  assert.equal(pill().querySelector(".photo-details").hidden, false);
+  assert.equal(pill().querySelector(".photo-info").getAttribute("aria-expanded"), "true");
+});
+
+test("a press outside the credit or Escape folds it, and the photo arrows do not", async () => {
+  const { root, card } = setup({ photos: async () => [photo(1), photo(2)] });
+  await card.open(OPEN("A"));
+  await settle();
+  const pill = () => root.querySelector(".photo .photo-attrib");
+  const press = (node) => node.dispatchEvent(new window.Event("pointerdown", { bubbles: true }));
+  click(pill().querySelector(".photo-info"));
+  press(pill().querySelector(".photo-details"));
+  assert.ok(pill().classList.contains("open"), "a press inside keeps it open");
+  press(root.querySelector('[aria-label="Next photo"]'));
+  assert.ok(pill().classList.contains("open"), "the arrows keep it open");
+  press(document.body);
+  assert.ok(!pill().classList.contains("open"));
+  assert.equal(pill().querySelector(".photo-info").getAttribute("aria-expanded"), "false");
+
+  click(pill().querySelector(".photo-info"));
+  pill().dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  assert.ok(!pill().classList.contains("open"));
+  click(root.querySelector('[aria-label="Next photo"]'));
+  assert.ok(!pill().classList.contains("open"), "a folded credit stays folded on the next photo");
+});
+
 test("with no photos the card shows the Esri crop and its credit", async () => {
   const { root, card } = setup();
   await card.open(OPEN("A", { bbox: BBOX }));
