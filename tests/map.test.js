@@ -83,6 +83,7 @@ test("over imagery glaciers are white outlines without a fill, and region outlin
   const paint = (id, key) => map.getLayer(id).paint[key];
   assert.equal(paint("glaciers-fill", "fill-opacity"), 0);
   assert.equal(paint("selection-fill", "fill-opacity"), 0);
+  assert.equal(paint("selection-dim", "fill-opacity"), 0, "a clear fill cannot lift a selection out of the dimming");
   assert.equal(paint("glaciers-outline", "line-color"), "#ffffff");
   assert.equal(paint("glaciers-shadow", "line-opacity"), 0.5);
   assert.equal(paint("regions-outline-1", "line-color"), "#f1f3f4");
@@ -90,11 +91,13 @@ test("over imagery glaciers are white outlines without a fill, and region outlin
   rgiMap.setBase("standard");
   assert.equal(paint("glaciers-fill", "fill-opacity"), 1);
   assert.equal(paint("selection-fill", "fill-opacity"), 1);
+  assert.equal(paint("selection-dim", "fill-opacity"), 0.15);
   assert.equal(paint("glaciers-outline", "line-color"), "#80868b");
   assert.equal(paint("glaciers-shadow", "line-opacity"), 0);
   assert.equal(paint("regions-outline-1", "line-color"), "#5f6368");
   rgiMap.setBase("imagery");
   assert.equal(paint("selection-fill", "fill-opacity"), 0);
+  assert.equal(paint("selection-dim", "fill-opacity"), 0);
   assert.equal(paint("regions-outline-2", "line-color"), "#bdc1c6");
 });
 

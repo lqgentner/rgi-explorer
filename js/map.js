@@ -7,6 +7,12 @@ import { PREVIEW_SPAN } from "./viewpreview.js";
 
 const SELECTION_RED = "#d93025";
 const DIM_GREY = "#5f6368";
+/*
+ * How much a selection dims the map around it, per base map. A selection is
+ * lifted out of the dimming by drawing its fill again, but over imagery the
+ * fill is clear, so the dimming would cover the glacier too: imagery has none.
+ */
+const DIM_OPACITY = { standard: 0.15, imagery: 0 };
 const SELECTION_LINE = { "line-color": SELECTION_RED, "line-width": 2, "line-dasharray": [2, 1.2] };
 const SELECTION_DOT = {
   "circle-color": SELECTION_RED,
@@ -126,7 +132,7 @@ function buildStyle(liberty, rgi, state) {
       type: "fill",
       source: "world",
       layout: NONE,
-      paint: { "fill-color": DIM_GREY, "fill-opacity": 0.15 },
+      paint: { "fill-color": DIM_GREY, "fill-opacity": DIM_OPACITY[state.base] ?? DIM_OPACITY.standard },
     },
     {
       id: "selection-fill",
@@ -399,6 +405,7 @@ export async function createMap(container, catalog, state) {
         for (const [key, value] of Object.entries(properties)) map.setPaintProperty(id, key, value);
       }
       /* The selections redraw the glacier fill, and a complex its members' outlines, above the dimming. */
+      map.setPaintProperty("selection-dim", "fill-opacity", DIM_OPACITY[base]);
       map.setPaintProperty("selection-fill", "fill-opacity", paint["glaciers-fill"]["fill-opacity"]);
       map.setPaintProperty("complex-fill", "fill-opacity", paint["glaciers-fill"]["fill-opacity"]);
       map.setPaintProperty("complex-members", "line-color", paint["glaciers-outline"]["line-color"]);
