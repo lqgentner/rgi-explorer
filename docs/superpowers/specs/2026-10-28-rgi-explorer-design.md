@@ -206,6 +206,9 @@ elsewhere closes it.
   (`https://tiles.openfreemap.org/styles/liberty`), loaded as is except that
   the explorer hides its `landcover_ice` layer.
 - **Imagery base map:** Esri World Imagery raster tiles, with Esri's credit.
+  Liberty's borders and labels stay above it. The Liberty layers it covers
+  are switched off, so they neither draw nor fetch tiles; the background
+  stays and shows while the imagery loads.
 - **The map is a globe.** MapLibre's globe projection turns into Mercator as
   the view zooms in. A halo, as in glace-viewer, shows around the globe.
 - **The opening view** without a view in the address turns the globe toward
@@ -215,9 +218,10 @@ elsewhere closes it.
   no geolocation prompt.
 - **RGI layers** are drawn from `rgi7.0.pmtiles` with the explorer's own
   style (`js/styles.js`), not the catalog's. They sit above the base map's fills
-  and lines and below its country borders and labels. Glaciers are white with a grey outline, and
-  small ones are dots at low zoom. Over imagery glaciers have no fill and a
-  white outline, so the ice shows, and the region outlines turn light. Regions are dashed outlines without a fill, drawn from
+  and lines and below its country borders and labels. Glaciers are opaque white with a grey outline,
+  so OSM water and woods mapped on the ice don't tint them, and small ones are dots at low zoom. Over imagery glaciers have no fill and a
+  white outline with a soft dark shadow, so the ice shows and the outline
+  stands out on snow, and the region outlines turn light. Regions are dashed outlines without a fill, drawn from
   `region-boundaries`, which holds each border once. Glacier labels and
   region labels come from the archive, in Noto Sans, the only fonts Liberty's
   glyph server holds.
@@ -244,7 +248,8 @@ elsewhere closes it.
   grouped. Each result has an icon and a subtitle naming its kind:
   - glacier (RGI ID and area);
   - RGI region (its code);
-  - place (OSM type and country).
+  - place (OSM type, capitalised, and country; an OSM glacier reads
+    "Glacier (OSM)" to set it apart from RGI glaciers).
 - **Glacier names and IDs.** The first focus of the search bar reads three
   columns from all 24 row groups of the glaciers GeoParquet: `rgi_id`,
   `display_name` and `glac_name`. That is about 0.6 MB over roughly 72 range

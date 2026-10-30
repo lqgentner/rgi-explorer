@@ -7,6 +7,8 @@ import { PREVIEW_SPAN } from "./viewpreview.js";
 
 const SELECTION_RED = "#d93025";
 const COMPLEX_GREY = "#5f6368";
+/* The background on imagery, where the imagery has not loaded yet. */
+const IMAGERY_BACKGROUND = "#3c4043";
 const MAX_LAT = 85.05;
 const POINTS = ["in", ["geometry-type"], ["literal", ["Point", "MultiPoint"]]];
 /* The camera tilt in 3D, in degrees from straight down. */
@@ -63,15 +65,36 @@ function libertyLayers(liberty) {
 }
 
 /**
- * One style: Liberty, the imagery layer, the RGI layers and the selection
- * layers. The imagery and the RGI fills and lines go above Liberty's fills and
- * lines but below its country borders, which Liberty draws last, and its labels.
+ * Liberty's layers split where the imagery goes: above its fills and lines
+ * but below its country borders, which Liberty draws last, and its labels.
+ * `covered` names the layers the imagery hides, so they are switched off on
+ * imagery and draw nothing and fetch nothing there. The background stays, as
+ * it shows while the imagery loads; it turns dark grey there.
  */
-function buildStyle(liberty, rgi, state) {
+function splitLiberty(liberty) {
   const base = libertyLayers(liberty);
   const lastFlat = base.findLastIndex((layer) => !isSymbol(layer));
   const firstBorder = base.findIndex((layer) => layer["source-layer"] === "boundary");
   const cut = firstBorder !== -1 && firstBorder <= lastFlat ? firstBorder : lastFlat + 1;
+  const covered = base
+    .slice(0, cut)
+    .filter((layer) => layer.type !== "background" && layer.layout?.visibility !== "none")
+    .map((layer) => layer.id);
+  const background = base.find((layer) => layer.type === "background");
+  return { base, cut, covered, background };
+}
+
+/**
+ * One style: Liberty, the imagery layer, the RGI layers and the selection
+ * layers. The imagery and the RGI fills and lines go between Liberty's flat
+ * layers and its borders and labels (see splitLiberty).
+ */
+function buildStyle(liberty, rgi, state) {
+  const { base, cut, covered, background } = splitLiberty(liberty);
+  if (state.base === "imagery") {
+    for (const layer of base) if (covered.includes(layer.id)) layer.layout = { ...layer.layout, ...NONE };
+    if (background) background.paint = { ...background.paint, "background-color": IMAGERY_BACKGROUND };
+  }
   const esri = {
     id: "esri",
     type: "raster",
@@ -298,6 +321,7 @@ export async function createMap(container, catalog, state) {
   const idFilter = (id) => ["==", ["get", "rgi_id"], id];
   const SELECTION = ["selection-dim", "selection-fill", "selection-outline", "selection-dot", "selection-label"];
   const show = (id, on) => map.setLayoutProperty(id, "visibility", visibility(on));
+  const { covered, background } = splitLiberty(liberty);
   const picture = standardPictures(liberty);
 
   const api = {
@@ -311,6 +335,11 @@ export async function createMap(container, catalog, state) {
 
     setBase(base) {
       show("esri", base === "imagery");
+      for (const id of covered) show(id, base !== "imagery");
+      if (background) {
+        const color = base === "imagery" ? IMAGERY_BACKGROUND : background.paint?.["background-color"];
+        map.setPaintProperty(background.id, "background-color", color);
+      }
       const paint = BASE_PAINT[base];
       for (const [id, properties] of Object.entries(paint)) {
         for (const [key, value] of Object.entries(properties)) map.setPaintProperty(id, key, value);

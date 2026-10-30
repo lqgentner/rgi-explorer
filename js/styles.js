@@ -36,20 +36,24 @@ export const PALETTE = {
 };
 
 /**
- * The paint that changes with the base map, by layer ID. Over imagery the
- * glaciers are white outlines without a fill, so the ice shows, and the region
- * outlines turn light: the first-order outline is the lightest, as it is the
- * darkest over the standard map.
+ * The paint that changes with the base map, by layer ID. Over the standard map
+ * the glacier fill is opaque, so the water and woods that OSM maps on a glacier
+ * do not tint it. Over imagery the glaciers are white outlines without a fill,
+ * so the ice shows, with a soft dark shadow that keeps them apart from snow,
+ * and the region outlines turn light: the first-order outline is the lightest,
+ * as it is the darkest over the standard map.
  */
 export const BASE_PAINT = {
   standard: {
-    "glaciers-fill": { "fill-opacity": 0.85 },
+    "glaciers-fill": { "fill-opacity": 1 },
+    "glaciers-shadow": { "line-opacity": 0 },
     "glaciers-outline": { "line-color": PALETTE.glacierOutline },
     "regions-outline-1": { "line-color": PALETTE.region1 },
     "regions-outline-2": { "line-color": PALETTE.region2 },
   },
   imagery: {
     "glaciers-fill": { "fill-opacity": 0 },
+    "glaciers-shadow": { "line-opacity": 0.5 },
     "glaciers-outline": { "line-color": "#ffffff" },
     "regions-outline-1": { "line-color": "#f1f3f4" },
     "regions-outline-2": { "line-color": "#bdc1c6" },
@@ -77,6 +81,14 @@ export function rgiStyle(pmtilesUrl) {
       }),
       layer("glaciers-fill", "fill", "glaciers", {
         paint: { "fill-color": PALETTE.glacier, ...BASE_PAINT.standard["glaciers-fill"] },
+      }),
+      layer("glaciers-shadow", "line", "glaciers", {
+        paint: {
+          "line-color": "#000000",
+          "line-width": ["interpolate", ["linear"], ["zoom"], 0, 3, 8, 2.5, 12, 3],
+          "line-blur": 2,
+          ...BASE_PAINT.standard["glaciers-shadow"],
+        },
       }),
       layer("glaciers-outline", "line", "glaciers", {
         paint: {

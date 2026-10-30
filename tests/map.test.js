@@ -84,12 +84,14 @@ test("over imagery glaciers are white outlines without a fill, and region outlin
   assert.equal(paint("glaciers-fill", "fill-opacity"), 0);
   assert.equal(paint("selection-fill", "fill-opacity"), 0);
   assert.equal(paint("glaciers-outline", "line-color"), "#ffffff");
+  assert.equal(paint("glaciers-shadow", "line-opacity"), 0.5);
   assert.equal(paint("regions-outline-1", "line-color"), "#f1f3f4");
   assert.equal(paint("regions-outline-2", "line-color"), "#bdc1c6");
   rgiMap.setBase("standard");
-  assert.equal(paint("glaciers-fill", "fill-opacity"), 0.85);
-  assert.equal(paint("selection-fill", "fill-opacity"), 0.85);
+  assert.equal(paint("glaciers-fill", "fill-opacity"), 1);
+  assert.equal(paint("selection-fill", "fill-opacity"), 1);
   assert.equal(paint("glaciers-outline", "line-color"), "#80868b");
+  assert.equal(paint("glaciers-shadow", "line-opacity"), 0);
   assert.equal(paint("regions-outline-1", "line-color"), "#5f6368");
   rgiMap.setBase("imagery");
   assert.equal(paint("selection-fill", "fill-opacity"), 0);
@@ -118,6 +120,27 @@ test("imagery shows esri above Liberty's fills and lines and below its borders a
   assert.equal(map.layout("label_place").visibility, undefined);
   rgiMap.setBase("standard");
   assert.equal(map.layout("esri").visibility, "none");
+});
+
+test("imagery switches off the Liberty layers it covers, which then fetch nothing", async () => {
+  const { rgiMap, map } = await build();
+  rgiMap.setBase("imagery");
+  assert.equal(map.layout("water").visibility, "none");
+  assert.equal(map.layout("road_major").visibility, "none");
+  assert.equal(map.layout("road_one_way_arrow").visibility, "none");
+  assert.equal(map.layout("background").visibility, undefined, "the background shows while the imagery loads");
+  assert.equal(map.getLayer("background").paint["background-color"], "#3c4043", "dark grey until the imagery loads");
+  assert.equal(map.layout("boundary").visibility, undefined);
+  rgiMap.setBase("standard");
+  assert.equal(map.layout("water").visibility, "visible");
+  assert.equal(map.layout("road_major").visibility, "visible");
+  assert.equal(map.layout("landcover_ice").visibility, "none", "Liberty's glaciers stay hidden");
+  assert.equal(map.getLayer("background").paint["background-color"], "#f8f4f0");
+
+  const { map: started } = await build("?base=imagery");
+  assert.equal(started.layout("water").visibility, "none");
+  assert.equal(started.layout("landcover_ice").visibility, "none");
+  assert.equal(started.getLayer("background").paint["background-color"], "#3c4043");
 });
 
 test("a symbol between Liberty's lines stays below imagery and the RGI layers", async () => {
