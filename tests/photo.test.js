@@ -317,63 +317,30 @@ test("one photo has no arrows, several have them, and the buttons move the image
   assert.equal(src(), photo(3).src, "previous wraps to the last photo");
 });
 
-test("the info button reveals source, author and license as text with safe links", async () => {
+test("the photo credit is a line of text: source, author and license with safe links", async () => {
   const hostile = photo(1, { author: "<img src=x onerror=alert(1)>", licenseUrl: "javascript:alert(1)" });
   const { root, card } = setup({ photos: async () => [hostile, photo(2)] });
   await card.open(OPEN("A"));
   await settle();
-  const info = root.querySelector('[aria-label="Photo details"]');
-  assert.equal(root.querySelector(".photo-details").hidden, true);
-  click(info);
-  const details = root.querySelector(".photo-details");
-  assert.equal(details.hidden, false);
-  assert.equal(info.getAttribute("aria-expanded"), "true");
-  assert.equal(info.getAttribute("aria-label"), "Photo details");
-  assert.match(details.textContent, /Wikidata Q1 · P18/);
-  assert.match(details.textContent, /<img src=x onerror=alert\(1\)>/);
-  assert.equal(details.querySelector("img"), null);
-  assert.equal(details.querySelector('a[href="https://commons.wikimedia.org/wiki/File:1.jpg"]').textContent, "Wikidata Q1 · P18");
-  assert.equal(details.querySelector('a[href^="javascript"]'), null);
-  assert.match(details.textContent, /CC BY-SA 4\.0/);
+  const credit = () => root.querySelector(".photo .photo-credit");
+  assert.equal(root.querySelector(".photo-info"), null, "no button: the credit always shows");
+  assert.equal(credit().querySelector(".credit-label").textContent, "Photo", "labelled like the map's credits");
+  assert.equal(credit().textContent, "PhotoWikidata Q1 · P18, <img src=x onerror=alert(1)>, CC BY-SA 4.0");
+  assert.equal(credit().querySelector("img"), null);
+  assert.equal(credit().querySelector('a[href="https://commons.wikimedia.org/wiki/File:1.jpg"]').textContent, "Wikidata Q1 · P18");
+  assert.equal(credit().querySelector('a[href^="javascript"]'), null);
   click(root.querySelector('[aria-label="Next photo"]'));
-  assert.equal(root.querySelector('.photo-details a[href="https://creativecommons.org/licenses/by-sa/4.0"]').textContent, "CC BY-SA 4.0");
+  assert.equal(credit().querySelector('a[href="https://creativecommons.org/licenses/by-sa/4.0"]').textContent, "CC BY-SA 4.0");
+  assert.equal(root.querySelectorAll(".photo-credit").length, 1);
 });
 
-test("the photo credit opens out inside the photo and stays open on the next photo", async () => {
-  const { root, card } = setup({ photos: async () => [photo(1), photo(2)] });
-  await card.open(OPEN("A"));
-  await settle();
-  const pill = () => root.querySelector(".photo .photo-attrib");
-  assert.equal(pill().querySelector(".photo-details").hidden, true);
-  assert.equal(pill().querySelector(".popover"), null, "the credit is part of the photo, not a popover");
-  click(pill().querySelector('[aria-label="Photo details"]'));
-  assert.ok(pill().classList.contains("open"));
-  click(root.querySelector('[aria-label="Next photo"]'));
-  assert.ok(pill().classList.contains("open"));
-  assert.equal(pill().querySelector(".photo-details").hidden, false);
-  assert.equal(pill().querySelector(".photo-info").getAttribute("aria-expanded"), "true");
-});
-
-test("a press outside the credit or Escape folds it, and the photo arrows do not", async () => {
-  const { root, card } = setup({ photos: async () => [photo(1), photo(2)] });
-  await card.open(OPEN("A"));
-  await settle();
-  const pill = () => root.querySelector(".photo .photo-attrib");
-  const press = (node) => node.dispatchEvent(new window.Event("pointerdown", { bubbles: true }));
-  click(pill().querySelector(".photo-info"));
-  press(pill().querySelector(".photo-details"));
-  assert.ok(pill().classList.contains("open"), "a press inside keeps it open");
-  press(root.querySelector('[aria-label="Next photo"]'));
-  assert.ok(pill().classList.contains("open"), "the arrows keep it open");
-  press(document.body);
-  assert.ok(!pill().classList.contains("open"));
-  assert.equal(pill().querySelector(".photo-info").getAttribute("aria-expanded"), "false");
-
-  click(pill().querySelector(".photo-info"));
-  pill().dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
-  assert.ok(!pill().classList.contains("open"));
-  click(root.querySelector('[aria-label="Next photo"]'));
-  assert.ok(!pill().classList.contains("open"), "a folded credit stays folded on the next photo");
+test("the photo credit sits along the photo's bottom left, set like the map's credits", () => {
+  const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
+  const rule = /(^|\n)\.photo-credit\s*\{([^}]*)\}/.exec(css)?.[2] ?? "";
+  for (const declaration of [/left:\s*0/, /bottom:\s*0/, /font-size:\s*11px/, /background:\s*var\(--glass\)/]) {
+    assert.match(rule, declaration);
+  }
+  assert.doesNotMatch(css, /\.photo-attrib/, "the fold-out credit is gone");
 });
 
 test("with no photos the card shows the Esri crop and its credit", async () => {
@@ -382,7 +349,8 @@ test("with no photos the card shows the Esri crop and its credit", async () => {
   await settle();
   const img = root.querySelector(".photo img");
   assert.equal(img.getAttribute("src"), esriCrop(BBOX, 816, 400));
-  assert.match(root.querySelector(".photo").textContent, /Imagery: Esri, Maxar, Earthstar Geographics/);
+  assert.equal(root.querySelector(".photo-credit .credit-label").textContent, "Imagery");
+  assert.equal(root.querySelector(".photo-credit").textContent, "ImageryEsri, Maxar, Earthstar Geographics");
   img.dispatchEvent(new window.Event("error"));
   assert.equal(root.querySelector(".photo img"), null);
   assert.ok(root.querySelector(".photo-placeholder"));

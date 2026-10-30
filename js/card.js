@@ -13,7 +13,7 @@ const TABS = [
 const SHOWN_LINKS = 3;
 /* The imagery crop's pixel size, and the rows at its top that something covers. */
 const CROP = { size: [816, 400], top: 0 };
-export const IMAGERY_CREDIT = "Imagery: Esri, Maxar, Earthstar Geographics";
+export const IMAGERY_CREDIT = "Esri, Maxar, Earthstar Geographics";
 const isHttp = (url) => /^https?:\/\//i.test(url ?? "");
 const AREA_UNIT = DISPLAY.find((d) => d.column === "area_km2").unit;
 
@@ -27,11 +27,14 @@ export function infoButton(label, description) {
 }
 
 /**
- * A photo credit folded into an info button at the photo's bottom left. A click
- * opens it out to the right, inside the photo, as MapLibre's compact
- * attribution does; a press anywhere else but the photo arrows, or Escape,
- * folds it again. `onToggle(open)` hears each change.
+ * A photo's credit: one line of text along the photo's bottom left, set like
+ * the map's credits, a label and then its items, comma-separated.
  */
+export function photoCredit(label, ...items) {
+  const parts = items.filter(Boolean).flatMap((item, i) => (i ? [", ", item] : [item]));
+  return h("div", { class: "photo-credit" }, h("span", { class: "credit-label" }, label), ...parts);
+}
+
 /**
  * Marks `section` as the panel last opened in `root`, which holds the glacier
  * card and the complex panel. On desktop the sidebar keeps drawing that panel
@@ -39,39 +42,6 @@ export function infoButton(label, description) {
  */
 export function markCurrent(root, section) {
   for (const panel of root.children) panel.classList.toggle("current", panel === section);
-}
-
-export function photoCredit(label, className, open, onToggle, ...children) {
-  const button = h("button", { type: "button", class: "icon-button photo-info", "aria-label": label }, icon("info"));
-  const text = h("div", { class: `photo-attrib-text ${className}` }, ...children);
-  const pill = h("div", { class: "photo-attrib" }, button, text);
-  const close = () => {
-    set(false);
-    onToggle(false);
-  };
-  /* The arrows show the next photo's credit, so the credit stays open for them. */
-  const outside = (event) => {
-    if (!pill.isConnected) document.removeEventListener("pointerdown", outside, true);
-    else if (!pill.contains(event.target) && !event.target.closest?.(".photo-prev, .photo-next")) close();
-  };
-  function set(next) {
-    text.hidden = !next;
-    button.setAttribute("aria-expanded", String(next));
-    pill.classList.toggle("open", next);
-    if (next) document.addEventListener("pointerdown", outside, true);
-    else document.removeEventListener("pointerdown", outside, true);
-  }
-  button.addEventListener("click", () => {
-    set(text.hidden);
-    onToggle(!text.hidden);
-  });
-  pill.addEventListener("keydown", (event) => {
-    if (event.key !== "Escape" || text.hidden) return;
-    close();
-    button.focus();
-  });
-  set(open);
-  return pill;
 }
 
 /**
@@ -288,26 +258,15 @@ export function mountCard(root, ctx) {
       mine.photos.cropFailed = true;
       renderPhotoArea();
     });
-    return [image, photoCredit("Image credit", "photo-credit", mine.photos.creditOpen, remember(mine), IMAGERY_CREDIT)];
+    return [image, photoCredit("Imagery", IMAGERY_CREDIT)];
   }
-
-  /* An open credit stays open as the photos change. */
-  const remember = (glacier) => (open) => {
-    glacier.photos.creditOpen = open;
-  };
 
   function carousel(photos) {
     const at = current.photos.index;
     const shown = photos[at];
     const title = head.querySelector(".card-title")?.textContent ?? "";
-    const details = photoCredit("Photo details", "photo-details", current.photos.creditOpen, remember(current),
-      h("p", {}, isHttp(shown.page) ? h("a", { href: shown.page, target: "_blank", rel: "noopener noreferrer" }, shown.source) : shown.source),
-      shown.author ? h("p", {}, shown.author) : null,
-      shown.license
-        ? h("p", {}, isHttp(shown.licenseUrl)
-          ? h("a", { href: shown.licenseUrl, target: "_blank", rel: "noopener noreferrer" }, shown.license)
-          : shown.license)
-        : null);
+    const link = (href, text) => (isHttp(href) ? h("a", { href, target: "_blank", rel: "noopener noreferrer" }, text) : text);
+    const details = photoCredit("Photo", link(shown.page, shown.source), shown.author, shown.license && link(shown.licenseUrl, shown.license));
     const step = (delta, label, name) => {
       const node = h("button", { type: "button", class: `icon-button photo-${label}`, "aria-label": `${label === "prev" ? "Previous" : "Next"} photo` }, icon(name));
       node.addEventListener("click", () => {
@@ -371,7 +330,7 @@ export function mountCard(root, ctx) {
         rgiId: glacier.rgiId,
         row: glacier.row,
         props: { ...glacier.props },
-        photos: { photos: null, index: 0, cropFailed: false, creditOpen: false },
+        photos: { photos: null, index: 0, cropFailed: false },
       };
       current = mine;
       state.rgi6Open = false;

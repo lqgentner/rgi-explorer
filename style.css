@@ -1007,23 +1007,15 @@ table.members .num {
   height: 100%;
 }
 
-/*
- * The controls over a photo are faint glass, so the photo shows through; an
- * open credit turns more opaque to stay legible.
- */
+/* The photo arrows are faint glass, so the photo shows through. */
 .photo-prev,
-.photo-next,
-.photo-attrib {
+.photo-next {
   position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
   background: var(--photo-glass);
   backdrop-filter: var(--glass-blur);
   box-shadow: 0 1px 2px rgb(60 64 67 / 20%);
-}
-
-.photo-prev,
-.photo-next {
-  top: 50%;
-  transform: translateY(-50%);
 }
 
 .photo-prev {
@@ -1035,44 +1027,26 @@ table.members .num {
 }
 
 .photo-prev:hover,
-.photo-next:hover,
-.photo-attrib:hover,
-.photo-attrib.open {
+.photo-next:hover {
   background: var(--glass);
 }
 
-/* The credit: an info button that opens out to the right, inside the photo. */
-.photo-attrib {
-  left: 8px;
-  bottom: 8px;
-  max-width: calc(100% - 16px);
-  display: flex;
-  /* The button keeps the bottom left corner as the text wraps above its line. */
-  align-items: flex-end;
-  border-radius: 16px;
+/* The photo's credit: one line of text along its bottom left, set like the map's credits. */
+.photo-credit {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  max-width: 100%;
+  padding: 2px 8px;
+  border-top-right-radius: 8px;
+  background: var(--glass);
+  backdrop-filter: var(--glass-blur);
+  color: var(--text);
+  font-size: 11px;
+  line-height: 16px;
 }
 
-.photo-attrib .photo-info {
-  flex: none;
-  background: none;
-}
-
-.photo-attrib-text {
-  padding: 7px 12px 7px 0;
-  font-size: 12px;
-  line-height: 18px;
-}
-
-.photo-attrib-text p {
-  display: inline;
-  margin: 0;
-}
-
-.photo-attrib-text p + p::before {
-  content: " · ";
-}
-
-.photo-attrib-text a {
+.photo-credit a {
   color: inherit;
 }
 

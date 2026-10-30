@@ -131,10 +131,7 @@ export function mountComplexCard(root, ctx) {
       mine.cropFailed = true;
       renderPhoto();
     });
-    const credit = photoCredit("Image credit", "photo-credit", mine.creditOpen, (open) => {
-      mine.creditOpen = open;
-    }, IMAGERY_CREDIT);
-    photo.replaceChildren(image, credit);
+    photo.replaceChildren(image, photoCredit("Imagery", IMAGERY_CREDIT));
   }
 
   function render() {
@@ -173,7 +170,7 @@ export function mountComplexCard(root, ctx) {
 
   const api = {
     open(complexId) {
-      const mine = { id: complexId, props: null, state: "loading", members: null, cropFailed: false, creditOpen: false };
+      const mine = { id: complexId, props: null, state: "loading", members: null, cropFailed: false };
       current = mine;
       root.hidden = false;
       section.hidden = false;

@@ -369,12 +369,15 @@ adapted because an RGI glacier has no OSM tags.
    geometry, so the point-in-polygon test is approximate at tile resolution.
 3. Collect each kept item's `P18` image and, as OSMapp does, files from its
    Commons category (`P373`).
-4. Show the hits as a carousel. Each image has an ⓘ that names its source
-   ("Wikidata Q204658 · P18") and links to the Commons file page.
-5. Show the author and license in that ⓘ's popover. Both come from the
-   Commons API (`imageinfo` with `extmetadata`).
+4. Show the hits as a carousel. Each image's credit always shows, as one
+   line of text along the photo's bottom left, set like the map's credits:
+   "Photo", then its source ("Wikidata Q204658 · P18", linking to the
+   Commons file page), the author and the license.
+5. The author and license come from the Commons API (`imageinfo` with
+   `extmetadata`).
 6. With no hit, or on any error or timeout, show an Esri World Imagery crop
-   framed on the glacier's bbox, with Esri's credit behind an ⓘ. On desktop
+   framed on the glacier's bbox, with the line "Imagery Esri, Maxar,
+   Earthstar Geographics". On desktop
    the search bar covers the photo's top, so the crop centres the glacier in
    the rows below it.
 
