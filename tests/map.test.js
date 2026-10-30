@@ -422,7 +422,7 @@ test("glacierAt ignores the low-zoom dots", async () => {
   assert.equal(rgiMap.glacierAt({ x: 100, y: 100 }), null);
 });
 
-test("the standard picture draws Liberty as it comes on one hidden map, at the main map's view", async () => {
+test("the standard picture draws Liberty without its labels on one hidden map, at the main map's view", async () => {
   const { rgiMap, map, page } = await build();
   map.jumpTo({ center: [8, 46.5], zoom: 9 });
   assert.equal(await rgiMap.standardPicture(192), "data:image/jpeg;view=9/8/46.5");
@@ -435,6 +435,12 @@ test("the standard picture draws Liberty as it comes on one hidden map, at the m
   assert.deepEqual(mini.options.canvasContextAttributes, { preserveDrawingBuffer: true });
   assert.equal(mini.getSource("data"), undefined, "no RGI layers");
   assert.equal(mini.layout("landcover_ice").visibility, undefined, "Liberty's own glaciers show");
+  assert.deepEqual(
+    mini.options.style.layers.map((layer) => layer.id),
+    ["background", "landcover_ice", "water", "road_major", "boundary"],
+    "no labels, icons or arrows",
+  );
+  assert.equal(mini.options.style.glyphs, undefined);
 
   map.jumpTo({ center: [10, 47], zoom: 11 });
   assert.equal(await rgiMap.standardPicture(192), "data:image/jpeg;view=11/10/47");

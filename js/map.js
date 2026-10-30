@@ -257,10 +257,11 @@ const clampLat = (lat) => Math.max(-MAX_LAT, Math.min(MAX_LAT, lat));
 
 /**
  * The Standard map's picture of a view: a hidden map of OpenFreeMap's Liberty
- * as it comes, its own glaciers included, PREVIEW_SPAN CSS pixels square and
- * made on first use. It draws at the main map's zoom, so it asks
- * for the tiles the main map already holds, from the browser's cache; its pixel
- * ratio shrinks the drawing to the picture's size. `picture(view, px)`
+ * as it comes, its own glaciers included, but without its symbol layers: no
+ * labels, icons or shields. It is PREVIEW_SPAN CSS pixels square and made on
+ * first use. It draws at the main map's zoom, so it asks for the tiles the
+ * main map already holds, from the browser's cache; its pixel ratio shrinks
+ * the drawing to the picture's size. `picture(view, px)`
  * resolves with a JPEG data URL, or null when the map fails or takes longer
  * than TIMEOUT_MS.
  */
@@ -282,9 +283,8 @@ function standardPictures(liberty) {
       style: {
         version: 8,
         ...(liberty.sprite ? { sprite: liberty.sprite } : {}),
-        glyphs: GLYPHS,
         sources: liberty.sources,
-        layers: liberty.layers,
+        layers: liberty.layers.filter((layer) => !isSymbol(layer)),
       },
       center: [0, 0],
       zoom: 0,
@@ -377,6 +377,9 @@ export async function createMap(container, catalog, state) {
 
   const api = {
     map,
+
+    /* Each base map's plain background, which shows before its tiles arrive. */
+    backgrounds: { standard: background?.paint?.["background-color"], imagery: IMAGERY_BACKGROUND },
 
     /** A JPEG data URL of the Standard map around the view's centre, `px` pixels square, or null. */
     standardPicture(px) {

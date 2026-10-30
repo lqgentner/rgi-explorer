@@ -105,9 +105,18 @@ function sizeOf(url) {
   return sizes.get(url);
 }
 
-/** A button that copies `text()` and says "Copied" for a moment. Fails quietly. */
-function copyButton(text, label = "Copy") {
-  const button = h("button", { type: "button", class: "btn copy" }, label);
+/**
+ * An icon button that copies `text()` and shows a check, named "Copied", for
+ * a moment. Fails quietly.
+ */
+function copyButton(text) {
+  const button = h("button", { type: "button", class: "icon-button copy" });
+  const show = (glyph, label) => {
+    button.replaceChildren(icon(glyph));
+    button.setAttribute("aria-label", label);
+    button.title = label;
+  };
+  show("copy", "Copy");
   let timer = null;
   button.addEventListener("click", async () => {
     try {
@@ -115,11 +124,9 @@ function copyButton(text, label = "Copy") {
     } catch {
       return;
     }
-    button.textContent = "Copied";
+    show("check", "Copied");
     clearTimeout(timer);
-    timer = setTimeout(() => {
-      button.textContent = label;
-    }, COPIED_MS);
+    timer = setTimeout(() => show("copy", "Copy"), COPIED_MS);
   });
   return button;
 }
@@ -148,15 +155,16 @@ function segmented(name, legend, options, checked) {
 let mounted = 0;
 
 /**
- * Mount "Use this data" in `root` and return `{ open(target), close() }`.
- * `target` is `{ kind?, rgiId, o1region? }`, a glacier when `kind` is left out.
- * The phone gets a pane, the desktop a dialog.
+ * Mount "Use this data" and return `{ open(target), close() }`. `target` is
+ * `{ kind?, rgiId, o1region? }`, a glacier when `kind` is left out. The
+ * desktop gets a dialog in `root`, the phone a pane in `ctx.sheet` (or
+ * `root`). Both are made once; the content moves to the one the layout
+ * uses, and an open offer stays open across the change.
  *
  * @param {HTMLElement} root
- * @param {{catalog: object}} ctx
+ * @param {{catalog: object, sheet?: HTMLElement}} ctx
  */
-export function mountUseData(root, { catalog }) {
-  const phone = PHONE.matches;
+export function mountUseData(root, { catalog, sheet = root }) {
   mounted += 1;
   const id = `usedata-${mounted}`;
   const choice = { tool: "python", scope: "glacier" };
@@ -178,10 +186,12 @@ export function mountUseData(root, { catalog }) {
     scopes,
     body,
   ];
-  const container = phone
-    ? h("div", { class: "usedata usedata-pane", role: "dialog", "aria-labelledby": `${id}-title`, hidden: true }, content)
-    : h("dialog", { class: "usedata", "aria-labelledby": `${id}-title` }, content);
-  root.append(container);
+  const pane = h("div", { class: "usedata usedata-pane", role: "dialog", "aria-labelledby": `${id}-title`, hidden: true });
+  const dialog = h("dialog", { class: "usedata", "aria-labelledby": `${id}-title` });
+  sheet.append(pane);
+  root.append(dialog);
+  /* The container the layout uses; the content lives in it. */
+  let container = null;
 
   function render() {
     if (!target) return;
@@ -219,7 +229,35 @@ export function mountUseData(root, { catalog }) {
     body.replaceChildren(...parts);
   }
 
-  const isOpen = () => (phone ? !container.hidden : container.open || container.hasAttribute("open"));
+  const isOpen = () => (container === pane ? !pane.hidden : dialog.open || dialog.hasAttribute("open"));
+
+  function show() {
+    if (container === pane) pane.hidden = false;
+    else if (typeof dialog.showModal === "function") {
+      if (!dialog.open) dialog.showModal();
+    } else dialog.setAttribute("open", "");
+  }
+
+  function hide() {
+    if (container === pane) pane.hidden = true;
+    else if (typeof dialog.close === "function" && dialog.open) dialog.close();
+    else dialog.removeAttribute("open");
+  }
+
+  /* Move the content to the layout's container, open there if it was open. */
+  function place() {
+    const next = PHONE.matches ? pane : dialog;
+    if (next === container) return;
+    const open = container !== null && isOpen();
+    if (open) hide();
+    /* The scope choice may have been replaced since, so the nodes come from the page. */
+    const nodes = container ? [...container.childNodes] : content;
+    container = next;
+    container.append(...nodes);
+    if (open) show();
+  }
+  place();
+  PHONE.addEventListener("change", place);
 
   const listen = (group, key) =>
     group.addEventListener("change", (event) => {
@@ -246,10 +284,7 @@ export function mountUseData(root, { catalog }) {
       target = next;
       opener = document.activeElement;
       render();
-      if (phone) container.hidden = false;
-      else if (typeof container.showModal === "function") {
-        if (!container.open) container.showModal();
-      } else container.setAttribute("open", "");
+      show();
       container.querySelector("input:checked")?.focus();
       const shown = target;
       sizeOf(allFileOf(target, catalog)).then((size) => {
@@ -260,21 +295,21 @@ export function mountUseData(root, { catalog }) {
     },
     close() {
       if (!isOpen()) return;
-      if (phone) container.hidden = true;
-      else if (typeof container.close === "function" && container.open) container.close();
-      else container.removeAttribute("open");
+      hide();
       if (opener?.isConnected) opener.focus();
       opener = null;
     },
   };
 
   closeButton.addEventListener("click", () => api.close());
-  container.addEventListener("keydown", (event) => {
-    if (event.key !== "Escape") return;
-    event.preventDefault();
-    api.close();
-  });
-  container.addEventListener("cancel", (event) => {
+  for (const node of [pane, dialog]) {
+    node.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      api.close();
+    });
+  }
+  dialog.addEventListener("cancel", (event) => {
     event.preventDefault();
     api.close();
   });

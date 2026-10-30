@@ -6,7 +6,7 @@ import { test } from "node:test";
 
 import { loadPage, load, settle } from "./helpers/browser.js";
 
-const { document, window } = await loadPage();
+const { document, window, setPhone } = await loadPage();
 const { loadCatalog } = await load("js/catalog.js");
 const { mountComplexCard } = await load("js/complexcard.js");
 
@@ -14,6 +14,16 @@ const ROOT = "https://data.source.coop/lqgentner/rgi/catalog.json";
 const DIR = new URL("./fixtures/catalog/", import.meta.url);
 const catalog = await loadCatalog(ROOT, async (url) =>
   JSON.parse(fs.readFileSync(new URL(url.slice(ROOT.length - "catalog.json".length), DIR), "utf8")));
+/** Run `fn` with the page on a phone, then back on desktop. */
+async function onPhone(fn) {
+  setPhone(true);
+  try {
+    await fn();
+  } finally {
+    setPhone(false);
+  }
+}
+
 const regions = [
   { level: 1, o1region: "11", o2region: null, full_name: "Central Europe" },
   { level: 2, o1region: "11", o2region: "11-01", full_name: "Alps" },
@@ -106,13 +116,13 @@ test("the actions report the complex", async () => {
   assert.equal(root.querySelector(".card-close"), null, "without a band, the search bar's Close closes the panel");
 });
 
-test("with a band, the panel's Close reports the close", async () => {
+test("on the phone, with a band, the panel's Close reports the close", () => onPhone(async () => {
   const band = document.createElement("div");
   const { card, calls } = setup({ band });
   await card.open(ID);
   click(band.querySelector(".card-close"));
   assert.deepEqual(calls, ["close"]);
-});
+}));
 
 test("a failed read says so", async () => {
   const { root, card } = setup({ read: async () => { throw new Error("offline"); } });
@@ -146,7 +156,7 @@ test("a late read after close renders nothing", async () => {
   assert.equal(root.querySelectorAll(".row").length, 0);
 });
 
-test("on the phone the head goes to the band and hides when closed", async () => {
+test("on the phone the head goes to the band and hides when closed", () => onPhone(async () => {
   const band = document.createElement("div");
   const { root, card } = setup({ band });
   await card.open(ID);
@@ -155,7 +165,7 @@ test("on the phone the head goes to the band and hides when closed", async () =>
   assert.equal(root.querySelector(".card-title"), null);
   card.close();
   for (const node of band.children) assert.equal(node.hidden, true);
-});
+}));
 
 test("the panel last opened in the sidebar is the one that stays drawn while it slides out", async () => {
   const { mountCard } = await load("js/card.js");

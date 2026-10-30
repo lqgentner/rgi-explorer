@@ -7,7 +7,7 @@
 import { mountCard } from "./card.js";
 import { loadCatalog } from "./catalog.js";
 import { mountComplexCard } from "./complexcard.js";
-import { CATALOG_URL, resolveCatalogUrl, TIMEOUT_MS } from "./config.js";
+import { resolveCatalogUrl, TIMEOUT_MS } from "./config.js";
 import { mountLayers, mountTerrain, mountZoom } from "./layers.js";
 import { createMap } from "./map.js";
 import { groupOfKey, openParquet, readColumns, readRow, rowGroupOf, SEARCH_COLUMNS } from "./parquet.js";
@@ -232,12 +232,7 @@ function ringsOf(map, rgiId) {
   });
 }
 
-/**
- * @param {string | null} customCatalog  the host of a catalog that ?catalog=
- *   chose instead of the published one, or null
- */
-function wire(catalog, rgiMap, regions, customCatalog) {
-  const phone = PHONE.matches;
+function wire(catalog, rgiMap, regions) {
   const { map } = rgiMap;
   const regionNames = new Map(
     regions.filter((region) => Number(region.level) === 1).map((region) => [region.o1region, region.full_name]),
@@ -262,6 +257,7 @@ function wire(catalog, rgiMap, regions, customCatalog) {
     layers: state.layers,
     map,
     standardPicture: (px) => rgiMap.standardPicture(px),
+    backgrounds: rgiMap.backgrounds,
     zoom: () => map.getZoom(),
     onBase(base) {
       state.base = base;
@@ -286,7 +282,7 @@ function wire(catalog, rgiMap, regions, customCatalog) {
     },
   });
   mountZoom(el("controls"), rgiMap);
-  status = mountStatus(el("status"), rgiMap, catalog, () => ({ ...state, customCatalog }));
+  status = mountStatus(el("status"), rgiMap, catalog, () => state);
   rgiMap.onMove((view) => {
     state.view = view;
     save();
@@ -310,7 +306,7 @@ function wire(catalog, rgiMap, regions, customCatalog) {
   });
 
   const padding = () => {
-    if (phone) return { top: PHONE_TOP, right: GAP, bottom: (popupPadding()?.bottom ?? 0) + GAP, left: GAP };
+    if (PHONE.matches) return { top: PHONE_TOP, right: GAP, bottom: (popupPadding()?.bottom ?? 0) + GAP, left: GAP };
     return { top: GAP, right: GAP, bottom: GAP, left: (shown || shownComplex ? CARD_WIDTH : 0) + GAP };
   };
   const fitTo = (bbox) => rgiMap.fitBbox(bbox, padding());
@@ -344,20 +340,18 @@ function wire(catalog, rgiMap, regions, customCatalog) {
     return findPhotos({ rgiId: glacier.rgiId, props }, ringsOf(map, glacier.rgiId), { signal });
   }
 
-  const useData = mountUseData(phone ? el("sheet") : document.body, { catalog });
+  const useData = mountUseData(document.body, { catalog, sheet: el("sheet") });
 
-  let cardRoot = el("card");
-  let band = null;
-  if (phone) {
-    el("card").hidden = true;
-    cardRoot = el("sheet-body");
-    band = el("sheet-head");
-  }
+  /* The desktop sidebar holds the panels, the phone's sheet its band and body; see cardFrame. */
+  const cardRoot = el("card");
+  const band = el("sheet-head");
+  const sheet = el("sheet-body");
   initSheet();
 
+  /* The sheet shows only on the phone, through style.css. */
   function showCard(on) {
     document.body.classList.toggle("card-open", on);
-    if (phone) el("sheet").hidden = !on;
+    el("sheet").hidden = !on;
   }
 
   function closeGlacier() {
@@ -395,7 +389,10 @@ function wire(catalog, rgiMap, regions, customCatalog) {
     catalog,
     regions,
     band,
-    crop: phone ? PHONE_CROP : DESKTOP_CROP,
+    sheet,
+    get crop() {
+      return PHONE.matches ? PHONE_CROP : DESKTOP_CROP;
+    },
     parquet: {
       get handle() {
         return glaciers.handle;
@@ -411,7 +408,7 @@ function wire(catalog, rgiMap, regions, customCatalog) {
       if (shown) search.setText(title);
     },
     onUseData(glacier) {
-      if (phone) setSheetOpen(true);
+      if (PHONE.matches) setSheetOpen(true);
       useData.open({ kind: "glacier", rgiId: glacier.rgiId, o1region: glacier.props?.o1region });
     },
     onAction(action) {
@@ -424,14 +421,17 @@ function wire(catalog, rgiMap, regions, customCatalog) {
     catalog,
     regions,
     band,
-    crop: phone ? PHONE_CROP : DESKTOP_CROP,
+    sheet,
+    get crop() {
+      return PHONE.matches ? PHONE_CROP : DESKTOP_CROP;
+    },
     read: (complexId) => complexes.read(complexId),
     members: (props) => membersOf(props, glaciers),
     onClose: closeComplex,
     onZoom: zoomTo,
     onShare: share,
     onUseData(target) {
-      if (phone) setSheetOpen(true);
+      if (PHONE.matches) setSheetOpen(true);
       useData.open(target);
     },
     onOpenGlacier: (rgiId) => openGlacier({ rgiId }, true),
@@ -466,10 +466,10 @@ function wire(catalog, rgiMap, regions, customCatalog) {
     rgiMap.select(null);
     rgiMap.selectComplex(complexId);
     showCard(true);
-    if (!phone) search.setClosable(closeComplex);
+    search.setClosable(closeComplex);
     if (fit) fitComplexLater(complexId);
     complexCard.open(complexId);
-    if (phone) setSheetOpen(false);
+    if (PHONE.matches) setSheetOpen(false);
   }
 
   function closeComplex() {
@@ -500,10 +500,10 @@ function wire(catalog, rgiMap, regions, customCatalog) {
     rgiMap.pin(null);
     rgiMap.select(glacier.rgiId);
     showCard(true);
-    if (!phone) search.setClosable(closeGlacier);
+    search.setClosable(closeGlacier);
     fitting = fit ? fitGlacierLater(glacier) : null;
     card.open(glacier);
-    if (phone) setSheetOpen(false);
+    if (PHONE.matches) setSheetOpen(false);
   }
 
   map.on("click", (event) => {
@@ -599,7 +599,7 @@ async function start() {
     return;
   }
   try {
-    wire(catalog, mapResult.value, regionsResult.value, catalogUrl === CATALOG_URL ? null : new URL(catalogUrl).host);
+    wire(catalog, mapResult.value, regionsResult.value);
   } catch (error) {
     fail(MAP_ERROR, error);
   }

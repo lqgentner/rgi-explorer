@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import test from "node:test";
 
 import { FakeMap, loadPage, load } from "./helpers/browser.js";
@@ -12,39 +13,52 @@ const catalog = {
   license: { id: "CC-BY-4.0", href: "https://example.org/license" },
 };
 
-test("the phone has no scale bar, and an info button opens the credits", () => {
+test("the credits show at load in the info button's box, and fold on the first drag of the map", () => {
   const root = document.createElement("div");
-  const rgiMap = { map: new FakeMap({ zoom: 5 }), onMove() {} };
-  mountStatus(root, rgiMap, catalog, () => ({ base: "standard", terrain: false }));
-  assert.equal(root.querySelector(".scale-bar"), null);
-  const button = root.querySelector("button");
+  const map = new FakeMap({ zoom: 5 });
+  mountStatus(root, { map, onMove() {} }, catalog, () => ({ base: "standard", terrain: false }));
+  const box = root.querySelector(".credits-box");
+  const button = box.querySelector("button.credits-button");
   assert.ok(button.querySelector("use").getAttribute("href").endsWith("#info"));
-  const panel = [...document.querySelectorAll(".credits-panel")].at(-1);
-  assert.equal(root.querySelector(".credits-panel"), null);
-  assert.equal(panel.parentElement, document.body, "the panel stacks above the bottom sheet, outside #status");
-  assert.equal(panel.hidden, true);
-  button.click();
-  assert.equal(panel.hidden, false);
+  assert.equal(document.querySelector(".credits-panel"), null, "no separate panel");
+  assert.ok(box.querySelector(".credits").textContent.includes("RGI Consortium 2023"));
+  assert.ok(box.classList.contains("open"), "visible before the map moves");
   assert.equal(button.getAttribute("aria-expanded"), "true");
-  assert.ok(panel.textContent.includes("RGI Consortium 2023"));
+
+  map.fire("dragstart");
+  assert.ok(!box.classList.contains("open"));
+  assert.equal(button.getAttribute("aria-expanded"), "false");
   button.click();
-  assert.equal(panel.hidden, true);
+  assert.ok(box.classList.contains("open"));
+  map.fire("dragstart");
+  assert.ok(box.classList.contains("open"), "only the first drag folds the credits");
+  button.click();
+  assert.ok(!box.classList.contains("open"));
 });
 
-test("the phone draws no zoom buttons", () => {
+test("the phone hides the zoom buttons, which are drawn for a change of layout", () => {
   const root = document.createElement("div");
   mountZoom(root, { map: new FakeMap() });
-  assert.equal(root.children.length, 0);
+  assert.ok(root.querySelector(".zoom-control"));
+  const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
+  const phone = css.slice(css.indexOf("@media (max-width: 640px) {\n  #layers {"));
+  assert.match(phone, /\.zoom-control\s*\{\s*display:\s*none;/);
 });
 
-test("Escape closes the credits panel and returns focus to the info button", () => {
+test("Escape folds the credits and returns focus to the info button", () => {
   const root = document.createElement("div");
   document.body.append(root);
   mountStatus(root, { map: new FakeMap({ zoom: 5 }), onMove() {} }, catalog, () => ({ base: "standard", terrain: false }));
-  const button = root.querySelector("button");
-  button.click();
-  const panel = [...document.querySelectorAll(".credits-panel")].at(-1);
-  panel.querySelector(".credit").dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
-  assert.equal(panel.hidden, true);
-  assert.equal(document.activeElement, button);
+  const box = root.querySelector(".credits-box");
+  box.querySelector(".credit").dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  assert.ok(!box.classList.contains("open"));
+  assert.equal(document.activeElement, box.querySelector(".credits-button"));
+});
+
+test("the phone hides the scale bar and folds the credits through style.css alone", () => {
+  const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
+  const phone = css.slice(css.indexOf("@media (max-width: 640px)"));
+  assert.match(phone, /\.scale\s*\{\s*display:\s*none;/);
+  assert.match(phone, /\.credits-box:not\(\.open\) \.credits\s*\{\s*display:\s*none;/);
+  assert.match(phone, /#status\s*\{\s*right:\s*12px;\s*bottom:\s*12px;/, "in the bottom right corner");
 });

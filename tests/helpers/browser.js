@@ -325,13 +325,25 @@ export async function loadPage({ url = PAGE_URL, fetch, phone = false } = {}) {
   }
 
   /* jsdom has no matchMedia. The page asks one question, whether this is a
-   * phone, so the stub answers every query alike (`phone`). */
-  window.matchMedia = (media) => ({
-    media,
-    matches: phone,
-    addEventListener() {},
-    removeEventListener() {},
-  });
+   * phone, so the stub answers every query alike (`phone`), and setPhone()
+   * changes the answer as a resize across the breakpoint does. */
+  const queries = [];
+  window.matchMedia = (media) => {
+    const listeners = new Set();
+    const query = {
+      media,
+      matches: phone,
+      addEventListener(type, fn) {
+        if (type === "change") listeners.add(fn);
+      },
+      removeEventListener(type, fn) {
+        listeners.delete(fn);
+      },
+      listeners,
+    };
+    queries.push(query);
+    return query;
+  };
   globalThis.matchMedia = window.matchMedia;
 
   globalThis.maplibregl = {
@@ -359,6 +371,14 @@ export async function loadPage({ url = PAGE_URL, fetch, phone = false } = {}) {
   return {
     window,
     document: window.document,
+    /** Cross the breakpoint: every query answers `on` and tells its listeners. */
+    setPhone(on) {
+      for (const query of queries) {
+        if (query.matches === on) continue;
+        query.matches = on;
+        for (const fn of [...query.listeners]) fn({ matches: on, media: query.media });
+      }
+    },
     /** The map the modules built, once something has imported the code that makes it. */
     get map() {
       return created.at(-1);

@@ -4,7 +4,7 @@ import { ATTRIBUTE_COLUMNS, DISPLAY, GROUP_TITLES, formatArea, missingAttributes
 import { renderHypsometry } from "./hypsometry.js";
 import { CARD_COLUMNS, readRow } from "./parquet.js";
 import { esriCrop } from "./photo.js";
-import { h, icon, popover } from "./ui.js";
+import { PHONE, h, icon, popover } from "./ui.js";
 
 const TABS = [
   { id: "overview", label: "Overview" },
@@ -21,8 +21,9 @@ const AREA_UNIT = DISPLAY.find((d) => d.column === "area_km2").unit;
 export const regionOfId = (id) => /-[GC]-(\d{2})-/.exec(id ?? "")?.[1] ?? null;
 
 /** A text button that calls `onClick`. */
-function button(label, className, onClick) {
-  const node = h("button", { type: "button", class: className }, label);
+/* A text button with a Lucide icon before its label. */
+function button(label, className, onClick, glyph) {
+  const node = h("button", { type: "button", class: className }, ...(glyph ? [icon(glyph)] : []), label);
   node.addEventListener("click", onClick);
   return node;
 }
@@ -35,11 +36,12 @@ export function infoButton(label, description) {
 
 /**
  * A photo's credit: one line of text along the photo's bottom left, set like
- * the map's credits, a label and then its items, comma-separated.
+ * the map's credits, its items comma-separated. It needs no label: it sits on
+ * what it credits.
  */
-function photoCredit(label, ...items) {
+function photoCredit(...items) {
   const parts = items.filter(Boolean).flatMap((item, i) => (i ? [", ", item] : [item]));
-  return h("div", { class: "photo-credit" }, h("span", { class: "credit-label" }, label), ...parts);
+  return h("div", { class: "photo-credit" }, ...parts);
 }
 
 /**
@@ -51,38 +53,65 @@ function markCurrent(root, section) {
   for (const panel of root.children) panel.classList.toggle("current", panel === section);
 }
 
+/** Hide `container` unless a panel in it shows. */
+function settle(container) {
+  container.hidden = ![...container.children].some((panel) => !panel.hidden);
+}
+
 /**
  * The frame the glacier card and the complex panel share: the photo area, the
- * header and the actions, in a section of `root` above `body`. With
- * `ctx.band`, a close button that calls `ctx.onClose`, the header and the
- * actions go in the band instead, hidden while the panel is closed, so the
- * other panel can use the band. `onUseData` and `onZoom` serve the actions.
+ * header and the actions, in a section above `body`. On desktop the section
+ * goes in `root` with the header and the actions under the photo, and only
+ * the search bar's Close closes the panel. On the phone, with `ctx.band`, the
+ * section goes in `ctx.sheet` (or `root`), and a close button of its own that
+ * calls `ctx.onClose`, the header and the actions go in the band, hidden while the
+ * panel is closed, so the other panel can use the band. A change of layout
+ * moves them across. `onUseData` and `onZoom` serve the actions.
  * `show(on)` opens or closes the panel.
  */
 export function cardFrame(root, ctx, { label, className, body, onUseData, onZoom }) {
   const photo = h("div", { class: "photo" });
   const head = h("header", { class: "card-head" });
   const actions = h("div", { class: "card-actions" },
-    button("Use this data", "btn primary", onUseData),
-    button("Zoom to", "btn", onZoom),
-    button("Share", "btn", () => ctx.onShare?.()));
-  const inBand = [];
-  if (ctx.band) {
-    const close = h("button", { type: "button", class: "icon-button card-close", "aria-label": "Close" }, icon("x"));
-    close.addEventListener("click", () => ctx.onClose?.());
-    inBand.push(close, head, actions);
-    ctx.band.append(...inBand);
+    button("Use this data", "btn primary", onUseData, "database"),
+    button("Zoom to", "btn", onZoom, "scan-search"),
+    button("Share", "btn", () => ctx.onShare?.(), "share-2"));
+  const close = h("button", { type: "button", class: "icon-button card-close", "aria-label": "Close" }, icon("x"));
+  close.addEventListener("click", () => ctx.onClose?.());
+  const inBand = [close, head, actions];
+  const section = h("section", { class: className, "aria-label": label, hidden: true }, photo, ...body);
+  const sheet = ctx.sheet ?? root;
+  let open = false;
+  /* The container that holds the section now. */
+  let home = null;
+
+  const inSheet = () => Boolean(ctx.band) && PHONE.matches;
+
+  function place() {
+    if (inSheet()) {
+      ctx.band.append(...inBand);
+      for (const node of inBand) node.hidden = !open;
+    } else {
+      close.remove();
+      photo.after(head, actions);
+      head.hidden = false;
+      actions.hidden = false;
+    }
+    home = inSheet() ? sheet : root;
+    home.append(section);
+    if (open) markCurrent(home, section);
+    for (const container of new Set([root, sheet])) settle(container);
   }
-  const section = h("section", { class: className, "aria-label": label, hidden: true },
-    photo, ...(ctx.band ? [] : [head, actions]), ...body);
-  root.append(section);
 
   function show(on) {
-    for (const node of inBand) node.hidden = !on;
+    open = on;
+    if (inSheet()) for (const node of inBand) node.hidden = !on;
     section.hidden = !on;
-    root.hidden = !on;
-    if (on) markCurrent(root, section);
+    home.hidden = !on;
+    if (on) markCurrent(home, section);
   }
+  place();
+  if (ctx.band) PHONE.addEventListener("change", place);
   show(false);
   return { photo, head, show };
 }
@@ -99,13 +128,14 @@ export function imageryCrop(photo, bbox, { crop = CROP, alt, onError }) {
   if (photo.querySelector("img.photo-crop")?.getAttribute("src") === src) return [...photo.childNodes];
   const image = h("img", { class: "photo-crop", src, alt, loading: "lazy" });
   image.addEventListener("error", onError);
-  return [image, photoCredit("Imagery", IMAGERY_CREDIT)];
+  return [image, photoCredit(IMAGERY_CREDIT)];
 }
 
 /**
  * Mounts the card into `root` and returns `{ open(glacier), close() }`.
- * `glacier` is `{ rgiId, row?, props? }`. With `ctx.band`, the close button,
- * the header and the actions go there and the rest stays in `root`.
+ * `glacier` is `{ rgiId, row?, props? }`. On the phone, with `ctx.band`, the
+ * close button, the header and the actions go there and the rest in
+ * `ctx.sheet`, as cardFrame says.
  * `ctx.onTitle(title)` hears the title each time the header draws.
  */
 export function mountCard(root, ctx) {
@@ -299,7 +329,7 @@ export function mountCard(root, ctx) {
     const shown = photos[at];
     const title = head.querySelector(".card-title")?.textContent ?? "";
     const link = (href, text) => (isHttp(href) ? h("a", { href, target: "_blank", rel: "noopener noreferrer" }, text) : text);
-    const details = photoCredit("Photo", link(shown.page, shown.source), shown.author, shown.license && link(shown.licenseUrl, shown.license));
+    const details = photoCredit(link(shown.page, shown.source), shown.author, shown.license && link(shown.licenseUrl, shown.license));
     const step = (delta, label, name) => {
       const node = h("button", { type: "button", class: `icon-button photo-${label}`, "aria-label": `${label === "prev" ? "Previous" : "Next"} photo` }, icon(name));
       node.addEventListener("click", () => {

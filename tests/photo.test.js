@@ -324,8 +324,8 @@ test("the photo credit is a line of text: source, author and license with safe l
   await settle();
   const credit = () => root.querySelector(".photo .photo-credit");
   assert.equal(root.querySelector(".photo-info"), null, "no button: the credit always shows");
-  assert.equal(credit().querySelector(".credit-label").textContent, "Photo", "labelled like the map's credits");
-  assert.equal(credit().textContent, "PhotoWikidata Q1 · P18, <img src=x onerror=alert(1)>, CC BY-SA 4.0");
+  assert.equal(credit().querySelector(".credit-label"), null, "no label: the credit sits on the photo");
+  assert.equal(credit().textContent, "Wikidata Q1 · P18, <img src=x onerror=alert(1)>, CC BY-SA 4.0");
   assert.equal(credit().querySelector("img"), null);
   assert.equal(credit().querySelector('a[href="https://commons.wikimedia.org/wiki/File:1.jpg"]').textContent, "Wikidata Q1 · P18");
   assert.equal(credit().querySelector('a[href^="javascript"]'), null);
@@ -349,8 +349,7 @@ test("with no photos the card shows the Esri crop and its credit", async () => {
   await settle();
   const img = root.querySelector(".photo img");
   assert.equal(img.getAttribute("src"), esriCrop(BBOX, 816, 400));
-  assert.equal(root.querySelector(".photo-credit .credit-label").textContent, "Imagery");
-  assert.equal(root.querySelector(".photo-credit").textContent, "ImageryEsri, Maxar, Earthstar Geographics");
+  assert.equal(root.querySelector(".photo-credit").textContent, "Esri, Maxar, Earthstar Geographics");
   img.dispatchEvent(new window.Event("error"));
   assert.equal(root.querySelector(".photo img"), null);
   assert.ok(root.querySelector(".photo-placeholder"));

@@ -106,8 +106,7 @@ globe projection and the halo behind it (`js/sky.js`) are.
 One config value pins the catalog root:
 `https://data.source.coop/lqgentner/rgi/catalog.json`. A `?catalog=` URL
 parameter overrides it for development, for example to point at
-`rgi_catalog preview` running locally. The status line then shows "Custom
-catalog:" and the catalog's host.
+`rgi_catalog preview` running locally. The credits stay the same.
 
 The explorer walks the STAC links from the root to the five RGI 7.0
 collections: `rgi-v7-0-glaciers`, `-regions`, `-complexes`, `-centerlines`

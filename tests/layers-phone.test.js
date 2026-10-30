@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { loadPage, load } from "./helpers/browser.js";
 
-const { window, document } = await loadPage({ phone: true });
+const { window, document, setPhone } = await loadPage({ phone: true });
 const { mountLayers } = await load("js/layers.js");
 
 test("the phone layer button opens a pane with map types and RGI layers", () => {
@@ -70,4 +70,28 @@ test("a phone toggle hidden at this zoom says so, and refreshZoom updates the hi
   api.refreshZoom();
   assert.ok(!toggle("Centerlines").textContent.includes("visible from"));
   assert.ok(toggle("Intersects").textContent.includes("visible from zoom 10"));
+});
+
+test("a change of layout moves the toggles between the pane and the drawer, and closes the control left behind", () => {
+  const root = document.createElement("div");
+  document.body.append(root);
+  const api = mountLayers(root, { base: "standard", layers: new Set(), onBase() {}, onToggle() {}, zoom: () => 6 });
+  const pane = [...document.querySelectorAll(".layers-pane")].at(-1);
+  const drawer = root.querySelector(".layers-drawer");
+  root.querySelector(".layers-open").click();
+  assert.equal(pane.querySelectorAll(".layer-toggle").length, 3);
+
+  setPhone(false);
+  assert.equal(pane.hidden, true, "the pane closes on desktop");
+  assert.equal(drawer.querySelectorAll(".layer-toggle").length, 3);
+  assert.equal(pane.querySelectorAll(".layer-toggle").length, 0);
+  assert.ok([...drawer.querySelectorAll(".layer-hint")].every((hint) => hint.textContent === ""), "no hints on desktop");
+
+  root.querySelector(".layers").dispatchEvent(new window.Event("focusin"));
+  assert.ok(root.querySelector(".layers").classList.contains("open"));
+  setPhone(true);
+  assert.ok(!root.querySelector(".layers").classList.contains("open"), "the drawer closes on the phone");
+  assert.equal(pane.querySelectorAll(".layer-toggle").length, 3);
+  api.refreshZoom();
+  assert.ok(pane.textContent.includes("visible from zoom 10"));
 });

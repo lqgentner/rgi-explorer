@@ -15,8 +15,9 @@ const READ_FAILED = "The complex could not be read.";
  * Mounts the panel into `root` and returns `{ open(complexId), close() }`.
  * `ctx.read(complexId)` resolves with the complex's row, or null when it is
  * unknown; `ctx.members(props)` resolves with `{ rgiId, name, area }` for each
- * glacier, largest first. With `ctx.band`, the close button, the header and
- * the actions go there and the rest stays in `root`.
+ * glacier, largest first. On the phone, with `ctx.band`, the close button,
+ * the header and the actions go there and the rest in `ctx.sheet`, as
+ * cardFrame says.
  */
 export function mountComplexCard(root, ctx) {
   let current = null;

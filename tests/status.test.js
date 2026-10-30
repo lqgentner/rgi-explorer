@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import test from "node:test";
 
 import { FakeMap, loadPage, load } from "./helpers/browser.js";
@@ -46,12 +47,6 @@ test("the RGI credit links to the DOI, and reads no year from a citation without
   assert.deepEqual(plain.items[0], { text: "RGI Consortium", href: null });
 });
 
-test("a custom catalog is named first, as text", () => {
-  const list = credits({ base: "standard", terrain: false, catalog, customCatalog: "localhost:8000" });
-  assert.deepEqual(list[0], { label: "Custom catalog", items: [{ text: "localhost:8000" }] });
-  assert.equal(credits({ base: "standard", terrain: false, catalog, customCatalog: null })[0].label, "Glaciers");
-});
-
 test("the status line draws the scale and links, and refresh updates the credits", () => {
   const root = document.createElement("div");
   const map = new FakeMap({ center: [8, 46.48], zoom: 11 });
@@ -82,14 +77,6 @@ test("the status line draws the scale and links, and refresh updates the credits
   assert.equal(root.querySelector(".scale-label").textContent, "50 km");
 });
 
-test("credits render as text, never markup", () => {
-  const root = document.createElement("div");
-  const rgiMap = { map: new FakeMap({ zoom: 3 }), onMove() {} };
-  mountStatus(root, rgiMap, catalog, () => ({ base: "standard", terrain: false, customCatalog: "<img src=x>" }));
-  assert.equal(root.querySelector("img"), null);
-  assert.ok(root.textContent.includes("<img src=x>"));
-});
-
 test("scale bar edge cases", () => {
   assert.ok(Number.isFinite(metersPerPixel(90, 5)) && metersPerPixel(90, 5) > 0);
   assert.equal(metersPerPixel(90, 5), metersPerPixel(85.05, 5));
@@ -114,4 +101,11 @@ test("the status line height is published as --status-h on mount and refresh", (
   height = 70;
   status.refresh();
   assert.equal(read(), "70px");
+});
+
+test("the credits run as one text, so a long line wraps inside a group, not between groups", () => {
+  const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
+  const desktop = css.slice(0, css.indexOf("@media (max-width: 640px)"));
+  assert.doesNotMatch(desktop, /(^|\n)\.credits\s*\{[^}]*display:\s*flex/);
+  assert.match(desktop, /(^|\n)\.credits-button\s*\{\s*display:\s*none;/, "the info button is the phone's");
 });

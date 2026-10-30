@@ -637,11 +637,6 @@ button:focus-visible {
   bottom: 0;
   z-index: 1;
   max-width: 100%;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 2px 12px;
   padding: 2px 8px;
   border-top-left-radius: 8px;
   background: var(--glass);
@@ -659,7 +654,9 @@ button:focus-visible {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  flex: none;
+  margin-right: 12px;
+  vertical-align: top;
+  height: 16px;
 }
 
 .scale-bar {
@@ -669,10 +666,16 @@ button:focus-visible {
   border-top: 0;
 }
 
-.credits {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0 8px;
+/*
+ * The scale and the credits run as one text, which wraps inside a group rather
+ * than between groups.
+ */
+.credits-box {
+  display: inline;
+}
+
+.credits-button {
+  display: none;
 }
 
 /* Each group names what it credits: "Glaciers", "Basemap" and so on. */
@@ -682,33 +685,10 @@ button:focus-visible {
   font-weight: 600;
 }
 
-#status .credit-group + .credit-group::before {
+.credit-group + .credit-group::before {
   content: "|";
-  margin-right: 8px;
+  margin: 0 8px;
   color: var(--muted);
-}
-
-.credits-panel {
-  position: fixed;
-  left: 12px;
-  right: 12px;
-  bottom: 68px;
-  z-index: 5;
-  padding: 12px;
-  border-radius: 8px;
-  background: var(--surface);
-  box-shadow: var(--shadow);
-  font-size: 12px;
-  color: var(--text);
-}
-
-.credits-panel a {
-  color: inherit;
-}
-
-.credits-panel .credits {
-  flex-direction: column;
-  gap: 6px;
 }
 
 @media (max-width: 640px) {
@@ -717,6 +697,11 @@ button:focus-visible {
     right: 12px;
     top: 72px;
     bottom: auto;
+  }
+
+  /* The desktop's picture and drawer. */
+  #layers .layers {
+    display: none;
   }
 
   #controls {
@@ -743,13 +728,67 @@ button:focus-visible {
   }
 
   #status {
-    right: auto;
-    left: 12px;
+    right: 12px;
     bottom: 12px;
+    max-width: calc(100% - 24px);
     padding: 0;
     border-radius: 0;
     background: none;
     backdrop-filter: none;
+    font-size: 12px;
+  }
+
+  .scale {
+    display: none;
+  }
+
+  /*
+   * The info button, a round button like the others, sits in the bottom right
+   * corner and grows into the credits from there: open, the box holds the
+   * text to the button's left.
+   */
+  .credits-box {
+    display: block;
+    position: relative;
+    min-height: 44px;
+    border-radius: 22px;
+    background: var(--surface);
+    box-shadow: var(--shadow);
+  }
+
+  .credits-box.open {
+    padding: 6px 44px 6px 16px;
+    display: flex;
+    align-items: center;
+  }
+
+  .credits-box:not(.open) .credits {
+    display: none;
+  }
+
+  .credits-button {
+    display: inline-flex;
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 44px;
+    height: 44px;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 50%;
+    background: none;
+    color: var(--text);
+    cursor: pointer;
+  }
+
+  .credits-button .icon {
+    width: 24px;
+    height: 24px;
+  }
+
+  .credits-box:not(.open) {
+    width: 44px;
   }
 }
 
@@ -801,6 +840,12 @@ button:focus-visible {
   body.card-open #layers {
     left: calc(var(--card-w) + 16px);
   }
+
+  /* The phone's parts: the round Layers button and the bottom sheet. */
+  #layers .layers-open,
+  #sheet {
+    display: none;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -831,12 +876,16 @@ button:focus-visible {
   background: #e8eaed;
 }
 
+/* Flat and light grey on the sheet's white band. */
 .card-close {
   position: absolute;
   top: 8px;
   right: 8px;
-  background: var(--surface);
-  box-shadow: var(--shadow);
+  background: #f1f3f4;
+}
+
+.card-close:hover {
+  background: #e8eaed;
 }
 
 .search-close {
@@ -869,13 +918,23 @@ button:focus-visible {
 }
 
 .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 6px 14px;
+  white-space: nowrap;
   border: 1px solid var(--line);
   border-radius: 16px;
   background: var(--surface);
   color: var(--accent);
   font-weight: 600;
   cursor: pointer;
+}
+
+.btn .icon {
+  width: 16px;
+  height: 16px;
+  flex: none;
 }
 
 .btn:hover {
@@ -1205,9 +1264,16 @@ table.members .num {
 
 /* Use this data */
 
+/*
+ * Wide enough for the longest snippet line, 86 characters of 12.5px Noto Sans
+ * Mono at 8px each, without a scroll bar. The top stays put and the dialog
+ * grows downward, so a choice that changes its height leaves the choices in place.
+ */
 dialog.usedata {
-  width: min(560px, calc(100vw - 32px));
-  max-height: calc(100dvh - 32px);
+  --usedata-top: max(16px, 12vh);
+  width: min(760px, calc(100vw - 32px));
+  max-height: calc(100dvh - var(--usedata-top) - 16px);
+  margin: var(--usedata-top) auto auto;
   padding: 12px 20px 20px;
   border: 0;
   border-radius: 12px;
@@ -1291,10 +1357,10 @@ dialog.usedata::backdrop {
   line-height: 1.5;
 }
 
+/* The copy button sits under the snippet's bottom left. */
 .usedata-actions {
   display: flex;
-  justify-content: flex-end;
-  margin-top: 8px;
+  margin-top: 4px;
 }
 
 .usedata-steps {
@@ -1312,8 +1378,16 @@ dialog.usedata::backdrop {
   font-size: 12.5px;
 }
 
-.btn.copy {
-  padding: 2px 12px;
+.icon-button.copy {
+  width: 28px;
+  height: 28px;
+  color: var(--muted);
+  vertical-align: middle;
+}
+
+.icon-button.copy .icon {
+  width: 16px;
+  height: 16px;
 }
 
 .usedata-filter p,
@@ -1422,7 +1496,14 @@ dialog.usedata::backdrop {
   }
 
   #sheet-head .card-actions {
+    gap: 6px;
     padding-bottom: 8px;
+  }
+
+  /* Three buttons with their icons fit across a 360px phone. */
+  .card-actions .btn {
+    gap: 4px;
+    padding: 6px 10px;
   }
 
   #sheet .card .photo {

@@ -1,6 +1,7 @@
 /*
  * The map's controls: the base map and RGI layer switcher, the 3D button with
- * its notice, and the zoom buttons. Each mount function reads PHONE once.
+ * its notice, and the zoom buttons. Each draws once for both layouts and
+ * follows PHONE as it changes; style.css shows the layout's own parts.
  */
 
 import { GLACIERS, PREVIEWS } from "./previews.js";
@@ -11,8 +12,8 @@ import { imageryUrl } from "./viewpreview.js";
 const SVG_NS = "http://www.w3.org/2000/svg";
 
 const BASES = {
-  standard: { label: "Standard", image: "assets/base-standard.webp" },
-  imagery: { label: "Imagery", image: "assets/base-imagery.webp" },
+  standard: { label: "Standard" },
+  imagery: { label: "Imagery" },
 };
 
 const TOGGLES = [
@@ -97,13 +98,14 @@ function swapImage(img, url, done) {
 }
 
 /**
- * The toggle buttons and the sync functions that update them. With `hints`,
- * a toggle whose layer has no data at the zoom says from which zoom it shows.
+ * The toggle buttons and the sync functions that update them. On the phone, a
+ * toggle whose layer has no data at the zoom says from which zoom it shows;
+ * the desktop keeps to one row of tiles and leaves the hints out.
  */
-function toggleButtons({ layers, onToggle, zoom, hints }) {
+function toggleButtons({ layers, onToggle, zoom }) {
   const on = new Set(layers);
   const parts = TOGGLES.map(({ name, label }) => {
-    const hint = hints ? h("span", { class: "layer-hint" }) : null;
+    const hint = h("span", { class: "layer-hint" });
     const button = h(
       "button",
       { type: "button", class: "layer-toggle", dataset: { name } },
@@ -127,9 +129,8 @@ function toggleButtons({ layers, onToggle, zoom, hints }) {
   function refreshZoom() {
     const z = zoom();
     for (const { name, hint } of parts) {
-      if (!hint) continue;
       const from = TOGGLE_MINZOOM[name];
-      hint.textContent = z < from ? `visible from zoom ${from}` : "";
+      hint.textContent = PHONE.matches && z < from ? `visible from zoom ${from}` : "";
     }
   }
   sync();
@@ -146,38 +147,89 @@ function toggleButtons({ layers, onToggle, zoom, hints }) {
   };
 }
 
+/** A one-pixel picture in `color`, for a picture that has not loaded yet. */
+const swatch = (color = "transparent") =>
+  `data:image/svg+xml,${encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"><rect width="1" height="1" fill="${color}"/></svg>`,
+  )}`;
+
 /**
- * Draw the base map and RGI layer controls. The RGI toggles show fixed
- * previews. With `map`, the base map pictures show the view once the map has
- * rested for PREVIEW_DELAY_MS: the imagery picture is one Esri export, and the
- * standard picture comes from `standardPicture(px)`, a promise of an image URL
- * or null. A picture that is hidden catches up when it shows.
+ * Draw the base map and RGI layer controls: on desktop the other base map's
+ * picture, which opens a drawer of toggles; on the phone a round button that
+ * opens a pane. Both are drawn once, and a change of layout moves the toggles
+ * across and closes the control left behind. The RGI toggles show fixed
+ * previews. Each base map picture starts as the map's plain background from
+ * `backgrounds`, `{ standard, imagery }`, as the map shows before its tiles
+ * arrive. With `map`, the pictures show the view once the map has rested for
+ * PREVIEW_DELAY_MS: the imagery picture is one Esri export, and the standard
+ * picture comes from `standardPicture(px)`, a promise of an image URL or null.
+ * A picture that is hidden catches up when it shows.
  *
  * @returns {{setBase(base: string): void, setLayers(set: Iterable<string>): void, refreshZoom(): void}}
  */
-export function mountLayers(root, { base, layers, onBase, onToggle, zoom, map = null, standardPicture = null }) {
-  /* The desktop panel keeps to one row of tiles and leaves the zoom hints out. */
-  const toggles = toggleButtons({ layers, onToggle, zoom, hints: PHONE.matches });
+export function mountLayers(root, { base, layers, onBase, onToggle, zoom, map = null, standardPicture = null, backgrounds = {} }) {
+  const toggles = toggleButtons({ layers, onToggle, zoom });
   let current = base;
-  const api = {
-    setLayers: toggles.setLayers,
-    refreshZoom: toggles.refreshZoom,
-  };
+  const other = () => (current === "standard" ? "imagery" : "standard");
 
   /* Each base map's picture of the view: a promise of its URL, or of null. */
   const pictureOf = {
     imagery: () => Promise.resolve(imageryUrl(map, THUMB_PX)),
     standard: () => standardPicture?.(THUMB_PX) ?? Promise.resolve(null),
   };
-  /* The pictures that lag the view, and where each shows: set below for the phone or the desktop. */
+  /* The pictures that lag the view. */
   const picturesBehind = new Set();
-  let pictureImage = () => null;
   /* The latest picture of the view that loaded, by base map. */
   const latest = {};
+  const pictureSrc = (key) => latest[key] ?? swatch(backgrounds[key]);
+
+  /* The phone's pane: the base map tiles and the toggles, opened by a round button. */
+  const tiles = Object.entries(BASES).map(([key, { label }]) => {
+    const img = h("img", { src: pictureSrc(key), alt: "", width: 48, height: 48 });
+    const button = h("button", { type: "button", class: "base-tile" }, img, h("span", { class: "layer-name" }, label));
+    button.addEventListener("click", () => {
+      current = key;
+      syncBase();
+      onBase(key);
+    });
+    return { key, button, img };
+  });
+  const close = h("button", { type: "button", class: "icon-button", "aria-label": "Close" }, icon("x"));
+  const paneToggles = h("div", { class: "tile-row" });
+  const pane = h(
+    "div",
+    { class: "layers-pane", hidden: true },
+    h("div", { class: "pane-header" }, h("h2", {}, "Layers"), close),
+    h("h3", {}, "Map type"),
+    h("div", { class: "tile-row" }, tiles.map((t) => t.button)),
+    h("h3", {}, "RGI layers"),
+    paneToggles,
+  );
+  const openPane = h("button", { type: "button", class: "round-button layers-open", "aria-label": "Layers" }, icon("layers-2"));
+
+  /* The desktop's control: the other base map's picture, and a drawer of toggles beside it. */
+  const image = h("img", { alt: "", width: 96, height: 96 });
+  const badge = h("span", { class: "layers-badge" }, icon("layers-2"), "Layers");
+  /* Closed, the picture says "Layers"; open, it names the map a click swaps to. */
+  const caption = h("span", { class: "layers-caption" });
+  const thumb = h("button", { type: "button", class: "layers-thumb" }, h("span", { class: "layers-picture" }, image, badge, caption));
+  const drawer = h("div", { class: "layers-drawer" });
+  /* The panel stays in the page to slide open; it is inert while closed. */
+  const panel = h("div", { class: "layers-panel" }, drawer);
+  const wrapper = h("div", { class: "layers" }, thumb, panel);
+
+  /** The image that shows the picture of `key` now, or null when none shows. */
+  const pictureImage = (key) => {
+    if (PHONE.matches) return pane.hidden ? null : tiles.find((t) => t.key === key).img;
+    return other() === key ? image : null;
+  };
+
+  /* The first pictures of the view wait for the map's first rest. */
+  let started = false;
 
   /** Bring the pictures that show up to the view. */
   function catchUp() {
-    if (!map) return;
+    if (!map || !started) return;
     for (const key of picturesBehind) {
       const img = pictureImage(key);
       if (!img) continue;
@@ -204,73 +256,9 @@ export function mountLayers(root, { base, layers, onBase, onToggle, zoom, map = 
     });
   }
 
-  if (PHONE.matches) {
-    const tiles = Object.entries(BASES).map(([key, { label, image }]) => {
-      const img = h("img", { src: image, alt: "", width: 48, height: 48 });
-      const button = h(
-        "button",
-        { type: "button", class: "base-tile" },
-        img,
-        h("span", { class: "layer-name" }, label),
-      );
-      button.addEventListener("click", () => {
-        current = key;
-        syncBase();
-        onBase(key);
-      });
-      return { key, button, img };
-    });
-    const syncBase = () => {
-      for (const { key, button } of tiles) button.setAttribute("aria-pressed", String(key === current));
-    };
-    syncBase();
-
-    const close = h("button", { type: "button", class: "icon-button", "aria-label": "Close" }, icon("x"));
-    const pane = h(
-      "div",
-      { class: "layers-pane", hidden: true },
-      h("div", { class: "pane-header" }, h("h2", {}, "Layers"), close),
-      h("h3", {}, "Map type"),
-      h("div", { class: "tile-row" }, tiles.map((t) => t.button)),
-      h("h3", {}, "RGI layers"),
-      h("div", { class: "tile-row" }, toggles.buttons),
-    );
-    const open = h("button", { type: "button", class: "round-button", "aria-label": "Layers" }, icon("layers-2"));
-    open.addEventListener("click", () => {
-      pane.hidden = false;
-      catchUp();
-      close.focus();
-    });
-    pictureImage = (key) => (pane.hidden ? null : tiles.find((t) => t.key === key).img);
-    const closePane = () => {
-      pane.hidden = true;
-      open.focus();
-    };
-    close.addEventListener("click", closePane);
-    pane.addEventListener("keydown", (event) => {
-      if (event.key === "Escape") closePane();
-    });
-    /*
-     * The pane goes in the body. Inside root it would share root's stacking
-     * context, which sits below the bottom sheet.
-     */
-    root.append(open);
-    document.body.append(pane);
-    api.setBase = (next) => {
-      current = next;
-      syncBase();
-    };
-    return api;
-  }
-
-  const image = h("img", { alt: "", width: 96, height: 96 });
-  const badge = h("span", { class: "layers-badge" }, icon("layers-2"), "Layers");
-  /* Closed, the picture says "Layers"; open, it names the map a click swaps to. */
-  const caption = h("span", { class: "layers-caption" });
-  const thumb = h("button", { type: "button", class: "layers-thumb" }, h("span", { class: "layers-picture" }, image, badge, caption));
-  const other = () => (current === "standard" ? "imagery" : "standard");
-  const syncThumb = () => {
-    image.src = latest[other()] ?? BASES[other()].image;
+  const syncBase = () => {
+    for (const { key, button } of tiles) button.setAttribute("aria-pressed", String(key === current));
+    image.src = pictureSrc(other());
     image.dataset.want = image.src;
     caption.textContent = BASES[other()].label;
     /* The name starts with the visible "Layers", which the open control swaps for the map's name. */
@@ -278,11 +266,21 @@ export function mountLayers(root, { base, layers, onBase, onToggle, zoom, map = 
     picturesBehind.add(other());
     catchUp();
   };
-  syncThumb();
 
-  /* The panel stays in the page to slide open; it is inert while closed. */
-  const panel = h("div", { class: "layers-panel" }, h("div", { class: "layers-drawer" }, toggles.buttons));
-  const wrapper = h("div", { class: "layers" }, thumb, panel);
+  openPane.addEventListener("click", () => {
+    pane.hidden = false;
+    catchUp();
+    close.focus();
+  });
+  const closePane = () => {
+    pane.hidden = true;
+    openPane.focus();
+  };
+  close.addEventListener("click", closePane);
+  pane.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") closePane();
+  });
+
   /*
    * A mouse opens the control while it rests on it, and focus while it stays
    * inside. A touch has no hover: a tap on the closed control opens it, and
@@ -297,9 +295,7 @@ export function mountLayers(root, { base, layers, onBase, onToggle, zoom, map = 
     wrapper.classList.toggle("open", open);
     catchUp();
   };
-  setOpen(false);
   let openAtPress = null;
-  pictureImage = (key) => (other() === key ? image : null);
   wrapper.addEventListener("pointerenter", (event) => {
     if (event.pointerType !== "touch") setOpen(true);
   });
@@ -328,7 +324,7 @@ export function mountLayers(root, { base, layers, onBase, onToggle, zoom, map = 
       return;
     }
     current = other();
-    syncThumb();
+    syncBase();
     onBase(current);
   });
   wrapper.addEventListener("keydown", (event) => {
@@ -336,12 +332,44 @@ export function mountLayers(root, { base, layers, onBase, onToggle, zoom, map = 
     thumb.focus();
     setOpen(false);
   });
-  root.append(wrapper);
-  api.setBase = (next) => {
-    current = next;
-    syncThumb();
+
+  /*
+   * The toggles go where the layout shows them, the control left behind
+   * closes, and the pictures that now show catch up with the latest.
+   */
+  const place = () => {
+    if (PHONE.matches) {
+      setOpen(false);
+      paneToggles.append(...toggles.buttons);
+    } else {
+      pane.hidden = true;
+      drawer.append(...toggles.buttons);
+    }
+    toggles.refreshZoom();
+    for (const tile of tiles) tile.img.src = pictureSrc(tile.key);
+    for (const key of Object.keys(BASES)) picturesBehind.add(key);
+    syncBase();
   };
-  return api;
+  PHONE.addEventListener("change", place);
+  setOpen(false);
+  place();
+  started = true;
+
+  /*
+   * The pane goes in the body. Inside root it would share root's stacking
+   * context, which sits below the bottom sheet.
+   */
+  root.append(wrapper, openPane);
+  document.body.append(pane);
+
+  return {
+    setLayers: toggles.setLayers,
+    refreshZoom: toggles.refreshZoom,
+    setBase(next) {
+      current = next;
+      syncBase();
+    },
+  };
 }
 
 /** Read a session value, or null when storage is unavailable. */
@@ -405,9 +433,8 @@ export function mountTerrain(root, { on, onChange }) {
   return { set: apply };
 }
 
-/** Draw the zoom in and zoom out buttons. The phone is touch only and gets none. */
+/** Draw the zoom in and zoom out buttons. The phone is touch only, and style.css hides them there. */
 export function mountZoom(root, rgiMap) {
-  if (PHONE.matches) return;
   const zoomButton = (name, label, action) => {
     const button = h("button", { type: "button", class: "zoom-btn", "aria-label": label }, icon(name));
     button.addEventListener("click", action);

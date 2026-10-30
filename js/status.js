@@ -1,6 +1,6 @@
 /*
  * The status line: a compact scale bar and the credits. The phone folds the
- * credits behind an info button and draws no scale bar.
+ * credits into an info button and draws no scale bar.
  */
 
 import { PHONE, h, icon } from "./ui.js";
@@ -40,13 +40,11 @@ function rgiCredit(citation) {
 
 /**
  * The credits for what the map shows, in reading order, as groups of
- * `{ label, items }`, each item `{ text, href? }`. With `customCatalog`, the
- * host of a catalog that ?catalog= chose, a note names it first.
+ * `{ label, items }`, each item `{ text, href? }`.
  */
-export function credits({ base, terrain, catalog, customCatalog }) {
+export function credits({ base, terrain, catalog }) {
   const doi = DOI.test(catalog.doi ?? "") ? `https://doi.org/${catalog.doi}` : null;
   return [
-    customCatalog ? { label: "Custom catalog", items: [{ text: customCatalog }] } : null,
     /* The DOI's landing page names the license. */
     { label: "Glaciers", items: [{ text: rgiCredit(catalog.citation), href: doi }] },
     { label: "Basemap", items: [OSM, OPENFREEMAP, OPENMAPTILES] },
@@ -58,11 +56,10 @@ export function credits({ base, terrain, catalog, customCatalog }) {
 /**
  * Draw the scale bar and the credits.
  *
- * @param getState  returns the current `{ base, terrain, customCatalog? }`
+ * @param getState  returns the current `{ base, terrain }`
  * @returns {{refresh(): void}}  redraws both, after a base map or terrain change
  */
 export function mountStatus(root, rgiMap, catalog, getState) {
-  const phone = PHONE.matches;
   const list = h("span", { class: "credits" });
   const scaleLabel = h("span", { class: "scale-label" });
   const scaleLine = h("span", { class: "scale-bar" });
@@ -94,43 +91,43 @@ export function mountStatus(root, rgiMap, catalog, getState) {
   };
   drawCredits();
 
-  /* Desktop: redraw the scale and publish the status line's height, which the controls sit above. */
-  let relayout = () => {};
-  if (phone) {
-    const panel = h("div", { class: "credits-panel", hidden: true }, list);
-    const info = h("button", { type: "button", class: "round-button", "aria-label": "Credits", "aria-expanded": "false" }, icon("info"));
-    info.addEventListener("click", () => {
-      panel.hidden = !panel.hidden;
-      info.setAttribute("aria-expanded", String(!panel.hidden));
-    });
-    const onKey = (event) => {
-      if (event.key !== "Escape" || panel.hidden) return;
-      panel.hidden = true;
-      info.setAttribute("aria-expanded", "false");
-      info.focus();
-    };
-    root.addEventListener("keydown", onKey);
-    panel.addEventListener("keydown", onKey);
-    /*
-     * The panel goes in the body. Inside root it would share root's stacking
-     * context, which sits below the bottom sheet.
-     */
-    root.append(info);
-    document.body.append(panel);
-  } else {
-    root.append(scale, list);
-    rgiMap.onMove(({ zoom, lat }) => drawScale(lat, zoom));
-    const publishHeight = () => {
-      const height = root.getBoundingClientRect().height;
-      document.documentElement.style.setProperty("--status-h", `${height}px`);
-    };
-    relayout = () => {
-      drawScale(rgiMap.map.getCenter().lat, rgiMap.map.getZoom());
-      publishHeight();
-    };
-    relayout();
-    if (typeof ResizeObserver === "function") new ResizeObserver(publishHeight).observe(root);
-  }
+  /*
+   * One set of nodes for both layouts; style.css decides how they show. The
+   * phone hides the scale bar and folds the credits into the info button: they
+   * show at load and fold on the first drag of the map, as MapLibre's compact
+   * attribution does, and the button unfolds them again in place.
+   */
+  const info = h(
+    "button",
+    { type: "button", class: "credits-button", "aria-label": "Credits", "aria-expanded": "true" },
+    icon("info"),
+  );
+  const box = h("div", { class: "credits-box open" }, info, list);
+  const setOpen = (open) => {
+    box.classList.toggle("open", open);
+    info.setAttribute("aria-expanded", String(open));
+  };
+  info.addEventListener("click", () => setOpen(!box.classList.contains("open")));
+  box.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape" || !PHONE.matches || !box.classList.contains("open")) return;
+    setOpen(false);
+    info.focus();
+  });
+  rgiMap.map.once("dragstart", () => setOpen(false));
+  root.append(scale, box);
+
+  /* Redraw the scale and publish the status line's height, which the desktop controls sit above. */
+  rgiMap.onMove(({ zoom, lat }) => drawScale(lat, zoom));
+  const publishHeight = () => {
+    const height = root.getBoundingClientRect().height;
+    document.documentElement.style.setProperty("--status-h", `${height}px`);
+  };
+  const relayout = () => {
+    drawScale(rgiMap.map.getCenter().lat, rgiMap.map.getZoom());
+    publishHeight();
+  };
+  relayout();
+  if (typeof ResizeObserver === "function") new ResizeObserver(publishHeight).observe(root);
 
   return {
     refresh() {

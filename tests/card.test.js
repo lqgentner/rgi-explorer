@@ -12,7 +12,7 @@ import * as hyparquet from "hyparquet";
 
 import { loadPage, load, settle } from "./helpers/browser.js";
 
-const { document, window } = await loadPage();
+const { document, window, setPhone } = await loadPage();
 globalThis.hyparquet = hyparquet;
 const { loadCatalog } = await load("js/catalog.js");
 const { openParquet } = await load("js/parquet.js");
@@ -64,6 +64,16 @@ function setup(over = {}) {
   return { root, card, calls, ctx };
 }
 const text = (root, sel) => root.querySelector(sel)?.textContent;
+
+/** Run `fn` with the page on a phone, then back on desktop. */
+async function onPhone(fn) {
+  setPhone(true);
+  try {
+    await fn();
+  } finally {
+    setPhone(false);
+  }
+}
 const click = (node) => node.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
 const rowOfLabel = (root, label) =>
   [...root.querySelectorAll(".row")].find((r) => r.querySelector(".row-label").firstChild.textContent === label);
@@ -176,6 +186,9 @@ test("the buttons call the context", async () => {
   await card.open({ rgiId: IDS[0], row: 0, props: OVERVIEW_PROPS });
   const button = (label) => [...root.querySelectorAll(".card-actions button")].find((b) => b.textContent === label);
   assert.ok(button("Use this data").classList.contains("primary"));
+  const glyph = (label) => button(label).querySelector("use").getAttribute("href").split("#")[1];
+  assert.deepEqual(["Use this data", "Zoom to", "Share"].map(glyph), ["database", "scan-search", "share-2"]);
+  for (const label of ["Use this data", "Zoom to", "Share"]) assert.equal(button(label).firstChild.tagName, "svg", "the icon leads");
   click(button("Use this data"));
   click(button("Zoom to"));
   click(button("Share"));
@@ -373,23 +386,52 @@ test("a late readRow for A is ignored after B opens", async () => {
   }
 });
 
-test("with a band, the header and actions sit in the band and the photo and tabs in the root", async () => {
+test("on the phone, with a band, the header and actions sit in the band and the photo and tabs in the sheet", () => onPhone(async () => {
   const band = document.createElement("div");
-  const { root, card, calls } = setup({ band });
+  const sheet = document.createElement("div");
+  const { root, card, calls } = setup({ band, sheet });
   await card.open({ rgiId: IDS[0], props: OVERVIEW_PROPS });
   assert.equal(text(band, ".card-title"), "Grosser Aletsch Gletscher");
   assert.equal(text(band, ".card-area"), "81.8 km²");
   assert.ok([...band.querySelectorAll("button")].some((b) => b.textContent === "Use this data"));
   assert.ok(band.querySelector(".card-close"));
-  assert.equal(root.querySelector(".card-title"), null);
-  assert.ok(root.querySelector(".photo"));
-  assert.ok(root.querySelector("[role=tablist]"));
+  assert.equal(sheet.querySelector(".card-title"), null);
+  assert.ok(sheet.querySelector(".photo"));
+  assert.ok(sheet.querySelector("[role=tablist]"));
+  assert.equal(root.children.length, 0, "the sidebar stays empty");
   card.close();
-  assert.equal(root.hidden, true);
+  assert.equal(sheet.hidden, true);
   for (const node of band.children) assert.equal(node.hidden, true, "a closed card leaves the band to the other panel");
   await card.open({ rgiId: IDS[0], props: OVERVIEW_PROPS });
-  for (const node of band.children) assert.equal(node.hidden, false);  click(band.querySelector(".card-close"));
+  for (const node of band.children) assert.equal(node.hidden, false);
+  click(band.querySelector(".card-close"));
   assert.equal(calls.at(-1), "close");
+}));
+
+test("a change of layout moves an open card between the sidebar and the sheet", async () => {
+  const band = document.createElement("div");
+  const sheet = document.createElement("div");
+  const { root, card } = setup({ band, sheet });
+  await card.open({ rgiId: IDS[0], props: OVERVIEW_PROPS });
+  const section = root.querySelector("section");
+  assert.equal(text(root, ".card-title"), "Grosser Aletsch Gletscher");
+  assert.equal(band.children.length, 0);
+
+  await onPhone(() => {
+    assert.equal(section.parentElement, sheet);
+    assert.equal(sheet.hidden, false);
+    assert.equal(root.hidden, true);
+    assert.equal(text(band, ".card-title"), "Grosser Aletsch Gletscher");
+    assert.ok(band.querySelector(".card-close"));
+    assert.ok(!band.querySelector(".card-close").hidden);
+    assert.equal(section.querySelector(".card-head"), null);
+  });
+
+  assert.equal(section.parentElement, root);
+  assert.equal(root.hidden, false);
+  assert.equal(sheet.hidden, true);
+  assert.equal(section.querySelector(".photo").nextElementSibling.className, "card-head", "the header sits under the photo again");
+  assert.equal(band.querySelector(".card-close"), null, "the search bar's Close closes the card on desktop");
 });
 
 test("the header names the area when it is known, and nothing when it is not", async () => {

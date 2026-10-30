@@ -90,7 +90,8 @@ const choose = (value) => {
   radio(value).checked = true;
   radio(value).dispatchEvent(new window.Event("change", { bubbles: true }));
 };
-const button = (root, label) => [...root.querySelectorAll("button")].find((b) => b.textContent === label);
+const button = (root, label) =>
+  [...root.querySelectorAll("button")].find((b) => b.textContent === label || b.getAttribute("aria-label") === label);
 const click = (node) => node.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
 
 const useData = mountUseData(document.body, { catalog });
@@ -113,13 +114,17 @@ test("the dialog opens on Python and this glacier with the exact snippet", () =>
   assert.equal(document.activeElement, opener, "focus returns to the opener");
 });
 
-test("Copy writes the snippet and says Copied", async () => {
+test("Copy is an icon under the snippet's bottom left; it writes the snippet and says Copied", async () => {
   useData.open(ALETSCH);
   const copy = button(dialog(), "Copy");
+  assert.equal(copy.textContent, "", "an icon, named by its label");
+  assert.ok(copy.querySelector("use").getAttribute("href").endsWith("#copy"));
+  assert.equal(copy.parentElement.previousElementSibling.tagName, "PRE");
   click(copy);
   await settle();
   assert.equal(copied.at(-1), code());
-  assert.equal(copy.textContent, "Copied");
+  assert.equal(copy.getAttribute("aria-label"), "Copied");
+  assert.ok(copy.querySelector("use").getAttribute("href").endsWith("#check"));
   useData.close();
 });
 
@@ -129,7 +134,7 @@ test("QGIS shows the steps, the URL and the filter, each with its own Copy", asy
   assert.equal(dialog().querySelector(".usedata-code"), null, "QGIS has no Python block");
   const steps = [...dialog().querySelectorAll("ol li")];
   assert.equal(steps.length, 5);
-  assert.equal(steps.map((li) => li.textContent.replace(/Copy$/, "")).join("\n"), STEPS.join("\n"));
+  assert.equal(steps.map((li) => li.textContent).join("\n"), STEPS.join("\n"));
   assert.equal(steps[3].querySelector("code").textContent, URL_);
   click(button(steps[3], "Copy"));
   await settle();

@@ -10,10 +10,14 @@ const { mountLayers } = await load("js/layers.js");
 
 mock.timers.enable({ apis: ["setTimeout"] });
 
+const BACKGROUNDS = { standard: "#f8f4f0", imagery: "#3c4043" };
+
 function setup(base = "standard", standardPicture = async () => "data:image/jpeg;standard") {
   const root = document.createElement("div");
   const map = new FakeMap({ center: [0, 0], zoom: 11 });
-  const api = mountLayers(root, { base, layers: new Set(), onBase() {}, onToggle() {}, zoom: () => map.getZoom(), map, standardPicture });
+  const api = mountLayers(root, {
+    base, layers: new Set(), onBase() {}, onToggle() {}, zoom: () => map.getZoom(), map, standardPicture, backgrounds: BACKGROUNDS,
+  });
   const rest = () => {
     map.fire("idle");
     mock.timers.tick(500);
@@ -47,7 +51,7 @@ test("the imagery thumbnail asks Esri for the view", async () => {
   rest();
   await flush();
   assert.match(image.dataset.want, /^https:\/\/server\.arcgisonline\.com\/.*\/export\?bbox=/);
-  assert.ok(image.getAttribute("src").endsWith("assets/base-imagery.webp"), "the old picture stays until the new one loads");
+  assert.match(decodeURIComponent(image.getAttribute("src")), /^data:image\/svg\+xml,.*fill="#3c4043"/, "the plain background stays until the picture loads");
 });
 
 test("the standard thumbnail shows the hidden map's picture of the view", async () => {

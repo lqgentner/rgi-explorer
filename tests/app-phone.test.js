@@ -34,6 +34,7 @@ test("a pick mounts the card in the sheet: the header in the band, the photo and
   assert.equal($("#card").hidden, true);
   assert.equal($("#card").children.length, 0, "the desktop sidebar stays empty");
   assert.equal($("#sheet-band .card-title").textContent, "Grosser Aletsch Gletscher");
+  assert.equal($('#search button[aria-label="Close"]').hidden, false, "the search bar's Close shows as on desktop");
   assert.equal($("#sheet-band .card-subtitle").textContent, `Glacier · ${ALETSCH} · Central Europe`);
   assert.equal($("#sheet-band .card-area").textContent, "81.8 km²");
   assert.ok(button($("#sheet-band"), "Use this data"));
@@ -52,7 +53,7 @@ test("Use this data opens a pane in the sheet with the exact snippet", () => {
   click(button($("#sheet-band"), "Use this data"));
   const pane = $("#sheet .usedata-pane");
   assert.equal(pane.hidden, false);
-  assert.equal($("dialog"), null);
+  assert.ok(!$("dialog.usedata").hasAttribute("open"));
   assert.equal(pane.querySelector(".usedata-code code").textContent,
     `import geopandas as gpd\n\nurl = "${GLACIERS_URL}"\ngdf = gpd.read_parquet(url, filters=[("rgi_id", "==", "${ALETSCH}")])\n`);
   click(pane.querySelector(".usedata-close"));

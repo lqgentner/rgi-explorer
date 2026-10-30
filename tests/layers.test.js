@@ -1,10 +1,15 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import test from "node:test";
 
 import { FakeMap, loadPage, load } from "./helpers/browser.js";
 
 const { window, document } = await loadPage();
 const { mountLayers, mountTerrain, mountZoom } = await load("js/layers.js");
+
+const BACKGROUNDS = { standard: "#f8f4f0", imagery: "#3c4043" };
+/** The color of the plain picture an image shows. */
+const fill = (img) => /fill="([^"]+)"/.exec(decodeURIComponent(img.getAttribute("src")))?.[1];
 
 function layers(extra = {}) {
   const root = document.createElement("div");
@@ -15,6 +20,7 @@ function layers(extra = {}) {
     onBase: (b) => calls.bases.push(b),
     onToggle: (n, on) => calls.toggles.push([n, on]),
     zoom: () => 12,
+    backgrounds: BACKGROUNDS,
     ...extra,
   });
   return { root, calls, api };
@@ -22,11 +28,19 @@ function layers(extra = {}) {
 
 const hover = (root, type = "pointerenter") => root.firstElementChild.dispatchEvent(new window.Event(type));
 
+test("the phone's round button stays out of the desktop, through style.css", () => {
+  const { root } = layers();
+  assert.ok(root.querySelector(".layers-open"), "drawn for a change of layout");
+  const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
+  const desktop = css.slice(css.indexOf("@media (min-width: 641px) {"));
+  assert.match(desktop, /#layers \.layers-open,\s*#sheet\s*\{\s*display:\s*none;/);
+});
+
 test("the desktop thumbnail shows the other base map under a Layers badge, names it open and swaps on click", () => {
   const { root, calls } = layers();
   const thumb = root.querySelector(".layers-thumb");
   const caption = () => thumb.querySelector(".layers-caption").textContent;
-  assert.ok(thumb.querySelector("img").getAttribute("src").endsWith("assets/base-imagery.webp"));
+  assert.equal(fill(thumb.querySelector("img")), "#3c4043", "the imagery's plain background until a picture loads");
   assert.equal(thumb.querySelector(".layers-badge").textContent, "Layers");
   assert.ok(thumb.querySelector(".layers-badge use").getAttribute("href").endsWith("#layers-2"));
   assert.equal(caption(), "Imagery");
@@ -34,7 +48,7 @@ test("the desktop thumbnail shows the other base map under a Layers badge, names
   hover(root);
   thumb.click();
   assert.deepEqual(calls.bases, ["imagery"]);
-  assert.ok(thumb.querySelector("img").getAttribute("src").endsWith("assets/base-standard.webp"));
+  assert.equal(fill(thumb.querySelector("img")), "#f8f4f0");
   assert.equal(caption(), "Standard");
   assert.equal(thumb.getAttribute("aria-label"), "Layers: show Standard map");
   thumb.click();
@@ -51,7 +65,7 @@ test("setBase swaps the thumbnail without calling onBase", () => {
 test("the desktop toggles leave the zoom hints out", () => {
   const { root, api } = layers({ zoom: () => 6 });
   api.refreshZoom();
-  assert.equal(root.querySelector(".layer-hint"), null);
+  assert.ok([...root.querySelectorAll(".layer-hint")].every((hint) => hint.textContent === ""));
   assert.ok(![...root.querySelectorAll(".layer-toggle")].some((b) => b.textContent.includes("visible from")));
 });
 

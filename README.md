@@ -24,8 +24,7 @@ pixi run --locked serve -- --catalog-dir ../rgi-catalog/catalog --catalog-dir ..
 
 Then open `http://localhost:8000/?catalog=catalog/catalog.json`. The `catalog`
 query parameter replaces the published catalog address. A relative value
-resolves against the page. The status line then shows "Custom catalog:" and the
-host.
+resolves against the page.
 
 ## Smoke test
 

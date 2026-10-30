@@ -51,6 +51,10 @@ fall under `worker-src`.
   Lucide name works.
 - Build DOM with `h()`, nodes or `textContent`, never HTML interpolation.
 - The `PHONE` query in `js/ui.js` and the breakpoint in `style.css` must agree.
+- The page follows a resize across the breakpoint without a reload. Build a
+  control once for both layouts and let `style.css` show the layout's parts;
+  read `PHONE.matches` when it is needed, not once at mount, and move nodes
+  on its `change` event. `setPhone()` from `loadPage()` crosses it in tests.
 
 ## The development server
 
