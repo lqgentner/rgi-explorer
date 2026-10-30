@@ -221,6 +221,10 @@ elsewhere closes it.
   the reader: the longitude of the browser's standard UTC offset and a rough
   latitude for its time zone's area. The time zone never leaves the browser.
   There is no IP lookup, which would send the address to a third party, and
+  The centre stops at the Mercator edge (±85.05°), where the tiles end, so
+  the globe never turns on a pole. The imagery picture in the layers card
+  keeps its export box inside the world, since Esri draws past an edge in
+  black.
   no geolocation prompt.
 - **RGI layers** are drawn from `rgi7.0.pmtiles` with the explorer's own
   style (`js/styles.js`), not the catalog's. They sit above the base map's fills

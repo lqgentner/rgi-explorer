@@ -19,6 +19,8 @@
 const FOV = 0.6435011087932844;
 const TILE_SIZE = 512;
 const LIMB_SAMPLES = 128;
+/* MapLibre's MAX_VALID_LATITUDE. */
+const MAX_LAT = 85.051129;
 
 const rad = (deg) => (deg * Math.PI) / 180;
 const deg = (r) => (r * 180) / Math.PI;
@@ -31,7 +33,8 @@ const deg = (r) => (r * 180) / Math.PI;
  */
 export function globeDisc(map, width, height) {
   const { lng, lat } = map.getCenter();
-  const radius = (TILE_SIZE * 2 ** map.getZoom()) / (2 * Math.PI) / Math.cos(rad(lat));
+  /* MapLibre stops scaling the globe at the Mercator edge; past it, cos(lat) runs to zero. */
+  const radius = (TILE_SIZE * 2 ** map.getZoom()) / (2 * Math.PI) / Math.cos(rad(Math.min(Math.abs(lat), MAX_LAT)));
   const distance = (0.5 * height) / Math.tan(FOV / 2);
   const pitch = rad(map.getPitch());
   const bearing = rad(map.getBearing());

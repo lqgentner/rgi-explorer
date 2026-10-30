@@ -379,6 +379,15 @@ test("MapLibre adds no attribution control of its own", async () => {
   assert.equal(map.options.attributionControl, false);
 });
 
+test("the centre stops at the Mercator edge, from a link and from the camera", async () => {
+  const { map } = await build("#2/90/10");
+  assert.deepEqual(map.options.center, [10, 85.05]);
+  const update = map.options.transformCameraUpdate;
+  const { center } = update({ center: { lng: 20, lat: -89.5 } });
+  assert.deepEqual([center.lng, center.lat], [20, -85.05]);
+  assert.deepEqual(update({ center: { lng: 20, lat: 60 } }), {}, "a centre inside the edge moves freely");
+});
+
 test("North Asia and Antarctic Mainland fit without throwing", async () => {
   const { rgiMap, map } = await build();
   rgiMap.fitBbox({ xmin: -180, ymin: -90, xmax: 180, ymax: -63.2 }, 0);

@@ -339,13 +339,19 @@ export async function createMap(container, catalog, state) {
   registerProtocol();
   const { maplibregl } = globalThis;
   const view = state.view ?? startView();
-  /* The status line holds every credit, so MapLibre adds no attribution control. */
+  /*
+   * The status line holds every credit, so MapLibre adds no attribution
+   * control. The centre stops at the Mercator edge, as the tiles do: the
+   * globe would otherwise turn on a pole.
+   */
   const map = new maplibregl.Map({
     container,
     style: buildStyle(liberty, rgi, state),
-    center: [view.lon, view.lat],
+    center: [view.lon, clampLat(view.lat)],
     zoom: view.zoom,
     attributionControl: false,
+    transformCameraUpdate: ({ center }) =>
+      Math.abs(center.lat) > MAX_LAT ? { center: new maplibregl.LngLat(center.lng, clampLat(center.lat)) } : {},
   });
   await new Promise((resolve, reject) => {
     const fail = (event) => {

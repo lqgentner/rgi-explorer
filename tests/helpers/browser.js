@@ -22,6 +22,7 @@ const MAP_OPTIONS = new Set([
   "center",
   "zoom",
   "attributionControl",
+  "transformCameraUpdate",
   "interactive",
   "pixelRatio",
   "canvasContextAttributes",
@@ -339,6 +340,11 @@ export async function loadPage({ url = PAGE_URL, fetch, phone = false } = {}) {
     NavigationControl: class {},
     ScaleControl: class {},
     AttributionControl: class {},
+    LngLat: class {
+      constructor(lng, lat) {
+        Object.assign(this, { lng, lat });
+      }
+    },
   };
   globalThis.pmtiles = {
     Protocol: class {
