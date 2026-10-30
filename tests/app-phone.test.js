@@ -34,7 +34,7 @@ test("a pick mounts the card in the sheet: the header in the band, the photo and
   assert.equal($("#card").hidden, true);
   assert.equal($("#card").children.length, 0, "the desktop sidebar stays empty");
   assert.equal($("#sheet-band .card-title").textContent, "Grosser Aletsch Gletscher");
-  assert.equal($("#sheet-band .card-subtitle").textContent, `${ALETSCH} · Central Europe`);
+  assert.equal($("#sheet-band .card-subtitle").textContent, `Glacier · ${ALETSCH} · Central Europe`);
   assert.equal($("#sheet-band .card-area").textContent, "81.8 km²");
   assert.ok(button($("#sheet-band"), "Use this data"));
   assert.ok($("#sheet-body .photo"));

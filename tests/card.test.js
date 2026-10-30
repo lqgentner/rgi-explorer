@@ -84,12 +84,12 @@ test("a low-zoom click renders at once, then the attribute read fills the rows",
 test("a title, subtitle and unnamed glacier", async () => {
   const named = setup();
   await named.card.open({ rgiId: IDS[0], props: { display_name: "Grosser Aletsch Gletscher", o1region: "11" } });
-  assert.equal(text(named.root, ".card-subtitle"), `${IDS[0]} · Central Europe`);
+  assert.equal(text(named.root, ".card-subtitle"), `Glacier · ${IDS[0]} · Central Europe`);
 
   const bare = setup();
   await bare.card.open({ rgiId: IDS[4], props: {} });
   assert.equal(text(bare.root, ".card-title"), IDS[4]);
-  assert.equal(text(bare.root, ".card-subtitle"), "Central Europe");
+  assert.equal(text(bare.root, ".card-subtitle"), "Glacier · Central Europe");
   assert.doesNotMatch(bare.root.textContent, /null|undefined/);
 });
 
@@ -97,7 +97,7 @@ test("an unnamed glacier's title is its ID before any read", () => {
   const { root, card } = setup({ parquet: { handle, rowOf: () => new Promise(() => {}) } });
   card.open({ rgiId: IDS[4], props: { rgi_id: IDS[4], display_name: null, glac_name: "" } });
   assert.equal(text(root, ".card-title"), IDS[4]);
-  assert.equal(text(root, ".card-subtitle"), "Central Europe");
+  assert.equal(text(root, ".card-subtitle"), "Glacier · Central Europe");
 });
 
 test("a search pick reads the row and the attributes", async () => {
@@ -381,6 +381,9 @@ test("with a band, the header and actions sit in the band and the photo and tabs
   assert.ok(root.querySelector("[role=tablist]"));
   card.close();
   assert.equal(root.hidden, true);
+  for (const node of band.children) assert.equal(node.hidden, true, "a closed card leaves the band to the other panel");
+  await card.open({ rgiId: IDS[0], props: OVERVIEW_PROPS });
+  for (const node of band.children) assert.equal(node.hidden, false);
 });
 
 test("the header names the area when it is known, and nothing when it is not", async () => {

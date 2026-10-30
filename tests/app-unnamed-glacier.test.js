@@ -20,6 +20,6 @@ test("?glacier= with an unnamed glacier titles the card with its ID", async () =
   const { document } = page;
   await waitFor(() => document.querySelector("#card .panel-hypsometry svg"));
   assert.equal(document.querySelector("#card .card-title").textContent, ID);
-  assert.equal(document.querySelector("#card .card-subtitle").textContent, "Central Europe");
+  assert.equal(document.querySelector("#card .card-subtitle").textContent, "Glacier · Central Europe");
   assert.doesNotMatch(document.querySelector("#card").textContent, /null|undefined/);
 });

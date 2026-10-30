@@ -1,7 +1,8 @@
 /*
  * "Use this data": a ready snippet for GeoPandas, or the steps to add the
- * GeoParquet in QGIS, for one glacier, its region or all of RGI. A dialog on
- * desktop and a pane in the bottom sheet on the phone.
+ * GeoParquet in QGIS, for one glacier, its region or all of RGI, or for one
+ * complex, its glaciers, its region or all complexes. A dialog on desktop and
+ * a pane in the bottom sheet on the phone.
  */
 
 import { TIMEOUT_MS } from "./config.js";
@@ -11,15 +12,32 @@ const TOOLS = [
   { value: "python", label: "Python" },
   { value: "qgis", label: "QGIS" },
 ];
-const SCOPES = [
-  { value: "glacier", label: "This glacier" },
-  { value: "region", label: "Its region" },
-  { value: "all", label: "All of RGI" },
-];
+/* What each panel offers to fetch: the file it reads and the column it filters on. */
+const SCOPES = {
+  glacier: [
+    { value: "glacier", label: "This glacier", file: "glaciers", key: "rgi_id" },
+    { value: "region", label: "Its region", file: "glaciers", key: "o1region" },
+    { value: "all", label: "All of RGI", file: "glaciers" },
+  ],
+  complex: [
+    { value: "complex", label: "This complex", file: "complexes", key: "rgi_id" },
+    { value: "members", label: "Its glaciers", file: "glaciers", key: "complex_id" },
+    { value: "region", label: "Its region", file: "complexes", key: "o1region" },
+    { value: "all", label: "All complexes", file: "complexes" },
+  ],
+};
 const COPIED_MS = 1500;
 
-/** The first-order region code inside an RGI ID, such as "11" in RGI2000-v7.0-G-11-02596. */
-const regionOfId = (rgiId) => /-G-(\d{2})-/.exec(rgiId ?? "")?.[1] ?? null;
+/** The first-order region code inside an RGI ID, such as "11" in RGI2000-v7.0-G-11-02596 or RGI2000-v7.0-C-11-01323. */
+const regionOfId = (rgiId) => /-[GC]-(\d{2})-/.exec(rgiId ?? "")?.[1] ?? null;
+
+const scopesOf = (target) => SCOPES[target.kind] ?? SCOPES.glacier;
+/** The scope a choice names for a target, or the target's first. */
+const scopeOf = (scope, target) => scopesOf(target).find((s) => s.value === scope) ?? scopesOf(target)[0];
+/** The data file a choice reads. */
+const fileOf = (scope, target, catalog) => catalog.collections[scopeOf(scope, target).file].dataUrl;
+/** The file that "all" reads, whose size the note gives. */
+const allFileOf = (target, catalog) => fileOf("all", target, catalog);
 
 /** A Python string literal. JSON's double-quoted form is one for this text. */
 const py = (text) => JSON.stringify(String(text));
@@ -30,20 +48,22 @@ const sizeNote = (bytes) =>
   Number.isFinite(bytes) && bytes > 0 ? `Reads the whole file, about ${Math.round(bytes / 1e6)} MB.` : undefined;
 
 /**
- * The snippet for a choice. `bytes`, the size of the glaciers file, adds the
+ * The snippet for a choice. `bytes`, the size of the file "all" reads, adds the
  * size note to "all"; without it the note is left out.
  *
- * @param {{tool: "python"|"qgis", scope: "glacier"|"region"|"all"}} choice
- * @param {{rgiId: string, o1region?: string}} glacier
+ * @param {{tool: "python"|"qgis", scope: string}} choice  a scope of the target's kind
+ * @param {{kind?: "glacier"|"complex", rgiId: string, o1region?: string}} target  a glacier when `kind` is left out
  * @param {object} catalog  from loadCatalog
  * @param {number} [bytes]
  * @returns {{code?: string, steps?: string[], filter?: string, note?: string}}
  */
-export function snippet({ tool, scope }, { rgiId, o1region }, catalog, bytes) {
-  const url = catalog.collections.glaciers.dataUrl;
-  const region = o1region || regionOfId(rgiId);
-  const note = scope === "all" ? sizeNote(bytes) : undefined;
-  const key = scope === "glacier" ? ["rgi_id", rgiId] : scope === "region" ? ["o1region", region] : null;
+export function snippet({ tool, scope }, target, catalog, bytes) {
+  const { rgiId, o1region } = target;
+  const chosen = scopeOf(scope, target);
+  const url = fileOf(scope, target, catalog);
+  const note = chosen.value === "all" ? sizeNote(bytes) : undefined;
+  const value = chosen.key === "o1region" ? o1region || regionOfId(rgiId) : rgiId;
+  const key = chosen.key ? [chosen.key, value] : null;
 
   if (tool === "qgis") {
     const result = {
@@ -130,8 +150,9 @@ function segmented(name, legend, options, checked) {
 let mounted = 0;
 
 /**
- * Mount "Use this data" in `root` and return `{ open(glacier), close() }`.
- * `glacier` is `{ rgiId, o1region? }`. The phone gets a pane, the desktop a dialog.
+ * Mount "Use this data" in `root` and return `{ open(target), close() }`.
+ * `target` is `{ kind?, rgiId, o1region? }`, a glacier when `kind` is left out.
+ * The phone gets a pane, the desktop a dialog.
  *
  * @param {HTMLElement} root
  * @param {{catalog: object}} ctx
@@ -141,7 +162,7 @@ export function mountUseData(root, { catalog }) {
   mounted += 1;
   const id = `usedata-${mounted}`;
   const choice = { tool: "python", scope: "glacier" };
-  let glacier = null;
+  let target = null;
   let bytes = null;
   let opener = null;
 
@@ -152,7 +173,7 @@ export function mountUseData(root, { catalog }) {
   );
   const body = h("div", { class: "usedata-body" });
   const tools = segmented(`${id}-tool`, "I work in", TOOLS, choice.tool);
-  const scopes = segmented(`${id}-scope`, "Fetch", SCOPES, choice.scope);
+  let scopes = segmented(`${id}-scope`, "Fetch", SCOPES.glacier, choice.scope);
   const content = [
     h("div", { class: "pane-header" }, h("h2", { id: `${id}-title` }, "Use this data"), closeButton),
     tools,
@@ -165,9 +186,9 @@ export function mountUseData(root, { catalog }) {
   root.append(container);
 
   function render() {
-    if (!glacier) return;
-    const { code, steps, filter, note } = snippet(choice, glacier, catalog, bytes ?? undefined);
-    const url = catalog.collections.glaciers.dataUrl;
+    if (!target) return;
+    const { code, steps, filter, note } = snippet(choice, target, catalog, bytes ?? undefined);
+    const url = fileOf(choice.scope, target, catalog);
     const parts = [];
     if (code !== undefined) {
       parts.push(h("pre", { class: "usedata-code" }, h("code", {}, code)), h("div", { class: "usedata-actions" }, copyButton(() => code)));
@@ -202,16 +223,29 @@ export function mountUseData(root, { catalog }) {
 
   const isOpen = () => (phone ? !container.hidden : container.open || container.hasAttribute("open"));
 
-  for (const [group, key] of [[tools, "tool"], [scopes, "scope"]]) {
+  const listen = (group, key) =>
     group.addEventListener("change", (event) => {
       choice[key] = event.target.value;
       render();
     });
+  listen(tools, "tool");
+  listen(scopes, "scope");
+
+  /* A glacier and a complex offer different scopes; a new kind starts on its first. */
+  function setKind(next) {
+    if (scopesOf(next) === scopesOf(target ?? {})) return;
+    choice.scope = scopesOf(next)[0].value;
+    bytes = null;
+    const fresh = segmented(`${id}-scope`, "Fetch", scopesOf(next), choice.scope);
+    scopes.replaceWith(fresh);
+    scopes = fresh;
+    listen(scopes, "scope");
   }
 
   const api = {
     open(next) {
-      glacier = next;
+      setKind(next);
+      target = next;
       opener = document.activeElement;
       render();
       if (phone) container.hidden = false;
@@ -219,8 +253,9 @@ export function mountUseData(root, { catalog }) {
         if (!container.open) container.showModal();
       } else container.setAttribute("open", "");
       container.querySelector("input:checked")?.focus();
-      sizeOf(catalog.collections.glaciers.dataUrl).then((size) => {
-        if (size === bytes) return;
+      const shown = target;
+      sizeOf(allFileOf(target, catalog)).then((size) => {
+        if (size === bytes || scopesOf(shown) !== scopesOf(target)) return;
         bytes = size;
         if (isOpen()) render();
       });

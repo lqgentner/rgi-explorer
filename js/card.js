@@ -13,14 +13,14 @@ const TABS = [
 const SHOWN_LINKS = 3;
 /* The imagery crop's pixel size, and the rows at its top that something covers. */
 const CROP = { size: [816, 400], top: 0 };
-const IMAGERY_CREDIT = "Imagery: Esri, Maxar, Earthstar Geographics";
+export const IMAGERY_CREDIT = "Imagery: Esri, Maxar, Earthstar Geographics";
 const isHttp = (url) => /^https?:\/\//i.test(url ?? "");
 const AREA_UNIT = DISPLAY.find((d) => d.column === "area_km2").unit;
 
 /** The first-order region code inside an RGI ID, such as "11" in RGI2000-v7.0-G-11-02596. */
 const regionOfId = (rgiId) => /-G-(\d{2})-/.exec(rgiId ?? "")?.[1] ?? null;
 
-function infoButton(label, description) {
+export function infoButton(label, description) {
   if (!description) return [null, null];
   const button = h("button", { type: "button", class: "info", "aria-label": `About ${label}` }, "ⓘ");
   return [button, popover(button, "info-popover", description)];
@@ -32,7 +32,7 @@ function infoButton(label, description) {
  * attribution does; a press anywhere else but the photo arrows, or Escape,
  * folds it again. `onToggle(open)` hears each change.
  */
-function photoCredit(label, className, open, onToggle, ...children) {
+export function photoCredit(label, className, open, onToggle, ...children) {
   const button = h("button", { type: "button", class: "icon-button photo-info", "aria-label": label }, icon("info"));
   const text = h("div", { class: `photo-attrib-text ${className}` }, ...children);
   const pill = h("div", { class: "photo-attrib" }, button, text);
@@ -105,6 +105,11 @@ export function mountCard(root, ctx) {
   );
   tablist.append(...Object.values(tabs));
   const top = ctx.band ? [] : [closeButton, head, actions];
+  /* In the band, the head waits hidden while the complex panel may use the band. */
+  const showBand = (on) => {
+    if (ctx.band) for (const node of [closeButton, head, actions]) node.hidden = !on;
+  };
+  showBand(false);
   const section = h("section", { class: "card", "aria-label": "Glacier", hidden: true },
     photo, ...top, tablist, ...Object.values(panels));
   ctx.band?.append(closeButton, head, actions);
@@ -151,7 +156,7 @@ export function mountCard(root, ctx) {
     const name = nonEmpty(props.display_name) ?? nonEmpty(props.glac_name);
     const code = nonEmpty(props.o1region) ?? regionOfId(rgiId);
     const region = (ctx.regions ?? []).find((r) => Number(r.level) === 1 && r.o1region === code)?.full_name;
-    const subtitle = name ? [rgiId, region].filter(Boolean).join(" · ") : (region ?? "");
+    const subtitle = ["Glacier", name ? rgiId : null, region].filter(Boolean).join(" · ");
     const area = Number.isFinite(props.area_km2) ? `${formatArea(props.area_km2)} ${AREA_UNIT}` : null;
     head.replaceChildren(
       h("h2", { class: "card-title" }, name ?? rgiId),
@@ -363,6 +368,7 @@ export function mountCard(root, ctx) {
       state.moreOpen = false;
       root.hidden = false;
       section.hidden = false;
+      showBand(true);
       render();
       selectTab(state.tab);
       new Promise((resolve) => resolve(ctx.photos?.(glacier, signal)))
@@ -377,6 +383,7 @@ export function mountCard(root, ctx) {
       controller = null;
       current = null;
       section.hidden = true;
+      showBand(false);
       root.hidden = true;
     },
   };

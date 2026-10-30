@@ -780,6 +780,52 @@ button:focus-visible {
   padding: 12px 16px 0;
 }
 
+/* The complex panel has no tabs; its groups take a tab panel's inset. */
+.complex-card > .group {
+  padding: 0 16px;
+}
+
+.members-scroll {
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+table.members {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+table.members th,
+table.members td {
+  padding: 6px 8px;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+}
+
+table.members th {
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  color: var(--muted);
+  font-weight: 600;
+}
+
+table.members tbody tr {
+  cursor: pointer;
+}
+
+table.members tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+table.members .num {
+  text-align: right;
+  white-space: nowrap;
+}
+
 .key-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
