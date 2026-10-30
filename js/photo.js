@@ -118,20 +118,31 @@ export function pickFiles(bindings, rings, glimsId) {
   return picked.slice(0, MAX_FILES);
 }
 
-/** Plain text of an HTML fragment. Commons markup never reaches the DOM. */
+/* An element that Commons hides with an inline style, such as the second "Unknown author" of its template. */
+const HIDDEN = /<(\w+)[^>]*style="[^"]*display:\s*none[^"]*"[^>]*>[\s\S]*?<\/\1>/gi;
+
+/**
+ * Plain text of an HTML fragment, without the parts its inline styles hide and
+ * with runs of white space as one space. Commons markup never reaches the DOM.
+ */
 function textOf(html) {
   if (!html) return "";
+  let text;
   if (typeof globalThis.DOMParser === "function") {
-    return new globalThis.DOMParser().parseFromString(String(html), "text/html").body.textContent.trim();
+    const { body } = new globalThis.DOMParser().parseFromString(String(html), "text/html");
+    for (const node of body.querySelectorAll("[style]")) if (node.style.display === "none") node.remove();
+    text = body.textContent;
+  } else {
+    text = String(html)
+      .replace(HIDDEN, "")
+      .replace(/<[^>]*>/g, "")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&quot;/g, '"')
+      .replace(/&#0?39;/g, "'")
+      .replace(/&amp;/g, "&");
   }
-  return String(html)
-    .replace(/<[^>]*>/g, "")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#0?39;/g, "'")
-    .replace(/&amp;/g, "&")
-    .trim();
+  return text.replace(/\s+/g, " ").trim();
 }
 
 async function getJson(url, { fetch = globalThis.fetch, signal } = {}) {

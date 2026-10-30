@@ -114,6 +114,25 @@ test("commons credits read author, license and the thumbnail, with the HTML stri
   assert.equal(photos[1].licenseUrl, "");
 });
 
+/* Commons' {{Unknown|author}} as its API returns it: a second copy hidden by an inline style. */
+const UNKNOWN_AUTHOR = '<div class="fn value">\nUnknown author<span style="display: none;">Unknown author</span> or not provided</div>';
+
+test("an author that Commons hides in part reads as it shows, with or without a DOMParser", async () => {
+  const data = { query: { pages: { 1: { title: "File:A.jpg", imageinfo: [{ thumburl: "https://t/a.jpg",
+    extmetadata: { Artist: { value: UNKNOWN_AUTHOR } } }] } } } };
+  globalThis.DOMParser = window.DOMParser;
+  const [parsed] = await commonsCredits([{ file: "A.jpg", item: "Q1" }], { fetch: json(data) });
+  assert.equal(parsed.author, "Unknown author or not provided");
+  const saved = globalThis.DOMParser;
+  delete globalThis.DOMParser;
+  try {
+    const [stripped] = await commonsCredits([{ file: "A.jpg", item: "Q1" }], { fetch: json(data) });
+    assert.equal(stripped.author, "Unknown author or not provided");
+  } finally {
+    globalThis.DOMParser = saved;
+  }
+});
+
 test("the Artist fallback strips tags without a DOMParser", async () => {
   const saved = globalThis.DOMParser;
   delete globalThis.DOMParser;
