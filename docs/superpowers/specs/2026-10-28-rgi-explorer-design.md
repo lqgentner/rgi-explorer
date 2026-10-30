@@ -174,7 +174,11 @@ elsewhere closes it.
   toggles slides out to the right from behind the card, and the card keeps
   its size. Open, the bottom line names the map a click swaps to, and
   hovering the picture zooms it slightly and rings it in dark grey. On a touch screen the first tap opens the
-  control and a press elsewhere closes it. Each toggle has a small static preview
+  control and a press elsewhere closes it. A mouse that leaves keeps it open
+  while keyboard focus is inside. Its accessible name starts with the visible
+  "Layers" ("Layers: show Imagery map") and it reports whether it is
+  expanded. When the sidebar is open and the window is narrower than 810 px,
+  the drawer would run under + / −, so it opens upwards as a column instead. Each toggle has a small static preview
   tile drawn from the layer's real data at a fixed place (the Caucasus and
   Middle East region and its two subregions, with finer dashes than the
   map's; the Hardangerjøkulen complex's centerlines and intersects), in the
@@ -217,14 +221,14 @@ elsewhere closes it.
   stays and shows while the imagery loads.
 - **The map is a globe.** MapLibre's globe projection turns into Mercator as
   the view zooms in. A halo, as in glace-viewer, shows around the globe.
-- **The opening view** without a view in the address turns the globe toward
-  the reader: the longitude of the browser's standard UTC offset and a rough
-  latitude for its time zone's area. The time zone never leaves the browser.
-  There is no IP lookup, which would send the address to a third party, and
   The centre stops at the Mercator edge (±85.05°), where the tiles end, so
   the globe never turns on a pole. The imagery picture in the layers card
   keeps its export box inside the world, since Esri draws past an edge in
   black.
+- **The opening view** without a view in the address turns the globe toward
+  the reader: the longitude of the browser's standard UTC offset and a rough
+  latitude for its time zone's area. The time zone never leaves the browser.
+  There is no IP lookup, which would send the address to a third party, and
   no geolocation prompt.
 - **RGI layers** are drawn from `rgi7.0.pmtiles` with the explorer's own
   style (`js/styles.js`), not the catalog's. They sit above the base map's fills
@@ -280,7 +284,8 @@ elsewhere closes it.
   complex, and a bare `11-01323` lists the glacier and then the complex.
 - **The search bar names the open glacier or complex** (its title), however
   it was opened: from search, the map, a link or another panel. Closing the
-  panel empties it. Someone typing in it keeps their text.
+  panel empties it. Someone typing in it keeps their text, and Escape puts
+  the name back.
 - **RGI regions** come from the regions GeoParquet (`full_name`, codes), which
   is small. Picking one fits the region's bbox.
 - **OSM places** come from Photon (`photon.komoot.io`), queried with a

@@ -92,8 +92,10 @@ export function mountStatus(root, rgiMap, catalog, getState) {
     scaleLine.style.width = `${px}px`;
     scaleLabel.textContent = label;
   };
-  const drawScaleNow = () => drawScale(rgiMap.map.getCenter().lat, rgiMap.map.getZoom());
+  drawCredits();
 
+  /* Desktop: redraw the scale and publish the status line's height, which the controls sit above. */
+  let relayout = () => {};
   if (phone) {
     const panel = h("div", { class: "credits-panel", hidden: true }, list);
     const info = h("button", { type: "button", class: "round-button", "aria-label": "Credits", "aria-expanded": "false" }, icon("info"));
@@ -118,26 +120,22 @@ export function mountStatus(root, rgiMap, catalog, getState) {
   } else {
     root.append(scale, list);
     rgiMap.onMove(({ zoom, lat }) => drawScale(lat, zoom));
-    drawScaleNow();
-  }
-  drawCredits();
-
-  /* On desktop the controls sit above the status line; the phone has no status line. */
-  const publishHeight = () => {
-    if (phone) return;
-    const height = root.getBoundingClientRect().height;
-    document.documentElement.style.setProperty("--status-h", `${height}px`);
-  };
-  if (!phone) {
-    publishHeight();
+    const publishHeight = () => {
+      const height = root.getBoundingClientRect().height;
+      document.documentElement.style.setProperty("--status-h", `${height}px`);
+    };
+    relayout = () => {
+      drawScale(rgiMap.map.getCenter().lat, rgiMap.map.getZoom());
+      publishHeight();
+    };
+    relayout();
     if (typeof ResizeObserver === "function") new ResizeObserver(publishHeight).observe(root);
   }
 
   return {
     refresh() {
-      if (!phone) drawScaleNow();
       drawCredits();
-      publishHeight();
+      relayout();
     },
   };
 }

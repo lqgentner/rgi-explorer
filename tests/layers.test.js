@@ -25,16 +25,18 @@ const hover = (root, type = "pointerenter") => root.firstElementChild.dispatchEv
 test("the desktop thumbnail shows the other base map under a Layers badge, names it open and swaps on click", () => {
   const { root, calls } = layers();
   const thumb = root.querySelector(".layers-thumb");
-  const caption = () => thumb.querySelector(".layer-name").textContent;
+  const caption = () => thumb.querySelector(".layers-caption").textContent;
   assert.ok(thumb.querySelector("img").getAttribute("src").endsWith("assets/base-imagery.webp"));
   assert.equal(thumb.querySelector(".layers-badge").textContent, "Layers");
   assert.ok(thumb.querySelector(".layers-badge use").getAttribute("href").endsWith("#layers-2"));
   assert.equal(caption(), "Imagery");
+  assert.equal(thumb.getAttribute("aria-label"), "Layers: show Imagery map");
   hover(root);
   thumb.click();
   assert.deepEqual(calls.bases, ["imagery"]);
   assert.ok(thumb.querySelector("img").getAttribute("src").endsWith("assets/base-standard.webp"));
   assert.equal(caption(), "Standard");
+  assert.equal(thumb.getAttribute("aria-label"), "Layers: show Standard map");
   thumb.click();
   assert.deepEqual(calls.bases, ["imagery", "standard"]);
 });
@@ -42,7 +44,7 @@ test("the desktop thumbnail shows the other base map under a Layers badge, names
 test("setBase swaps the thumbnail without calling onBase", () => {
   const { root, calls, api } = layers();
   api.setBase("imagery");
-  assert.equal(root.querySelector(".layers-thumb .layer-name").textContent, "Standard");
+  assert.equal(root.querySelector(".layers-caption").textContent, "Standard");
   assert.deepEqual(calls.bases, []);
 });
 
@@ -77,16 +79,45 @@ test("the control opens on hover and focus", () => {
   const { root } = layers();
   const panel = root.querySelector(".layers-panel");
   const wrapper = root.firstElementChild;
+  const thumb = root.querySelector(".layers-thumb");
   assert.equal(panel.hasAttribute("inert"), true);
   assert.ok(!wrapper.classList.contains("open"));
+  assert.equal(thumb.getAttribute("aria-expanded"), "false");
   hover(root);
   assert.equal(panel.hasAttribute("inert"), false);
   assert.ok(wrapper.classList.contains("open"));
+  assert.equal(thumb.getAttribute("aria-expanded"), "true");
   hover(root, "pointerleave");
   assert.equal(panel.hasAttribute("inert"), true);
   assert.ok(!wrapper.classList.contains("open"));
-  root.querySelector(".layers-thumb").dispatchEvent(new window.Event("focusin", { bubbles: true }));
+  thumb.dispatchEvent(new window.Event("focusin", { bubbles: true }));
   assert.equal(panel.hasAttribute("inert"), false);
+});
+
+test("a mouse that leaves keeps the control open while keyboard focus is inside", () => {
+  const { root } = layers();
+  document.body.append(root);
+  const panel = root.querySelector(".layers-panel");
+  hover(root);
+  root.querySelector(".layers-thumb").focus();
+  /* jsdom has no input modality: stand in for the keyboard's :focus-visible. */
+  const matches = window.Element.prototype.querySelector;
+  root.firstElementChild.querySelector = function (selector) {
+    return selector === ":focus-visible" ? document.activeElement : matches.call(this, selector);
+  };
+  hover(root, "pointerleave");
+  assert.equal(panel.hasAttribute("inert"), false);
+  root.remove();
+});
+
+test("a keyboard click on the open control swaps the base map, whatever an earlier press saw", () => {
+  const { root, calls } = layers();
+  const thumb = root.querySelector(".layers-thumb");
+  /* A press that never became a click, on the closed control. */
+  thumb.dispatchEvent(new window.Event("pointerdown", { bubbles: true }));
+  hover(root);
+  thumb.dispatchEvent(new window.MouseEvent("click", { bubbles: true, detail: 0 }));
+  assert.deepEqual(calls.bases, ["imagery"]);
 });
 
 test("the zoom buttons zoom the map", () => {
@@ -173,7 +204,7 @@ test("a tap opens the closed control, and only a tap on the open one swaps the b
     touch(thumb, "pointerdown");
     thumb.dispatchEvent(new window.Event("focusin", { bubbles: true }));
     touch(root.firstElementChild, "pointerleave");
-    thumb.click();
+    thumb.dispatchEvent(new window.MouseEvent("click", { bubbles: true, detail: 1 }));
   };
   tap();
   assert.equal(panel.hasAttribute("inert"), false);

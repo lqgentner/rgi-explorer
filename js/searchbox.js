@@ -43,6 +43,8 @@ export function mountSearch(root, { onPick, loadGlacierIndex, regions, view }) {
   const searchIcon = icon("search");
   searchIcon.classList.add("search-icon");
   let onClose = null;
+  /* The open glacier's or complex's name, which Escape puts back. */
+  let named = "";
   closeButton.addEventListener("click", () => onClose?.());
   root.append(searchIcon, input, closeButton, list);
 
@@ -194,7 +196,7 @@ export function mountSearch(root, { onPick, loadGlacierIndex, regions, view }) {
     } else if (event.key === "Enter") {
       pick(hits[active] ?? hits[0]);
     } else if (event.key === "Escape") {
-      reset("");
+      reset(named);
     }
   });
   list.addEventListener("click", (event) => {
@@ -208,9 +210,11 @@ export function mountSearch(root, { onPick, loadGlacierIndex, regions, view }) {
       closeButton.hidden = !onClose;
     },
     setText(text) {
+      named = text;
       if (document.activeElement !== input) reset(text);
     },
     clear() {
+      named = "";
       reset("");
     },
   };

@@ -91,13 +91,16 @@ export function popover(button, className, ...children) {
     button.style.setProperty("anchor-name", name);
     node.style.setProperty("position-anchor", name);
   }
+  /* Without anchors the popover cannot follow a scroll, so a scroll closes it while it is open. */
+  let scrolling = null;
   node.addEventListener("toggle", (event) => {
     const open = event.newState === "open";
     button.setAttribute("aria-expanded", String(open));
+    scrolling?.abort();
     if (!open || ANCHORS) return;
     place(node, button);
-    /* Without anchors the popover cannot follow a scroll, so a scroll closes it. */
-    window.addEventListener("scroll", () => node.hidePopover(), { capture: true, once: true });
+    scrolling = new AbortController();
+    window.addEventListener("scroll", () => node.hidePopover(), { capture: true, once: true, signal: scrolling.signal });
   });
   return node;
 }

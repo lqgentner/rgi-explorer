@@ -262,7 +262,9 @@ button:focus-visible {
   --pad: 8px;
   --label: 14px;
   --layers-h: calc(2 * var(--pad) + var(--tile) + 4px + var(--label));
-  --grow: 200ms ease-out;
+  --grow-time: 200ms;
+  --ring-time: 120ms;
+  --fade-time: 150ms;
   position: relative;
   height: var(--layers-h);
 }
@@ -296,7 +298,7 @@ button:focus-visible {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform var(--grow);
+  transition: transform var(--grow-time) ease-out;
 }
 
 /*
@@ -334,15 +336,18 @@ button:focus-visible {
   inset: 0;
   border-radius: inherit;
   box-shadow: inset 0 0 0 0 rgb(60 64 67 / 0%);
-  transition: box-shadow 120ms ease-out;
+  transition: box-shadow var(--ring-time) ease-out;
 }
 
-.layers.open .layers-thumb:hover .layers-picture::after {
-  box-shadow: inset 0 0 0 4px rgb(60 64 67 / 60%);
-}
+/* Only a real hover: a tap leaves a sticky :hover behind on touch screens. */
+@media (hover: hover) {
+  .layers.open .layers-thumb:hover .layers-picture::after {
+    box-shadow: inset 0 0 0 4px rgb(60 64 67 / 60%);
+  }
 
-.layers.open .layers-thumb:hover img {
-  transform: scale(1.06);
+  .layers.open .layers-thumb:hover img {
+    transform: scale(1.06);
+  }
 }
 
 /* The bottom line: "Layers" closed, the other map's name open. */
@@ -360,7 +365,7 @@ button:focus-visible {
   font-size: 11px;
   font-weight: 600;
   line-height: 14px;
-  transition: opacity 150ms ease-out;
+  transition: opacity var(--fade-time) ease-out;
 }
 
 .layers-badge .icon {
@@ -404,28 +409,52 @@ button:focus-visible {
   box-shadow: var(--shadow);
   transform: translateX(-100%);
   visibility: hidden;
-  transition: transform var(--grow), visibility 0s linear 200ms;
+  transition: transform var(--grow-time) ease-out, visibility 0s linear var(--grow-time);
 }
 
 .layers.open .layers-drawer {
   transform: none;
   visibility: visible;
-  transition: transform var(--grow), visibility 0s;
+  transition: transform var(--grow-time) ease-out, visibility 0s;
+}
+
+/*
+ * With the sidebar open on a narrow window, the drawer would run under the
+ * zoom buttons. It opens upwards instead, as a column above the card.
+ */
+@media (min-width: 641px) and (max-width: 809px) {
+  body.card-open .layers-panel {
+    top: auto;
+    bottom: calc(var(--layers-h) - 16px);
+    left: 0;
+    width: var(--layers-h);
+    height: auto;
+    clip-path: inset(-32px -32px 0 -32px);
+  }
+
+  body.card-open .layers-drawer {
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: var(--pad) var(--pad) calc(16px + 16px);
+    border-radius: 12px 12px 0 0;
+    transform: translateY(100%);
+  }
+
+  body.card-open .layers.open .layers-drawer {
+    transform: none;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .layers-picture img,
-  .layers-picture::after,
-  .layers-badge,
-  .layers-caption,
-  .layers-drawer,
-  .layers.open .layers-drawer {
-    transition: none;
+  .layers {
+    --grow-time: 0s;
+    --ring-time: 0s;
+    --fade-time: 0s;
   }
 }
 
 .layers .layer-toggle {
-  justify-content: flex-start;
   width: var(--tile);
   font-size: 11px;
   line-height: var(--label);
@@ -751,15 +780,12 @@ button:focus-visible {
 
   #card[hidden] {
     display: block !important;
+    translate: calc(-100% - 16px) 0;
+    visibility: hidden;
   }
 
   #card[hidden] > .card.current[hidden] {
     display: block !important;
-  }
-
-  #card[hidden] {
-    translate: calc(-100% - 16px) 0;
-    visibility: hidden;
   }
 
   #layers,
@@ -769,6 +795,11 @@ button:focus-visible {
 
   body.card-open #status {
     max-width: calc(100% - var(--card-w));
+  }
+
+  /* With the card open, the layer control sits at the map area's left edge. */
+  body.card-open #layers {
+    left: calc(var(--card-w) + 16px);
   }
 }
 
@@ -794,7 +825,9 @@ button:focus-visible {
 }
 
 .card .photo {
+  position: relative;
   height: 280px;
+  overflow: hidden;
   background: #e8eaed;
 }
 
@@ -804,11 +837,6 @@ button:focus-visible {
   right: 8px;
   background: var(--surface);
   box-shadow: var(--shadow);
-}
-
-/* On desktop the search bar's Close closes the card, so the card shows none of its own. */
-#card .card-close {
-  display: none;
 }
 
 .search-close {
@@ -990,7 +1018,6 @@ table.members .num {
   color: var(--muted);
   font-size: 13px;
   font-weight: 600;
-  cursor: default;
 }
 
 .group summary {
@@ -1096,11 +1123,6 @@ table.members .num {
   text-align: center;
 }
 
-.card .photo {
-  position: relative;
-  overflow: hidden;
-}
-
 .card .photo > img {
   display: block;
   width: 100%;
@@ -1161,11 +1183,6 @@ table.members .num {
   display: none;
   margin: 2px 0 0;
   font-weight: 600;
-}
-
-/* With the card open, the layer control sits at the map area's left edge. */
-body.card-open #layers {
-  left: calc(var(--card-w) + 16px);
 }
 
 /* Short confirmations such as "Link copied". */
@@ -1317,10 +1334,6 @@ dialog.usedata::backdrop {
 
   #card {
     display: none;
-  }
-
-  body.card-open #layers {
-    left: auto;
   }
 
   .card-area {

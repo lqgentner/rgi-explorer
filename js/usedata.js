@@ -5,6 +5,7 @@
  * a pane in the bottom sheet on the phone.
  */
 
+import { regionOfId } from "./card.js";
 import { TIMEOUT_MS } from "./config.js";
 import { PHONE, h, icon } from "./ui.js";
 
@@ -27,9 +28,6 @@ const SCOPES = {
   ],
 };
 const COPIED_MS = 1500;
-
-/** The first-order region code inside an RGI ID, such as "11" in RGI2000-v7.0-G-11-02596 or RGI2000-v7.0-C-11-01323. */
-const regionOfId = (rgiId) => /-[GC]-(\d{2})-/.exec(rgiId ?? "")?.[1] ?? null;
 
 const scopesOf = (target) => SCOPES[target.kind] ?? SCOPES.glacier;
 /** The scope a choice names for a target, or the target's first. */

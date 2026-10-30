@@ -13,12 +13,19 @@ const TABS = [
 const SHOWN_LINKS = 3;
 /* The imagery crop's pixel size, and the rows at its top that something covers. */
 const CROP = { size: [816, 400], top: 0 };
-export const IMAGERY_CREDIT = "Esri, Maxar, Earthstar Geographics";
+const IMAGERY_CREDIT = "Esri, Maxar, Earthstar Geographics";
 const isHttp = (url) => /^https?:\/\//i.test(url ?? "");
 const AREA_UNIT = DISPLAY.find((d) => d.column === "area_km2").unit;
 
-/** The first-order region code inside an RGI ID, such as "11" in RGI2000-v7.0-G-11-02596. */
-const regionOfId = (rgiId) => /-G-(\d{2})-/.exec(rgiId ?? "")?.[1] ?? null;
+/** The first-order region code inside an RGI glacier or complex ID, such as "11" in RGI2000-v7.0-G-11-02596. */
+export const regionOfId = (id) => /-[GC]-(\d{2})-/.exec(id ?? "")?.[1] ?? null;
+
+/** A text button that calls `onClick`. */
+function button(label, className, onClick) {
+  const node = h("button", { type: "button", class: className }, label);
+  node.addEventListener("click", onClick);
+  return node;
+}
 
 export function infoButton(label, description) {
   if (!description) return [null, null];
@@ -30,7 +37,7 @@ export function infoButton(label, description) {
  * A photo's credit: one line of text along the photo's bottom left, set like
  * the map's credits, a label and then its items, comma-separated.
  */
-export function photoCredit(label, ...items) {
+function photoCredit(label, ...items) {
   const parts = items.filter(Boolean).flatMap((item, i) => (i ? [", ", item] : [item]));
   return h("div", { class: "photo-credit" }, h("span", { class: "credit-label" }, label), ...parts);
 }
@@ -40,8 +47,59 @@ export function photoCredit(label, ...items) {
  * card and the complex panel. On desktop the sidebar keeps drawing that panel
  * while it slides out; a panel the other replaced is not drawn.
  */
-export function markCurrent(root, section) {
+function markCurrent(root, section) {
   for (const panel of root.children) panel.classList.toggle("current", panel === section);
+}
+
+/**
+ * The frame the glacier card and the complex panel share: the photo area, the
+ * header and the actions, in a section of `root` above `body`. With
+ * `ctx.band`, a close button that calls `ctx.onClose`, the header and the
+ * actions go in the band instead, hidden while the panel is closed, so the
+ * other panel can use the band. `onUseData` and `onZoom` serve the actions.
+ * `show(on)` opens or closes the panel.
+ */
+export function cardFrame(root, ctx, { label, className, body, onUseData, onZoom }) {
+  const photo = h("div", { class: "photo" });
+  const head = h("header", { class: "card-head" });
+  const actions = h("div", { class: "card-actions" },
+    button("Use this data", "btn primary", onUseData),
+    button("Zoom to", "btn", onZoom),
+    button("Share", "btn", () => ctx.onShare?.()));
+  const inBand = [];
+  if (ctx.band) {
+    const close = h("button", { type: "button", class: "icon-button card-close", "aria-label": "Close" }, icon("x"));
+    close.addEventListener("click", () => ctx.onClose?.());
+    inBand.push(close, head, actions);
+    ctx.band.append(...inBand);
+  }
+  const section = h("section", { class: className, "aria-label": label, hidden: true },
+    photo, ...(ctx.band ? [] : [head, actions]), ...body);
+  root.append(section);
+
+  function show(on) {
+    for (const node of inBand) node.hidden = !on;
+    section.hidden = !on;
+    root.hidden = !on;
+    if (on) markCurrent(root, section);
+  }
+  show(false);
+  return { photo, head, show };
+}
+
+/** A plain block in place of an imagery crop that failed. */
+export const placeholder = () => h("div", { class: "photo-placeholder", style: { background: "var(--line)" } });
+
+/**
+ * The imagery crop of `bbox` and its credit, for the photo area `photo`. An
+ * image already there for the same crop stays. `onError` hears a failed load.
+ */
+export function imageryCrop(photo, bbox, { crop = CROP, alt, onError }) {
+  const src = esriCrop(bbox, ...crop.size, crop.top);
+  if (photo.querySelector("img.photo-crop")?.getAttribute("src") === src) return [...photo.childNodes];
+  const image = h("img", { class: "photo-crop", src, alt, loading: "lazy" });
+  image.addEventListener("error", onError);
+  return [image, photoCredit("Imagery", IMAGERY_CREDIT)];
 }
 
 /**
@@ -55,10 +113,6 @@ export function mountCard(root, ctx) {
   let current = null;
   let controller = null;
 
-  const photo = h("div", { class: "photo" });
-  const head = h("header", { class: "card-head" });
-  const closeButton = h("button", { type: "button", class: "icon-button card-close", "aria-label": "Close" }, icon("x"));
-  const actions = h("div", { class: "card-actions" });
   const tablist = h("div", { class: "tabs", role: "tablist" });
   const panels = Object.fromEntries(
     TABS.map((tab) => [
@@ -84,17 +138,13 @@ export function mountCard(root, ctx) {
     ]),
   );
   tablist.append(...Object.values(tabs));
-  const top = ctx.band ? [] : [closeButton, head, actions];
-  /* In the band, the head waits hidden while the complex panel may use the band. */
-  const showBand = (on) => {
-    if (ctx.band) for (const node of [closeButton, head, actions]) node.hidden = !on;
-  };
-  showBand(false);
-  const section = h("section", { class: "card", "aria-label": "Glacier", hidden: true },
-    photo, ...top, tablist, ...Object.values(panels));
-  ctx.band?.append(closeButton, head, actions);
-  root.hidden = true;
-  root.append(section);
+  const { photo, head, show } = cardFrame(root, ctx, {
+    label: "Glacier",
+    className: "card",
+    body: [tablist, ...Object.values(panels)],
+    onUseData: () => ctx.onUseData?.(glacierNow()),
+    onZoom: () => ctx.onZoom?.(current.props.bbox ?? current.props),
+  });
 
   function selectTab(id, focus = false) {
     state.tab = id;
@@ -119,17 +169,6 @@ export function mountCard(root, ctx) {
   });
 
   const glacierNow = () => ({ rgiId: current.rgiId, row: current.row, props: current.props });
-
-  function button(label, className, onClick) {
-    const node = h("button", { type: "button", class: className }, label);
-    node.addEventListener("click", onClick);
-    return node;
-  }
-  actions.append(
-    button("Use this data", "btn primary", () => ctx.onUseData?.(glacierNow())),
-    button("Zoom to", "btn", () => ctx.onZoom?.(current.props.bbox ?? current.props)),
-    button("Share", "btn", () => ctx.onShare?.()),
-  );
 
   function renderHead() {
     const { rgiId, props } = current;
@@ -166,11 +205,13 @@ export function mountCard(root, ctx) {
     const wrap = h("span", { class: "links" });
     if (!row.list.length) return row.value;
     const shown = state.rgi6Open ? row.list : row.list.slice(0, SHOWN_LINKS);
-    wrap.append(...shown.map((id) => h("span", { class: "link-id" }, id)));
+    /* The first ID that "+ N more" reveals takes the focus from the button it replaces. */
+    wrap.append(...shown.map((id, i) => h("span", { class: "link-id", tabIndex: i === SHOWN_LINKS ? -1 : null }, id)));
     if (row.list.length > shown.length) {
       const more = button(`+ ${row.list.length - shown.length} more`, "link more-links", () => {
         state.rgi6Open = true;
         renderOverview();
+        panels.overview.querySelector(".link-id[tabindex]")?.focus();
       });
       wrap.append(more);
     }
@@ -202,6 +243,7 @@ export function mountCard(root, ctx) {
         const toggle = button(state.moreOpen ? "show less" : "show more", "link show-more", () => {
           state.moreOpen = !state.moreOpen;
           renderOverview();
+          panels.overview.querySelector(`.group-${group} .show-more`)?.focus();
         });
         body.push(toggle);
       }
@@ -241,27 +283,16 @@ export function mountCard(root, ctx) {
     const { photos, cropFailed } = current.photos;
     const { bbox } = current.props;
     if (photos?.length) photo.replaceChildren(...carousel(photos));
-    else if (cropFailed) photo.replaceChildren(plainBlock());
-    else if (bbox) photo.replaceChildren(...imageryCrop(bbox));
+    else if (cropFailed) photo.replaceChildren(placeholder());
+    else if (bbox) photo.replaceChildren(...imageryCrop(photo, bbox, { crop: ctx.crop, alt: "Satellite imagery of the glacier", onError: cropFailedFor(current) }));
     else photo.replaceChildren();
   }
 
-  const plainBlock = () => h("div", { class: "photo-placeholder", style: { background: "var(--line)" } });
-
-  function imageryCrop(bbox) {
-    const mine = current;
-    const { size, top } = ctx.crop ?? CROP;
-    const src = esriCrop(bbox, ...size, top);
-    const existing = photo.querySelector("img.photo-crop");
-    if (existing?.getAttribute("src") === src) return [...photo.childNodes];
-    const image = h("img", { class: "photo-crop", src, alt: "Satellite imagery of the glacier", loading: "lazy" });
-    image.addEventListener("error", () => {
-      if (current !== mine) return;
-      mine.photos.cropFailed = true;
-      renderPhotoArea();
-    });
-    return [image, photoCredit("Imagery", IMAGERY_CREDIT)];
-  }
+  const cropFailedFor = (mine) => () => {
+    if (current !== mine) return;
+    mine.photos.cropFailed = true;
+    renderPhotoArea();
+  };
 
   function carousel(photos) {
     const at = current.photos.index;
@@ -318,11 +349,6 @@ export function mountCard(root, ctx) {
     }
   }
 
-  closeButton.addEventListener("click", () => {
-    ctx.onClose?.();
-    api.close();
-  });
-
   const api = {
     open(glacier) {
       controller?.abort();
@@ -337,10 +363,7 @@ export function mountCard(root, ctx) {
       current = mine;
       state.rgi6Open = false;
       state.moreOpen = false;
-      root.hidden = false;
-      section.hidden = false;
-      markCurrent(root, section);
-      showBand(true);
+      show(true);
       render();
       selectTab(state.tab);
       new Promise((resolve) => resolve(ctx.photos?.(glacier, signal)))
@@ -354,9 +377,7 @@ export function mountCard(root, ctx) {
       controller?.abort();
       controller = null;
       current = null;
-      section.hidden = true;
-      showBand(false);
-      root.hidden = true;
+      show(false);
     },
   };
   selectTab(state.tab);

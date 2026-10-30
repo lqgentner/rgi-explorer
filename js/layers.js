@@ -266,14 +266,15 @@ export function mountLayers(root, { base, layers, onBase, onToggle, zoom, map = 
   const image = h("img", { alt: "", width: 96, height: 96 });
   const badge = h("span", { class: "layers-badge" }, icon("layers-2"), "Layers");
   /* Closed, the picture says "Layers"; open, it names the map a click swaps to. */
-  const caption = h("span", { class: "layers-caption layer-name" });
+  const caption = h("span", { class: "layers-caption" });
   const thumb = h("button", { type: "button", class: "layers-thumb" }, h("span", { class: "layers-picture" }, image, badge, caption));
   const other = () => (current === "standard" ? "imagery" : "standard");
   const syncThumb = () => {
     image.src = latest[other()] ?? BASES[other()].image;
     image.dataset.want = image.src;
     caption.textContent = BASES[other()].label;
-    thumb.setAttribute("aria-label", `Show ${BASES[other()].label} map`);
+    /* The name starts with the visible "Layers", which the open control swaps for the map's name. */
+    thumb.setAttribute("aria-label", `Layers: show ${BASES[other()].label} map`);
     picturesBehind.add(other());
     catchUp();
   };
@@ -286,10 +287,12 @@ export function mountLayers(root, { base, layers, onBase, onToggle, zoom, map = 
    * A mouse opens the control while it rests on it, and focus while it stays
    * inside. A touch has no hover: a tap on the closed control opens it, and
    * the thumbnail swaps the base map only when it was open at the press. A
-   * press elsewhere closes it.
+   * press elsewhere closes it. A mouse that leaves keeps it open while
+   * keyboard focus is inside.
    */
   const isOpen = () => wrapper.classList.contains("open");
   const setOpen = (open) => {
+    thumb.setAttribute("aria-expanded", String(open));
     panel.toggleAttribute("inert", !open);
     wrapper.classList.toggle("open", open);
     catchUp();
@@ -301,7 +304,7 @@ export function mountLayers(root, { base, layers, onBase, onToggle, zoom, map = 
     if (event.pointerType !== "touch") setOpen(true);
   });
   wrapper.addEventListener("pointerleave", (event) => {
-    if (event.pointerType !== "touch") setOpen(false);
+    if (event.pointerType !== "touch" && !wrapper.querySelector(":focus-visible")) setOpen(false);
   });
   wrapper.addEventListener("focusin", () => setOpen(true));
   wrapper.addEventListener("focusout", (event) => {
@@ -313,8 +316,12 @@ export function mountLayers(root, { base, layers, onBase, onToggle, zoom, map = 
   thumb.addEventListener("pointerdown", () => {
     openAtPress = isOpen();
   });
-  thumb.addEventListener("click", () => {
-    const wasOpen = openAtPress ?? isOpen();
+  thumb.addEventListener("pointercancel", () => {
+    openAtPress = null;
+  });
+  /* A click from the keyboard has no press of its own, and detail 0. */
+  thumb.addEventListener("click", (event) => {
+    const wasOpen = event.detail === 0 ? isOpen() : openAtPress ?? isOpen();
     openAtPress = null;
     if (!wasOpen) {
       setOpen(true);

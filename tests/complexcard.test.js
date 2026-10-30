@@ -98,14 +98,20 @@ test("the actions report the complex", async () => {
   click(button(root, "Use this data"));
   click(button(root, "Zoom to"));
   click(button(root, "Share"));
-  click(root.querySelector(".card-close"));
   assert.deepEqual(calls, [
     ["use", { kind: "complex", rgiId: ID, o1region: "11" }],
     ["zoom", PROPS.bbox],
     "share",
-    "close",
   ]);
-  assert.equal(root.hidden, true);
+  assert.equal(root.querySelector(".card-close"), null, "without a band, the search bar's Close closes the panel");
+});
+
+test("with a band, the panel's Close reports the close", async () => {
+  const band = document.createElement("div");
+  const { card, calls } = setup({ band });
+  await card.open(ID);
+  click(band.querySelector(".card-close"));
+  assert.deepEqual(calls, ["close"]);
 });
 
 test("a failed read says so", async () => {

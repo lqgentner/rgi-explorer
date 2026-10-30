@@ -222,8 +222,7 @@ test("the search bar's Close button closes the card on desktop", async () => {
   assert.equal(params().get("glacier"), null);
   assert.equal(map.layout("selection-outline").visibility, "none");
   assert.equal(close.hidden, true);
-  const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
-  assert.match(css, /#card \.card-close\s*\{\s*display:\s*none;/, "the desktop card hides its own Close");
+  assert.equal($("#card .card-close"), null, "the desktop card has no Close of its own");
   await settle();
 });
 

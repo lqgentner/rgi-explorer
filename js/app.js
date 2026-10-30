@@ -373,6 +373,24 @@ function wire(catalog, rgiMap, regions, customCatalog) {
     showCard(false);
   }
 
+  /** Fit the map around `bbox`, or around the open glacier or complex once its bbox is read. */
+  function zoomTo(bbox) {
+    if (isBbox(bbox)) {
+      camera += 1;
+      fitAround(bbox);
+    } else if (shown) fitGlacierLater(shown);
+    else if (shownComplex) fitComplexLater(shownComplex);
+  }
+
+  async function share() {
+    try {
+      await globalThis.navigator.clipboard.writeText(location.href);
+    } catch {
+      return;
+    }
+    announce("Link copied");
+  }
+
   const card = mountCard(cardRoot, {
     catalog,
     regions,
@@ -386,20 +404,8 @@ function wire(catalog, rgiMap, regions, customCatalog) {
     },
     photos: photosOf,
     onClose: closeGlacier,
-    onZoom(bbox) {
-      if (isBbox(bbox)) {
-        camera += 1;
-        fitAround(bbox);
-      } else if (shown) fitGlacierLater(shown);
-    },
-    async onShare() {
-      try {
-        await globalThis.navigator.clipboard.writeText(location.href);
-      } catch {
-        return;
-      }
-      announce("Link copied");
-    },
+    onZoom: zoomTo,
+    onShare: share,
     /* The search box names the open glacier, however it was opened. */
     onTitle(title) {
       if (shown) search.setText(title);
@@ -422,20 +428,8 @@ function wire(catalog, rgiMap, regions, customCatalog) {
     read: (complexId) => complexes.read(complexId),
     members: (props) => membersOf(props, glaciers),
     onClose: closeComplex,
-    onZoom(bbox) {
-      if (isBbox(bbox)) {
-        camera += 1;
-        fitAround(bbox);
-      } else if (shownComplex) fitComplexLater(shownComplex);
-    },
-    async onShare() {
-      try {
-        await globalThis.navigator.clipboard.writeText(location.href);
-      } catch {
-        return;
-      }
-      announce("Link copied");
-    },
+    onZoom: zoomTo,
+    onShare: share,
     onUseData(target) {
       if (phone) setSheetOpen(true);
       useData.open(target);
@@ -496,9 +490,10 @@ function wire(catalog, rgiMap, regions, customCatalog) {
     state.complex = null;
     if (shownComplex) {
       shownComplex = null;
-      useData.close();
       complexCard.close();
     }
+    /* The data offer was for the glacier or complex this replaces. */
+    useData.close();
     shown = glacier;
     state.glacier = glacier.rgiId;
     save();

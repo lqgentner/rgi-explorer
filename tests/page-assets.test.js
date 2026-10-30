@@ -270,4 +270,8 @@ test("the stylesheet's phone breakpoint is js/ui.js's query", () => {
   for (const [, width] of css.matchAll(/@media \(max-width: (\d+px)\)/g)) {
     assert.equal(width, "640px");
   }
+  // A desktop block starts right above the phone.
+  for (const [, width] of css.matchAll(/@media \(min-width: (\d+px)\)/g)) {
+    assert.equal(width, "641px");
+  }
 });

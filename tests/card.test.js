@@ -182,9 +182,7 @@ test("the buttons call the context", async () => {
   assert.deepEqual(calls[0], ["use", IDS[0]]);
   assert.equal(calls[1][1].xmin, 7.931361);
   assert.equal(calls[2], "share");
-  click(root.querySelector('[aria-label="Close"]'));
-  assert.equal(calls[3], "close");
-  assert.equal(root.querySelector(".card").hidden, true);
+  assert.equal(root.querySelector('[aria-label="Close"]'), null, "without a band, the search bar's Close closes the card");
 });
 
 test("Zoom to passes the props before the bbox arrives", () => {
@@ -251,6 +249,7 @@ test("+ N more expands the RGI 6.0 overlaps in place", async () => {
   click(more);
   assert.deepEqual([...rowBig().querySelectorAll(".link-id")].map((n) => n.textContent), links.map((l) => l.rgi6_id));
   assert.equal(rowBig().querySelector("button.more-links"), null);
+  assert.equal(document.activeElement.textContent, "D", "the first revealed ID takes the focus");
 });
 
 test("the Greenland connection shows only in region 05", async () => {
@@ -271,8 +270,10 @@ test("Submission starts collapsed and the IDs stay hidden until show more", asyn
   const ids = ["Analysis ID", "Submission ID", "Regional center ID"].map((l) => rowOfLabel(root, l));
   assert.ok(ids.every((r) => r.hidden));
   assert.equal(rowOfLabel(root, "Analysts").hidden, false);
-  click(root.querySelector("button.show-more"));
+  click(root.querySelector(".group-submission button.show-more"));
   assert.ok(["Analysis ID", "Submission ID", "Regional center ID"].every((l) => !rowOfLabel(root, l).hidden));
+  assert.equal(document.activeElement, root.querySelector(".group-submission button.show-more"), "the focus stays on the toggle");
+  assert.equal(document.activeElement.textContent, "show less");
 });
 
 test("the terminus and complex rows call onAction", async () => {
@@ -309,9 +310,6 @@ test("the sidebar is hidden until a glacier opens and again after close", async 
   await card.open({ rgiId: IDS[0], props: {} });
   assert.equal(root.hidden, false);
   card.close();
-  assert.equal(root.hidden, true);
-  await card.open({ rgiId: IDS[0], props: {} });
-  click(root.querySelector('[aria-label="Close"]'));
   assert.equal(root.hidden, true);
 });
 
@@ -377,7 +375,7 @@ test("a late readRow for A is ignored after B opens", async () => {
 
 test("with a band, the header and actions sit in the band and the photo and tabs in the root", async () => {
   const band = document.createElement("div");
-  const { root, card } = setup({ band });
+  const { root, card, calls } = setup({ band });
   await card.open({ rgiId: IDS[0], props: OVERVIEW_PROPS });
   assert.equal(text(band, ".card-title"), "Grosser Aletsch Gletscher");
   assert.equal(text(band, ".card-area"), "81.8 km²");
@@ -390,7 +388,8 @@ test("with a band, the header and actions sit in the band and the photo and tabs
   assert.equal(root.hidden, true);
   for (const node of band.children) assert.equal(node.hidden, true, "a closed card leaves the band to the other panel");
   await card.open({ rgiId: IDS[0], props: OVERVIEW_PROPS });
-  for (const node of band.children) assert.equal(node.hidden, false);
+  for (const node of band.children) assert.equal(node.hidden, false);  click(band.querySelector(".card-close"));
+  assert.equal(calls.at(-1), "close");
 });
 
 test("the header names the area when it is known, and nothing when it is not", async () => {
