@@ -13,17 +13,19 @@ import { REPO } from "./browser.js";
 
 export const DATA = "https://data.source.coop/lqgentner/rgi/";
 export const GLACIERS_URL = `${DATA}v7.0/glaciers/rgi7.0-glaciers.parquet`;
+export const COMPLEXES_URL = `${DATA}v7.0/complexes/rgi7.0-complexes.parquet`;
 export const REGIONS_URL = `${DATA}v7.0/regions/rgi7.0-regions.parquet`;
 const LIBERTY = "https://tiles.openfreemap.org/styles/liberty";
 const FIXTURES = path.join(REPO, "tests", "fixtures");
 
-/** The glaciers and regions fixture files as bytes, from scripts/make_fixture_parquet.py. */
+/** The glaciers, complexes and regions fixture files as bytes, from scripts/make_fixture_parquet.py. */
 export function makeParquet() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "rgi-served-"));
   try {
     execFileSync("python", [path.join(REPO, "scripts", "make_fixture_parquet.py"), dir]);
     return {
       [GLACIERS_URL]: fs.readFileSync(path.join(dir, "glaciers.parquet")),
+      [COMPLEXES_URL]: fs.readFileSync(path.join(dir, "complexes.parquet")),
       [REGIONS_URL]: fs.readFileSync(path.join(dir, "regions.parquet")),
     };
   } finally {

@@ -1,8 +1,8 @@
-"""Write small glaciers and regions GeoParquet-shaped fixtures for the JavaScript tests.
+"""Write small glaciers, complexes and regions GeoParquet-shaped fixtures for the JavaScript tests.
 
 Usage: python scripts/make_fixture_parquet.py OUT_DIR
 
-The columns and types match the mirror's glaciers and regions tables, without geometry.
+The columns and types match the mirror's glaciers, complexes and regions tables, without geometry.
 """
 
 import datetime as dt
@@ -70,6 +70,20 @@ GLACIER_SCHEMA = pa.schema(
         ("subm_submitters", pa.string()),
         ("subm_analysts", pa.string()),
         ("subm_rc_id", pa.uint16()),
+        ("bbox", BBOX),
+    ]
+)
+
+COMPLEX_SCHEMA = pa.schema(
+    [
+        ("rgi_id", pa.string()),
+        ("o1region", pa.string()),
+        ("o2region", pa.string()),
+        ("cenlon", pa.float64()),
+        ("cenlat", pa.float64()),
+        ("utm_zone", pa.uint8()),
+        ("area_km2", pa.float64()),
+        ("glacier_ids", pa.list_(pa.string())),
         ("bbox", BBOX),
     ]
 )
@@ -177,6 +191,7 @@ def variant(n, **changes):
         hypso_z0_m=2000 + 50 * n,
         hypso_permille=[2] * 50,
         rgi6_links=[link(f"RGI60-{reg}.{n:05d}", reg, n)],
+        complex_id=f"RGI2000-v7.0-C-{reg}-{n:05d}",
         bbox={"xmin": 8.0 + n / 10, "ymin": 46.0 + n / 10, "xmax": 8.01 + n / 10, "ymax": 46.01 + n / 10},
     )
     row.update(changes)
@@ -190,10 +205,39 @@ def glacier_rows():
         variant(2, reg="03", glac_name="ATHABASCA GLACIER", display_name="Athabasca Glacier"),
         variant(
             3,
+            complex_id=ALETSCH["complex_id"],
             rgi6_links=[link("RGI60-11.00003", "11", 3), link("RGI60-11.00004", "11", 4)],
         ),
         variant(4),
     ]
+
+
+def complex_rows():
+    """One complex per complex_id, sorted by ID: Aletsch's complex also holds glacier 3."""
+    members = {}
+    for glacier in glacier_rows():
+        members.setdefault(glacier["complex_id"], []).append(glacier)
+    rows = []
+    for complex_id in sorted(members):
+        glaciers = sorted(members[complex_id], key=lambda g: g["rgi_id"])
+        first = glaciers[0]
+        bbox = first["bbox"]
+        if complex_id == ALETSCH["complex_id"]:
+            bbox = {"xmin": 7.931361, "ymin": 46.397437, "xmax": 8.31, "ymax": 46.61}
+        rows.append(
+            {
+                "rgi_id": complex_id,
+                "o1region": first["o1region"],
+                "o2region": first["o2region"],
+                "cenlon": first["cenlon"],
+                "cenlat": first["cenlat"],
+                "utm_zone": first["utm_zone"],
+                "area_km2": sum(g["area_km2"] for g in glaciers),
+                "glacier_ids": [g["rgi_id"] for g in glaciers],
+                "bbox": bbox,
+            }
+        )
+    return rows
 
 
 def regions_rows():
@@ -214,6 +258,7 @@ def main(out_dir):
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
     write(out / "glaciers.parquet", glacier_rows(), GLACIER_SCHEMA, row_group_size=2)
+    write(out / "complexes.parquet", complex_rows(), COMPLEX_SCHEMA, row_group_size=2)
     write(out / "regions.parquet", regions_rows(), REGIONS_SCHEMA)
 
 

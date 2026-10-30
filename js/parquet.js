@@ -43,6 +43,19 @@ export function rowGroupOf(handle, row) {
   return handle.groups.findIndex((group) => row < group.start + group.count);
 }
 
+/**
+ * The row group whose statistics for `column` span `key`, or -1. A file sorted
+ * by that column names at most one group, so one row is found without reading
+ * the column across the file.
+ */
+export function groupOfKey(handle, column, key) {
+  return handle.metadata.row_groups.findIndex((group) => {
+    const chunk = group.columns.find((c) => c.meta_data?.path_in_schema?.join(".") === column);
+    const stats = chunk?.meta_data?.statistics;
+    return stats?.min_value !== undefined && stats.min_value <= key && key <= stats.max_value;
+  });
+}
+
 /** Converts BigInt to Number inside lists and structs. Dates stay as they are. */
 function plain(value) {
   if (typeof value === "bigint") return Number(value);

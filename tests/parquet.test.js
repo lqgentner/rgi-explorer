@@ -12,17 +12,19 @@ import * as hyparquet from "hyparquet";
 
 globalThis.hyparquet = hyparquet;
 
-const { CARD_COLUMNS, SEARCH_COLUMNS, openParquet, readColumns, readRow, rowGroupOf } =
+const { CARD_COLUMNS, SEARCH_COLUMNS, groupOfKey, openParquet, readColumns, readRow, rowGroupOf } =
   await import("../js/parquet.js");
 
 const SCRIPT = fileURLToPath(new URL("../scripts/make_fixture_parquet.py", import.meta.url));
 let dir;
 let file;
+let complexes;
 
 before(() => {
   dir = fs.mkdtempSync(path.join(os.tmpdir(), "rgi-parquet-"));
   execFileSync("python", [SCRIPT, dir]);
   file = path.join(dir, "glaciers.parquet");
+  complexes = path.join(dir, "complexes.parquet");
 });
 after(() => fs.rmSync(dir, { recursive: true, force: true }));
 
@@ -175,4 +177,19 @@ test("cache keys keep a group and its columns apart", async () => {
   } finally {
     globalThis.hyparquet = hyparquet;
   }
+});
+
+test("finds the row group of a key from the column statistics", async () => {
+  const h = await openParquet(await hyparquet.asyncBufferFromFile(complexes));
+  assert.equal(groupOfKey(h, "rgi_id", "RGI2000-v7.0-C-03-00002"), 0);
+  assert.equal(groupOfKey(h, "rgi_id", "RGI2000-v7.0-C-11-01323"), 1);
+  assert.equal(groupOfKey(h, "rgi_id", "RGI2000-v7.0-C-01-00001"), -1);
+  assert.equal(groupOfKey(h, "rgi_id", "RGI2000-v7.0-C-19-00001"), -1);
+  assert.equal(groupOfKey(h, "no_such_column", "x"), -1);
+});
+
+test("the glaciers fixture names each glacier's complex", async () => {
+  const cols = await readColumns(await open(), ["rgi_id", "complex_id"]);
+  assert.equal(cols.complex_id[cols.rgi_id.indexOf("RGI2000-v7.0-G-11-00003")], "RGI2000-v7.0-C-11-01323");
+  assert.equal(cols.complex_id[cols.rgi_id.indexOf("RGI2000-v7.0-G-11-00001")], "RGI2000-v7.0-C-11-00001");
 });
