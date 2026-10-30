@@ -121,7 +121,7 @@ export function mountStatus(root, rgiMap, catalog, getState) {
   }
   drawCredits();
 
-  /* On desktop the map ends where the status line begins; the phone has no status line. */
+  /* On desktop the controls sit above the status line; the phone has no status line. */
   const publishHeight = () => {
     if (phone) return;
     const height = root.getBoundingClientRect().height;

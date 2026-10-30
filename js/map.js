@@ -1,7 +1,8 @@
 /* The map: base maps, the RGI layers, the selection and the terminus pin. */
 
-import { DEFAULT_VIEW, ESRI_TILES, GLYPHS, LIBERTY_STYLE, TERRAIN_TILEJSON } from "./config.js";
-import { adaptStyle, mergeStyles, TOGGLES } from "./styles.js";
+import { ESRI_TILES, GLYPHS, LIBERTY_STYLE, startView, TERRAIN_TILEJSON } from "./config.js";
+import { installSky } from "./sky.js";
+import { GLACIER_OPACITY, rgiStyle, TOGGLES } from "./styles.js";
 
 const SELECTION_RED = "#d93025";
 const COMPLEX_GREY = "#5f6368";
@@ -74,6 +75,7 @@ function buildStyle(liberty, rgi, state) {
     return layer;
   });
   const glaciersFill = rgiLayers.find((layer) => layer.id === "glaciers-fill");
+  if (glaciersFill) glaciersFill.paint["fill-opacity"] = GLACIER_OPACITY[state.base] ?? GLACIER_OPACITY.standard;
 
   const selection = [
     {
@@ -136,6 +138,8 @@ function buildStyle(liberty, rgi, state) {
 
   return {
     version: 8,
+    /* MapLibre turns the globe into Mercator as it zooms in. */
+    projection: { type: "globe" },
     ...(liberty.sprite ? { sprite: liberty.sprite } : {}),
     glyphs: GLYPHS,
     sources: {
@@ -163,19 +167,12 @@ const clampLat = (lat) => Math.max(-MAX_LAT, Math.min(MAX_LAT, lat));
  * source, the catalog's PMTiles file.
  */
 export async function createMap(container, catalog, state) {
-  const { collections } = catalog;
-  const [liberty, ...styles] = await Promise.all([
-    fetchJson(LIBERTY_STYLE),
-    ...["regions", "glaciers", "centerlines", "intersects"].map(async (name) => {
-      const url = collections[name].styleUrl;
-      return adaptStyle(await fetchJson(url), url);
-    }),
-  ]);
-  const rgi = mergeStyles(styles);
+  const liberty = await fetchJson(LIBERTY_STYLE);
+  const rgi = rgiStyle(catalog.collections.glaciers.pmtilesUrl);
 
   registerProtocol();
   const { maplibregl } = globalThis;
-  const view = state.view ?? DEFAULT_VIEW;
+  const view = state.view ?? startView();
   /* The status line holds every credit, so MapLibre adds no attribution control. */
   const map = new maplibregl.Map({
     container,
@@ -196,6 +193,7 @@ export async function createMap(container, catalog, state) {
       resolve();
     });
   });
+  installSky(map, container);
 
   const rgiToggles = rgi.layers.map((layer) => [layer.id, toggleOf(layer)]).filter(([, n]) => n);
   const idFilter = (id) => ["==", ["get", "rgi_id"], id];
@@ -207,6 +205,7 @@ export async function createMap(container, catalog, state) {
 
     setBase(base) {
       show("esri", base === "imagery");
+      for (const id of ["glaciers-fill", "selection-fill"]) map.setPaintProperty(id, "fill-opacity", GLACIER_OPACITY[base]);
     },
 
     setToggle(name, on) {

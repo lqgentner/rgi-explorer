@@ -98,7 +98,8 @@ on purpose, and the first commit names them:
 - the jsdom test helpers;
 - `js/sheet.js`, the phone bottom sheet with two snap heights and flick handling.
 
-Nothing raster-specific, and none of glace-viewer's visual style, is copied.
+Nothing raster-specific is copied. Of glace-viewer's visual style, only the
+globe projection and the halo behind it (`js/sky.js`) are.
 
 ## The catalog contract
 
@@ -116,6 +117,7 @@ Paths are never hard-coded. Each collection's assets give:
 - `data`: the GeoParquet file.
 - `pmtiles` (role `visual`): one shared archive, `v7.0/rgi7.0.pmtiles`.
 - `style` (the `default` role wins): the MapLibre style for that collection.
+  The explorer draws with its own style instead (see The map).
 
 The **glaciers collection's `table:columns`** supply each column's
 description, unit and `classification:classes` (the code labels). The Overview
@@ -148,29 +150,38 @@ PMTiles header and the GeoParquet footer, and fails if any of them changed shape
 
 ## Layout
 
-Visual style: a bright base map, solid white monochrome UI with no
-transparency, a blue accent (`#1a73e8` in the mockups) for the active tab,
+Visual style: a bright base map, a solid white monochrome UI, a blue accent (`#1a73e8` in the mockups) for the active tab,
 the primary button and the selected search result, and Noto Sans throughout.
-Shadows follow Google Maps' elevation style.
+Shadows follow Google Maps' elevation style. Only the controls that sit over
+the map or the photo are translucent white (the status line, the photo's
+arrows and ⓘ, and the photo credits), so what is behind them shows through.
+Every ⓘ opens a popover next to its button, below it or above when there is
+no room. It floats over the page without moving anything, and a click
+elsewhere closes it.
 
 ### Desktop
 
 - **Search bar** at the top left, a white pill that floats over the
   sidebar when the sidebar is open.
 - **Sidebar** on the left, about 408 px wide, running the full window height.
-  It opens when a glacier is selected and closes with the ✕ in the search
-  bar.
+  It slides in from the left when a glacier is selected and slides out when
+  the ✕ in the search bar closes it.
 - **Layers control** at the bottom left of the map area. A thumbnail shows a
   preview of the *other* base map, and clicking it swaps the base map. On
   hover or click, a white panel grows out to the right from *behind* the
-  thumbnail and shows three toggles, each with a small preview tile:
+  thumbnail and shows three toggles. Each has a small preview tile drawn from
+  the layer's real data at a fixed place (High Mountain Asia's regions, the
+  Aletsch glacier's centerlines and ice divides), in the map's colors.
+  `scripts/make_layer_previews.py` cuts them from the GeoParquet files into
+  `js/previews.js`:
   - RGI regions, on by default;
   - Centerlines, off by default;
   - Ice divides, off by default.
 - **3D button**, then **+ / −**, at the bottom right.
-- **Status line** under the map area. It holds a compact scale bar and the
-  credits, custom-built because MapLibre's controls are too large. The
-  sidebar covers it. When the map area is narrow, it wraps to two rows.
+- **Status line** over the map's bottom right corner, translucent and only
+  as wide as its text. It holds a compact scale bar and the credits,
+  custom-built because MapLibre's controls are too large. It never reaches
+  under the sidebar, and wraps when the map area is narrow.
 
 ### Phone
 
@@ -194,21 +205,20 @@ Shadows follow Google Maps' elevation style.
   (`https://tiles.openfreemap.org/styles/liberty`), loaded as is except that
   the explorer hides its `landcover_ice` layer.
 - **Imagery base map:** Esri World Imagery raster tiles, with Esri's credit.
-- **RGI layers** are drawn from `rgi7.0.pmtiles`, using the layers of the
-  catalog's own styles (`glaciers.json`, `regions.json`, `centerlines.json`,
-  `intersects.json`). They sit above the base map and below the base map's
-  labels. The glaciers style draws large glaciers as outlines and small ones
-  as dots at low zoom. Glacier labels and region labels come from the
-  archive.
-- **How far the explorer may change a catalog style.** It may change only
-  the plumbing:
-  - make the `pmtiles://` source URL absolute;
-  - move `glyphs` to OpenFreeMap's server and switch `text-font` from Open
-    Sans to Noto Sans (Regular, Bold and Italic map to the same weights),
-    because a map has one glyph server and Liberty's serves only Noto Sans;
-  - hide layers and add the selection layers.
-
-  It never changes a style's colors, filters or zoom ranges.
+- **The map is a globe.** MapLibre's globe projection turns into Mercator as
+  the view zooms in. A halo, as in glace-viewer, shows around the globe.
+- **The opening view** without a view in the address turns the globe toward
+  the reader: the longitude of the browser's standard UTC offset and a rough
+  latitude for its time zone's area. The time zone never leaves the browser.
+  There is no IP lookup, which would send the address to a third party, and
+  no geolocation prompt.
+- **RGI layers** are drawn from `rgi7.0.pmtiles` with the explorer's own
+  style (`js/styles.js`), not the catalog's. They sit above the base map and
+  below the base map's labels. Glaciers are white with a grey outline, and
+  small ones are dots at low zoom. Over imagery the fill is lighter, so the
+  ice shows through. Regions are outlines without a fill. Glacier labels and
+  region labels come from the archive, in Noto Sans, the only fonts Liberty's
+  glyph server holds.
 - A toggle whose layer has no data at the current zoom (centerlines below 8,
   ice divides below 10) stays usable. It shows "visible from zoom N".
 - **Selecting a glacier:**
@@ -264,7 +274,7 @@ Shadows follow Google Maps' elevation style.
 
 ### Header
 
-- **Photo area** at the top, about 200 px high on desktop (see Photo below).
+- **Photo area** at the top, about 280 px high on desktop (see Photo below).
 - **Name:** `display_name`. When that is empty, the RGI ID is the title.
 - **Subtitle:** the RGI ID and the first-order region name. It does not say
   "Glacier", because only glaciers are selectable.
@@ -344,10 +354,12 @@ adapted because an RGI glacier has no OSM tags.
    Commons category (`P373`).
 4. Show the hits as a carousel. Each image has an ⓘ that names its source
    ("Wikidata Q204658 · P18") and links to the Commons file page.
-5. Show the author and license under the image. Both come from the Commons
-   API (`imageinfo` with `extmetadata`).
+5. Show the author and license in that ⓘ's popover. Both come from the
+   Commons API (`imageinfo` with `extmetadata`).
 6. With no hit, or on any error or timeout, show an Esri World Imagery crop
-   framed on the glacier's bbox, with Esri's credit.
+   framed on the glacier's bbox, with Esri's credit behind an ⓘ. On desktop
+   the search bar covers the photo's top, so the crop centres the glacier in
+   the rows below it.
 
 Expect few photos. Measured on 2026-10-28, 2,416 Wikidata items carry a
 GLIMS ID and 626 of them have an image. About 10,000 Wikidata glaciers have

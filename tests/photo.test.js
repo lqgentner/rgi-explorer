@@ -201,13 +201,46 @@ test("the caller's signal stops findPhotos", async () => {
   assert.deepEqual(await pending, []);
 });
 
-test("Esri crop URL pads the bbox and asks for jpg", () => {
+/** The extent of an Esri crop URL in Web Mercator metres, and its pixel size. */
+function cropOf(url) {
+  const params = new URL(url).searchParams;
+  const [xmin, ymin, xmax, ymax] = params.get("bbox").split(",").map(Number);
+  const [width, height] = params.get("size").split(",").map(Number);
+  return { xmin, ymin, xmax, ymax, width, height, params };
+}
+const mercY = (lat) => 6378137 * Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360));
+
+test("Esri crop URL asks for a jpg whose Web Mercator extent has the image's shape", () => {
   const url = esriCrop({ xmin: 10, ymin: 40, xmax: 12, ymax: 41 }, 816, 400);
-  assert.equal(
-    url,
-    "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export" +
-      "?bbox=9.7,39.85,12.3,41.15&bboxSR=4326&imageSR=3857&size=816,400&format=jpg&f=image",
-  );
+  assert.ok(url.startsWith("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?"));
+  const crop = cropOf(url);
+  assert.equal(crop.params.get("bboxSR"), "3857");
+  assert.equal(crop.params.get("imageSR"), "3857");
+  assert.equal(crop.params.get("format"), "jpg");
+  assert.equal(crop.params.get("f"), "image");
+  assert.deepEqual([crop.width, crop.height], [816, 400]);
+  const ratio = (crop.xmax - crop.xmin) / (crop.ymax - crop.ymin);
+  assert.ok(Math.abs(ratio - 816 / 400) < 1e-3, `ratio ${ratio}`);
+});
+
+test("Esri crop pads the bbox by 15% and centres it", () => {
+  const crop = cropOf(esriCrop({ xmin: 10, ymin: 40, xmax: 12, ymax: 41 }, 816, 400));
+  /* At this shape the bbox's height binds, so it gets 15% above and below. */
+  const height = mercY(41) - mercY(40);
+  assert.ok(Math.abs((crop.ymax - crop.ymin) - height * 1.3) < 2);
+  assert.ok(Math.abs((crop.xmin + crop.xmax) / 2 - 11 * (6378137 * Math.PI / 180)) < 2);
+  const middle = (mercY(40) + mercY(41)) / 2;
+  assert.ok(Math.abs((crop.ymin + crop.ymax) / 2 - middle) < 2);
+});
+
+test("Esri crop centres the bbox in the rows below a covered top", () => {
+  const bbox = { xmin: 7.95, ymin: 46.42, xmax: 8.12, ymax: 46.6 };
+  const crop = cropOf(esriCrop(bbox, 816, 560, 144));
+  const perPixel = (crop.ymax - crop.ymin) / 560;
+  const middle = (mercY(bbox.ymin) + mercY(bbox.ymax)) / 2;
+  const row = (crop.ymax - middle) / perPixel;
+  assert.ok(Math.abs(row - (144 + (560 - 144) / 2)) < 1, `row ${row}`);
+  assert.ok(crop.ymax - mercY(bbox.ymax) > 144 * perPixel, "the glacier stays below the covered rows");
 });
 
 /* The carousel and late results, through mountCard. */

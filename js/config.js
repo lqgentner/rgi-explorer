@@ -18,6 +18,42 @@ export const HYPSO_BAND_M = 50;
 export const TIMEOUT_MS = 4000;
 export const DEFAULT_VIEW = { zoom: 2, lat: 30, lon: 10 };
 
+/* A rough latitude for each time zone area; South American zones share "America/". */
+const AREA_LAT = {
+  Africa: 5, America: 35, Antarctica: -75, Arctic: 75, Asia: 30, Atlantic: 45,
+  Australia: -25, Europe: 48, Indian: -15, Pacific: -15,
+};
+const SOUTH_AMERICA = /^America\/(Argentina|Sao_Paulo|Santiago|Punta_Arenas|Lima|Bogota|Caracas|La_Paz|Montevideo|Asuncion|Guayaquil|Manaus|Belem|Fortaleza|Recife|Bahia|Cuiaba|Campo_Grande|Porto_Velho|Rio_Branco|Paramaribo|Cayenne|Guyana)/;
+
+/**
+ * The opening view turned toward a time zone: its area's latitude and the
+ * longitude of its standard UTC offset (`offsetHours` east of UTC). A zone
+ * without an area, such as "UTC", keeps DEFAULT_VIEW.
+ */
+export function viewForZone(zone, offsetHours) {
+  const area = String(zone ?? "").split("/")[0];
+  if (!(area in AREA_LAT) || !Number.isFinite(offsetHours)) return DEFAULT_VIEW;
+  const lat = SOUTH_AMERICA.test(zone) ? -15 : AREA_LAT[area];
+  const lon = Math.max(-180, Math.min(180, offsetHours * 15));
+  return { ...DEFAULT_VIEW, lat, lon };
+}
+
+/*
+ * The opening view, from the browser's own time zone. Nothing leaves the
+ * browser: no address lookup and no geolocation prompt.
+ */
+export function startView() {
+  try {
+    const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const year = new Date().getFullYear();
+    /* The larger offset west is standard time in either hemisphere. */
+    const west = Math.max(new Date(year, 0, 1).getTimezoneOffset(), new Date(year, 6, 1).getTimezoneOffset());
+    return viewForZone(zone, -west / 60);
+  } catch {
+    return DEFAULT_VIEW;
+  }
+}
+
 /**
  * The catalog to read: the `catalog` query parameter, resolved against `base`,
  * or the published catalog when the parameter is missing, empty or not a URL.

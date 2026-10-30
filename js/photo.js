@@ -203,18 +203,27 @@ export async function categoryFiles(categories, { fetch, signal } = {}) {
   return results.flat();
 }
 
-/** The Esri World Imagery export URL for `bbox` padded by 15% on each side. */
-export function esriCrop(bbox, width, height) {
-  const dx = (bbox.xmax - bbox.xmin) * PAD;
-  const dy = (bbox.ymax - bbox.ymin) * PAD;
-  const round = (v) => Number(v.toFixed(6));
-  const extent = [
-    bbox.xmin - dx,
-    Math.max(-MAX_LAT, bbox.ymin - dy),
-    bbox.xmax + dx,
-    Math.min(MAX_LAT, bbox.ymax + dy),
-  ].map(round);
-  return `${ESRI_EXPORT}?bbox=${extent.join(",")}&bboxSR=4326&imageSR=3857&size=${width},${height}&format=jpg&f=image`;
+const EARTH_RADIUS = 6378137;
+/* The finest scale a crop asks for, in metres per pixel. */
+const MIN_SCALE = 1;
+const mercatorX = (lon) => (EARTH_RADIUS * lon * Math.PI) / 180;
+const mercatorY = (lat) => EARTH_RADIUS * Math.log(Math.tan(Math.PI / 4 + (Math.max(-MAX_LAT, Math.min(MAX_LAT, lat)) * Math.PI) / 360));
+
+/**
+ * The Esri World Imagery export URL for a `width` by `height` image of `bbox`,
+ * padded by 15% on each side. The first `top` rows stay clear: the bbox is
+ * centred in the rows below them. The extent is in Web Mercator and has the
+ * image's shape, so the server neither stretches nor re-centres it.
+ */
+export function esriCrop(bbox, width, height, top = 0) {
+  const [x0, x1] = [mercatorX(bbox.xmin), mercatorX(bbox.xmax)];
+  const [y0, y1] = [mercatorY(bbox.ymin), mercatorY(bbox.ymax)];
+  const rows = height - top;
+  const scale = Math.max(((x1 - x0) * (1 + 2 * PAD)) / width, ((y1 - y0) * (1 + 2 * PAD)) / rows, MIN_SCALE);
+  const cx = (x0 + x1) / 2;
+  const ymax = (y0 + y1) / 2 + (top + rows / 2) * scale;
+  const extent = [cx - (width / 2) * scale, ymax - height * scale, cx + (width / 2) * scale, ymax].map((v) => Math.round(v));
+  return `${ESRI_EXPORT}?bbox=${extent.join(",")}&bboxSR=3857&imageSR=3857&size=${width},${height}&format=jpg&f=image`;
 }
 
 /** An AbortSignal that fires on the caller's signal or after `timeoutMs`, and a cleanup. */

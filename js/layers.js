@@ -3,7 +3,8 @@
  * its notice, and the zoom buttons. Each mount function reads PHONE once.
  */
 
-import { TOGGLE_MINZOOM } from "./styles.js";
+import { GLACIERS, PREVIEWS } from "./previews.js";
+import { PALETTE, TOGGLE_MINZOOM } from "./styles.js";
 import { PHONE, h, icon } from "./ui.js";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
@@ -31,24 +32,31 @@ function svg(tag, attrs = {}, ...children) {
   return node;
 }
 
-/** A small inline picture of what a toggle draws. */
-function preview(name) {
-  const tile = svg("svg", { class: "layer-preview", viewBox: "0 0 48 48", "aria-hidden": "true" }, svg("rect", { width: 48, height: 48, fill: "#e8eaed" }));
+/* The land behind the previews, near Liberty's own. */
+const PREVIEW_LAND = "#eceff1";
+
+/** The paths each preview draws, bottom first, as `[d, stroke attributes]`. */
+function previewPaths(name) {
+  const glaciers = [GLACIERS, { fill: PALETTE.glacier, stroke: PALETTE.glacierOutline, "stroke-width": 0.5 }];
+  const line = (d, color, width) => [d, { fill: "none", stroke: color, "stroke-width": width }];
   if (name === "regions") {
-    tile.append(
-      svg("path", { d: "M4 10 L24 4 L30 22 L10 28 Z", fill: "#a8c7fa", stroke: "#1a73e8", "stroke-width": 1.5 }),
-      svg("path", { d: "M26 24 L44 18 L44 42 L20 44 Z", fill: "#c4eed0", stroke: "#188038", "stroke-width": 1.5 }),
-    );
-  } else if (name === "centerlines") {
-    tile.append(
-      svg("path", { d: "M8 8 C20 16 16 28 26 40", fill: "none", stroke: "#1a73e8", "stroke-width": 2 }),
-      svg("path", { d: "M30 6 C32 18 40 24 40 38", fill: "none", stroke: "#1a73e8", "stroke-width": 2 }),
-    );
-  } else {
-    tile.append(
-      svg("path", { d: "M6 40 L20 10 L30 26 L42 8", fill: "none", stroke: "#202124", "stroke-width": 2, "stroke-dasharray": "4 3" }),
-      svg("path", { d: "M10 14 L38 36", fill: "none", stroke: "#202124", "stroke-width": 2, "stroke-dasharray": "4 3" }),
-    );
+    return [line(PREVIEWS.regions.region2, PALETTE.region2, 0.75), line(PREVIEWS.regions.region1, PALETTE.region1, 1.25)];
+  }
+  if (name === "centerlines") {
+    return [
+      glaciers,
+      line(PREVIEWS.centerlines.centerline, PALETTE.centerline, 0.5),
+      line(PREVIEWS.centerlines.centerlineMain, PALETTE.centerline, 1.5),
+    ];
+  }
+  return [glaciers, line(PREVIEWS.intersects.divide, PALETTE.divide, 1.25)];
+}
+
+/** A small picture of what a toggle draws: the layer's real data at a fixed place, in the map's colors. */
+function preview(name) {
+  const tile = svg("svg", { class: "layer-preview", viewBox: "0 0 48 48", "aria-hidden": "true" }, svg("rect", { width: 48, height: 48, fill: PREVIEW_LAND }));
+  for (const [d, attrs] of previewPaths(name)) {
+    tile.append(svg("path", { d, "stroke-linejoin": "round", "stroke-linecap": "round", "fill-rule": "evenodd", ...attrs }));
   }
   return tile;
 }

@@ -24,6 +24,12 @@ const GAP = 24;
 /* The phone's search bar covers the top of the map. */
 const PHONE_TOP = 72;
 const PLACE_ZOOM = 12;
+/*
+ * The imagery crop at twice the photo's CSS size. On desktop the search bar
+ * covers the photo's top 72px, so the glacier sits in the rows below.
+ */
+const DESKTOP_CROP = { size: [816, 560], top: 144 };
+const PHONE_CROP = { size: [816, 400], top: 0 };
 const NOTICE_MS = 2000;
 const REGION_COLUMNS = ["level", "o1region", "o2region", "full_name", "bbox"];
 const FACT_COLUMNS = ["bbox", "glims_id"];
@@ -288,6 +294,7 @@ function wire(catalog, rgiMap, regions, customCatalog) {
     catalog,
     regions,
     band,
+    crop: phone ? PHONE_CROP : DESKTOP_CROP,
     parquet: {
       get handle() {
         return glaciers.handle;

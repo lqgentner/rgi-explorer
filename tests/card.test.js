@@ -280,7 +280,8 @@ test("the card column rises above the status line and the search above the card"
   const z = (sel) => Number(new RegExp(`${sel}\\s*{[^}]*z-index:\\s*(\\d+)`).exec(css)[1]);
   assert.ok(z("#card") > z("#status"));
   assert.ok(z("#search") > z("#card"));
-  assert.match(css, /#card\s*{[^}]*width:\s*408px/);
+  assert.match(css, /--card-w:\s*408px/);
+  assert.match(css, /#card\s*{[^}]*width:\s*var\(--card-w\)/);
 });
 
 test("the search and the layer control sit outside the card container", () => {

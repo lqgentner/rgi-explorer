@@ -6,6 +6,12 @@
   --muted: #5f6368;
   --line: #dadce0;
   --shadow: 0 1px 3px rgb(60 64 67 / 30%), 0 4px 8px 3px rgb(60 64 67 / 15%);
+  /* Controls over the map and the photo let what is behind them show through. */
+  --glass: rgb(255 255 255 / 72%);
+  --glass-blur: blur(6px);
+  --space: #10141c;
+  --card-w: 408px;
+  --slide: 250ms ease-out;
   --font: "Noto Sans", system-ui, sans-serif;
   --mono: "Noto Sans Mono", ui-monospace, monospace;
 }
@@ -61,11 +67,26 @@ kbd {
   inset: 0;
 }
 
-/* On desktop the status line sits under the map area. js/status.js keeps --status-h. */
-@media (min-width: 641px) {
-  #map {
-    bottom: var(--status-h, 0px);
-  }
+/*
+ * js/sky.js supplies the globe disc for this halo behind the transparent map
+ * canvas, as in glace-viewer. Opacity falls off beyond the limb; the sky class
+ * is absent when the globe fills the viewport.
+ */
+#map.sky {
+  background:
+    radial-gradient(
+      var(--globe-rx) var(--globe-ry) at var(--globe-x) var(--globe-y),
+      transparent 100%,
+      rgb(178 196 228 / 42%) 100%,
+      rgb(178 196 228 / 33%) 110%,
+      rgb(178 196 228 / 23%) 125%,
+      rgb(178 196 228 / 14%) 150%,
+      rgb(178 196 228 / 7%) 180%,
+      rgb(178 196 228 / 3%) 220%,
+      rgb(178 196 228 / 1%) 260%,
+      transparent 300%
+    ),
+    radial-gradient(ellipse at center, #141a28, var(--space) 70%);
 }
 
 .icon {
@@ -98,11 +119,6 @@ kbd {
 
 #search input:focus {
   outline: none;
-}
-
-#search input:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 0;
 }
 
 #search input::placeholder {
@@ -463,19 +479,23 @@ button:focus-visible {
 
 /* Status line */
 
+/* Over the map's bottom right corner, as wide as its text and at most the map's width. */
 #status {
   position: fixed;
-  left: 0;
   right: 0;
   bottom: 0;
   z-index: 1;
+  max-width: 100%;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: flex-end;
   gap: 2px 12px;
   padding: 2px 8px;
-  background: var(--surface);
-  color: var(--muted);
+  border-top-left-radius: 8px;
+  background: var(--glass);
+  backdrop-filter: var(--glass-blur);
+  color: var(--text);
   font-size: 11px;
   line-height: 16px;
 }
@@ -563,7 +583,9 @@ button:focus-visible {
     left: 12px;
     bottom: 12px;
     padding: 0;
+    border-radius: 0;
     background: none;
+    backdrop-filter: none;
   }
 }
 
@@ -575,10 +597,49 @@ button:focus-visible {
   bottom: 0;
   left: 0;
   z-index: 3;
-  width: 408px;
+  width: var(--card-w);
   overflow-y: auto;
   background: var(--surface);
   box-shadow: var(--shadow);
+}
+
+/*
+ * On desktop the sidebar slides in from the left and back out. It stays
+ * rendered while hidden, with the closed glacier still on it, so the slide out
+ * shows content; visibility keeps it out of reach of the pointer, Tab and
+ * screen readers once the slide ends.
+ */
+@media (min-width: 641px) {
+  #card {
+    transition: translate var(--slide), visibility var(--slide);
+  }
+
+  #card[hidden],
+  #card > .card[hidden] {
+    display: block !important;
+  }
+
+  #card[hidden] {
+    translate: calc(-100% - 16px) 0;
+    visibility: hidden;
+  }
+
+  #layers,
+  #status {
+    transition: left var(--slide), max-width var(--slide);
+  }
+
+  body.card-open #status {
+    max-width: calc(100% - var(--card-w));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #card,
+  #layers,
+  #status {
+    transition: none;
+  }
 }
 
 #search {
@@ -595,7 +656,7 @@ button:focus-visible {
 }
 
 .card .photo {
-  height: 200px;
+  height: 280px;
   background: #e8eaed;
 }
 
@@ -745,19 +806,36 @@ button:focus-visible {
   overflow-wrap: anywhere;
 }
 
-.row .popover {
-  grid-column: 1 / -1;
-}
-
+/*
+ * Popovers from js/ui.js sit over the page, below their button or above it when
+ * there is no room. Without anchor positioning the script sets top and left.
+ * The 4px gap matches POPOVER_GAP there.
+ */
 .popover {
-  margin-top: 4px;
-  padding: 8px;
+  width: max-content;
+  max-width: min(320px, calc(100vw - 16px));
+  margin: 0;
+  padding: 8px 10px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface);
   box-shadow: var(--shadow);
   color: var(--text);
   font-size: 12px;
+  line-height: 1.4;
+}
+
+.popover[popover] {
+  position: fixed;
+  inset: auto;
+}
+
+@supports (anchor-name: --a) {
+  .popover[popover] {
+    margin: 4px 0;
+    position-area: bottom span-right;
+    position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline;
+  }
 }
 
 .info {
@@ -821,24 +899,25 @@ button:focus-visible {
   height: 100%;
 }
 
-.photo-credit {
-  position: absolute;
-  left: 8px;
-  bottom: 8px;
-  margin: 0;
-  padding: 2px 6px;
-  border-radius: 4px;
-  background: var(--surface);
-  color: var(--muted);
-  font-size: 11px;
+.photo-credit,
+.photo-details {
+  background: var(--glass);
+  backdrop-filter: var(--glass-blur);
 }
 
 .photo-prev,
 .photo-next,
 .photo-info {
   position: absolute;
-  background: var(--surface);
+  background: var(--glass);
+  backdrop-filter: var(--glass-blur);
   box-shadow: var(--shadow);
+}
+
+.photo-prev:hover,
+.photo-next:hover,
+.photo-info:hover {
+  background: var(--surface);
 }
 
 .photo-prev {
@@ -858,22 +937,12 @@ button:focus-visible {
   bottom: 8px;
 }
 
-.photo-details {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  padding: 8px 8px 8px 48px;
-  background: var(--surface);
-  font-size: 12px;
-}
-
-.photo-details[hidden] {
-  display: none;
-}
-
 .photo-details p {
   margin: 0;
+}
+
+.photo-details a {
+  color: var(--accent);
 }
 
 /* The card's area line shows only in the phone's compact sheet. */
@@ -885,7 +954,7 @@ button:focus-visible {
 
 /* With the card open, the layer control sits at the map area's left edge. */
 body.card-open #layers {
-  left: calc(408px + 16px);
+  left: calc(var(--card-w) + 16px);
 }
 
 /* Short confirmations such as "Link copied". */

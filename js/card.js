@@ -4,14 +4,15 @@ import { ATTRIBUTE_COLUMNS, DISPLAY, GROUP_TITLES, formatArea, missingAttributes
 import { renderHypsometry } from "./hypsometry.js";
 import { CARD_COLUMNS, readRow } from "./parquet.js";
 import { esriCrop } from "./photo.js";
-import { h, icon } from "./ui.js";
+import { h, icon, popover } from "./ui.js";
 
 const TABS = [
   { id: "overview", label: "Overview" },
   { id: "hypsometry", label: "Hypsometry" },
 ];
 const SHOWN_LINKS = 3;
-const CROP_SIZE = [816, 400];
+/* The imagery crop's pixel size, and the rows at its top that something covers. */
+const CROP = { size: [816, 400], top: 0 };
 const IMAGERY_CREDIT = "Imagery: Esri, Maxar, Earthstar Geographics";
 const isHttp = (url) => /^https?:\/\//i.test(url ?? "");
 const AREA_UNIT = DISPLAY.find((d) => d.column === "area_km2").unit;
@@ -21,17 +22,8 @@ const regionOfId = (rgiId) => /-G-(\d{2})-/.exec(rgiId ?? "")?.[1] ?? null;
 
 function infoButton(label, description) {
   if (!description) return [null, null];
-  const popover = h("div", { class: "popover", hidden: true }, description);
-  const button = h(
-    "button",
-    { type: "button", class: "info", "aria-label": `About ${label}`, "aria-expanded": "false" },
-    "ⓘ",
-  );
-  button.addEventListener("click", () => {
-    popover.hidden = !popover.hidden;
-    button.setAttribute("aria-expanded", String(!popover.hidden));
-  });
-  return [button, popover];
+  const button = h("button", { type: "button", class: "info", "aria-label": `About ${label}` }, "ⓘ");
+  return [button, popover(button, "info-popover", description)];
 }
 
 /**
@@ -228,7 +220,8 @@ export function mountCard(root, ctx) {
 
   function imageryCrop(bbox) {
     const mine = current;
-    const src = esriCrop(bbox, ...CROP_SIZE);
+    const { size, top } = ctx.crop ?? CROP;
+    const src = esriCrop(bbox, ...size, top);
     const existing = photo.querySelector("img.photo-crop");
     if (existing?.getAttribute("src") === src) return [...photo.childNodes];
     const image = h("img", { class: "photo-crop", src, alt: "Satellite imagery of the glacier", loading: "lazy" });
@@ -237,14 +230,16 @@ export function mountCard(root, ctx) {
       mine.photos.cropFailed = true;
       renderPhotoArea();
     });
-    return [image, h("p", { class: "photo-credit" }, IMAGERY_CREDIT)];
+    const info = h("button", { type: "button", class: "icon-button photo-info", "aria-label": "Image credit" }, icon("info"));
+    return [image, info, popover(info, "photo-credit", IMAGERY_CREDIT)];
   }
 
   function carousel(photos) {
     const at = current.photos.index;
     const shown = photos[at];
     const title = head.querySelector(".card-title")?.textContent ?? "";
-    const details = h("div", { class: "photo-details", hidden: !current.photos.infoOpen },
+    const toggle = h("button", { type: "button", class: "icon-button photo-info", "aria-label": "Photo details" }, icon("info"));
+    const details = popover(toggle, "photo-details",
       h("p", {}, isHttp(shown.page) ? h("a", { href: shown.page, target: "_blank", rel: "noopener noreferrer" }, shown.source) : shown.source),
       shown.author ? h("p", {}, shown.author) : null,
       shown.license
@@ -252,15 +247,6 @@ export function mountCard(root, ctx) {
           ? h("a", { href: shown.licenseUrl, target: "_blank", rel: "noopener noreferrer" }, shown.license)
           : shown.license)
         : null);
-    const toggle = h("button", {
-      type: "button", class: "icon-button photo-info", "aria-label": "Photo details",
-      "aria-expanded": String(current.photos.infoOpen),
-    }, icon("info"));
-    toggle.addEventListener("click", () => {
-      current.photos.infoOpen = !current.photos.infoOpen;
-      details.hidden = !current.photos.infoOpen;
-      toggle.setAttribute("aria-expanded", String(current.photos.infoOpen));
-    });
     const step = (delta, label, name) => {
       const node = h("button", { type: "button", class: `icon-button photo-${label}`, "aria-label": `${label === "prev" ? "Previous" : "Next"} photo` }, icon(name));
       node.addEventListener("click", () => {
@@ -325,7 +311,7 @@ export function mountCard(root, ctx) {
         rgiId: glacier.rgiId,
         row: glacier.row,
         props: { ...glacier.props },
-        photos: { photos: null, index: 0, infoOpen: false, cropFailed: false },
+        photos: { photos: null, index: 0, cropFailed: false },
       };
       current = mine;
       state.rgi6Open = false;

@@ -1,53 +1,44 @@
-/* adaptStyle and mergeStyles change only plumbing of the catalog's styles. */
+/* The page's own RGI style: its source, its layers and the toggles over them. */
 
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import test from "node:test";
 
-import { adaptStyle, mergeStyles } from "../js/styles.js";
+import { PREVIEWS, GLACIERS } from "../js/previews.js";
+import { rgiStyle, TOGGLES } from "../js/styles.js";
 
-const BASE = "https://data.source.coop/lqgentner/rgi/v7.0/";
-const styleUrl = (name) => `${BASE}${name}/styles/${name}.json`;
-const fixtureStyle = (name) =>
-  JSON.parse(readFileSync(new URL(`./fixtures/catalog/v7.0/${name}/styles/${name}.json`, import.meta.url), "utf8"));
+const PMTILES = "https://data.source.coop/lqgentner/rgi/v7.0/rgi7.0.pmtiles";
 
-function stripFonts(layers) {
-  return layers.map((layer) => {
-    const copy = structuredClone(layer);
-    if (copy.layout?.["text-font"]) delete copy.layout["text-font"];
-    return copy;
-  });
-}
-
-test("adaptStyle rewrites only the source URL and the fonts", () => {
-  const out = adaptStyle(fixtureStyle("glaciers"), styleUrl("glaciers"));
-  assert.equal(out.sources.data.url, "pmtiles://https://data.source.coop/lqgentner/rgi/v7.0/rgi7.0.pmtiles");
-  assert.ok(out.layers.every((l) => !JSON.stringify(l.layout ?? {}).includes("Open Sans")));
-  assert.ok(out.layers.some((l) => l.layout?.["text-font"]?.includes("Noto Sans Bold")));
-  assert.deepEqual(stripFonts(out.layers), stripFonts(fixtureStyle("glaciers").layers));
+test("rgiStyle reads one PMTiles source", () => {
+  const style = rgiStyle(PMTILES);
+  assert.deepEqual(style.sources, { data: { type: "vector", url: `pmtiles://${PMTILES}` } });
+  assert.ok(style.layers.every((layer) => layer.source === "data"));
 });
 
-test("adaptStyle resolves the relative PMTiles URL against the style URL", () => {
-  const style = fixtureStyle("regions");
-  assert.equal(style.sources.data.url, "pmtiles://../../rgi7.0.pmtiles");
-  const local = adaptStyle(style, "http://localhost:8000/catalog/v7.0/regions/styles/regions.json");
-  assert.equal(local.sources.data.url, "pmtiles://http://localhost:8000/catalog/v7.0/rgi7.0.pmtiles");
-});
-
-test("adaptStyle leaves its input untouched", () => {
-  const style = fixtureStyle("glaciers");
-  const before = JSON.stringify(style);
-  adaptStyle(style, styleUrl("glaciers"));
-  assert.equal(JSON.stringify(style), before);
-});
-
-test("mergeStyles drops repeated layer ids and sources", () => {
-  const regions = adaptStyle(fixtureStyle("regions"), styleUrl("regions"));
-  const glaciers = adaptStyle(fixtureStyle("glaciers"), styleUrl("glaciers"));
-  const merged = mergeStyles([regions, glaciers]);
-  const ids = merged.layers.map((l) => l.id);
+test("rgiStyle gives each layer a unique id and a toggle's source layers exist", () => {
+  const { layers } = rgiStyle(PMTILES);
+  const ids = layers.map((l) => l.id);
   assert.equal(new Set(ids).size, ids.length);
-  assert.ok(ids.indexOf("regions-fill") < ids.indexOf("glaciers-fill"));
-  assert.equal(ids.filter((id) => id === "regions-outline-1").length, 1);
-  assert.deepEqual(Object.keys(merged.sources), ["data"]);
+  const sourceLayers = new Set(layers.map((l) => l["source-layer"]));
+  for (const names of Object.values(TOGGLES)) for (const name of names) assert.ok(sourceLayers.has(name), name);
+});
+
+test("rgiStyle draws regions as outlines without a fill", () => {
+  const regions = rgiStyle(PMTILES).layers.filter((l) => l["source-layer"] === "regions");
+  assert.ok(regions.length > 0);
+  assert.ok(regions.every((l) => l.type === "line"));
+});
+
+test("rgiStyle uses only fonts the glyph server holds", () => {
+  const fonts = rgiStyle(PMTILES).layers.flatMap((l) => l.layout?.["text-font"] ?? []);
+  assert.ok(fonts.length > 0);
+  assert.ok(fonts.every((font) => /^Noto Sans (Regular|Bold|Italic)$/.test(font)), fonts.join());
+});
+
+test("the layer previews hold a path for every part they draw", () => {
+  const path = /^(M[-\d. L]+Z?)+$/;
+  assert.match(GLACIERS, path);
+  for (const [name, parts] of Object.entries(PREVIEWS)) {
+    assert.ok(name in TOGGLES, name);
+    for (const [part, d] of Object.entries(parts)) assert.match(d, path, `${name} ${part}`);
+  }
 });

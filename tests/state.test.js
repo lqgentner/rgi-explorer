@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { CATALOG_URL, resolveCatalogUrl } from "../js/config.js";
+import { CATALOG_URL, DEFAULT_VIEW, resolveCatalogUrl, startView, viewForZone } from "../js/config.js";
 import { parseState, writeState } from "../js/state.js";
 
 const FULL =
@@ -95,4 +95,24 @@ test("a layers value with no known name takes the default toggles", () => {
   const s = parseState(url);
   assert.deepEqual([...s.layers], ["regions"]);
   assert.equal(writeState(s, url), "https://x/rgi-explorer/");
+});
+
+test("the opening view turns toward the time zone", () => {
+  assert.deepEqual(viewForZone("Europe/Zurich", 1), { ...DEFAULT_VIEW, lat: 48, lon: 15 });
+  assert.deepEqual(viewForZone("America/Los_Angeles", -8), { ...DEFAULT_VIEW, lat: 35, lon: -120 });
+  assert.deepEqual(viewForZone("America/Argentina/Mendoza", -3), { ...DEFAULT_VIEW, lat: -15, lon: -45 });
+  assert.deepEqual(viewForZone("Pacific/Kiritimati", 14), { ...DEFAULT_VIEW, lat: -15, lon: 180 });
+});
+
+test("a zone without an area keeps the default view", () => {
+  assert.equal(viewForZone("UTC", 0), DEFAULT_VIEW);
+  assert.equal(viewForZone("Etc/GMT+5", -5), DEFAULT_VIEW);
+  assert.equal(viewForZone(undefined, 0), DEFAULT_VIEW);
+  assert.equal(viewForZone("Europe/Zurich", Number.NaN), DEFAULT_VIEW);
+});
+
+test("startView reads the browser's zone", () => {
+  const view = startView();
+  assert.equal(view.zoom, DEFAULT_VIEW.zoom);
+  assert.ok(Math.abs(view.lon) <= 180 && Math.abs(view.lat) <= 90);
 });

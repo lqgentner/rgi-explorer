@@ -50,3 +50,54 @@ export function icon(name) {
   svg.append(use);
   return svg;
 }
+
+/* Native popovers light-dismiss; anchor positioning keeps one beside its button. */
+const POPOVERS = typeof HTMLElement !== "undefined" && "popover" in HTMLElement.prototype;
+const ANCHORS = globalThis.CSS?.supports?.("anchor-name: --a") ?? false;
+/* The gap between a button and its popover, in pixels. Match .popover in style.css. */
+const POPOVER_GAP = 4;
+let anchors = 0;
+
+/** Place a popover under its button's left edge, or above it when there is no room below. */
+function place(node, button) {
+  const at = button.getBoundingClientRect();
+  const { width, height } = node.getBoundingClientRect();
+  const below = at.bottom + POPOVER_GAP;
+  const top = below + height <= window.innerHeight ? below : Math.max(0, at.top - POPOVER_GAP - height);
+  const left = Math.max(8, Math.min(at.left, window.innerWidth - width - 8));
+  Object.assign(node.style, { top: `${top}px`, left: `${left}px` });
+}
+
+/**
+ * A popover that `button` toggles, holding `children`. It opens below the
+ * button, or above when there is no room, over the page rather than in its
+ * flow, and a click elsewhere or Escape closes it. Insert it anywhere.
+ */
+export function popover(button, className, ...children) {
+  const node = h("div", { class: `popover ${className}` }, ...children);
+  button.setAttribute("aria-expanded", "false");
+  if (!POPOVERS) {
+    node.hidden = true;
+    button.addEventListener("click", () => {
+      node.hidden = !node.hidden;
+      button.setAttribute("aria-expanded", String(!node.hidden));
+    });
+    return node;
+  }
+  node.popover = "auto";
+  button.popoverTargetElement = node;
+  if (ANCHORS) {
+    const name = `--popover-${(anchors += 1)}`;
+    button.style.setProperty("anchor-name", name);
+    node.style.setProperty("position-anchor", name);
+  }
+  node.addEventListener("toggle", (event) => {
+    const open = event.newState === "open";
+    button.setAttribute("aria-expanded", String(open));
+    if (!open || ANCHORS) return;
+    place(node, button);
+    /* Without anchors the popover cannot follow a scroll, so a scroll closes it. */
+    window.addEventListener("scroll", () => node.hidePopover(), { capture: true, once: true });
+  });
+  return node;
+}

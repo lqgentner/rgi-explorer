@@ -53,11 +53,47 @@ test("the map reads glyphs from the glyph server and one PMTiles source", async 
   assert.equal(map.getSource("data").url, "pmtiles://https://data.source.coop/lqgentner/rgi/v7.0/rgi7.0.pmtiles");
 });
 
+test("the map is a globe and reads no catalog style", async () => {
+  const fetched = [];
+  const page = await loadPage({
+    url: "https://lqgentner.github.io/rgi-explorer/",
+    fetch: (url) => {
+      fetched.push(url);
+      return fetchFixture(url);
+    },
+  });
+  const { createMap } = await load("js/map.js");
+  const catalog = await loadCatalog(ROOT);
+  fetched.length = 0;
+  await createMap(page.document.getElementById("map"), catalog, parseState(new URL(page.window.location.href)));
+  assert.deepEqual(page.map.options.style.projection, { type: "globe" });
+  assert.deepEqual(fetched, [LIBERTY_STYLE]);
+});
+
+test("glaciers are white with a grey outline and regions have no fill", async () => {
+  const { map } = await build();
+  assert.equal(map.getLayer("glaciers-fill").paint["fill-color"], "#ffffff");
+  assert.equal(map.getLayer("glaciers-outline").paint["line-color"], "#80868b");
+  const regionFills = [...map.layers.values()].filter((l) => l["source-layer"] === "regions" && l.type === "fill");
+  assert.deepEqual(regionFills, []);
+});
+
+test("the glacier fill lets imagery show through", async () => {
+  const { rgiMap, map } = await build("?base=imagery");
+  const opacity = (id) => map.getLayer(id).paint["fill-opacity"];
+  assert.equal(opacity("glaciers-fill"), 0.35);
+  rgiMap.setBase("standard");
+  assert.equal(opacity("glaciers-fill"), 0.85);
+  assert.equal(opacity("selection-fill"), 0.85);
+  rgiMap.setBase("imagery");
+  assert.equal(opacity("selection-fill"), 0.35);
+});
+
 test("the RGI layers draw above Liberty's lines and below its labels", async () => {
   const { map } = await build();
   assert.ok(map.indexOf("glaciers-fill") > map.indexOf("boundary"));
   assert.ok(map.indexOf("glaciers-fill") < map.indexOf("label_place"));
-  assert.ok(map.indexOf("regions-fill") < map.indexOf("glaciers-fill"));
+  assert.ok(map.indexOf("regions-outline-1") < map.indexOf("glaciers-fill"));
   assert.ok(map.indexOf("glacier-labels") > map.indexOf("label_country"));
 });
 
@@ -80,7 +116,7 @@ test("a symbol between Liberty's lines stays below imagery and the RGI layers", 
   assert.ok(arrow > -1 && arrow < map.indexOf("boundary"));
   assert.ok(map.indexOf("esri") > map.indexOf("boundary"));
   assert.ok(map.indexOf("glaciers-fill") > map.indexOf("esri"));
-  assert.ok(map.indexOf("regions-fill") > map.indexOf("boundary"));
+  assert.ok(map.indexOf("regions-outline-1") > map.indexOf("boundary"));
   assert.ok(arrow < map.indexOf("esri"));
   assert.ok(map.indexOf("label_place") > map.indexOf("glaciers-outline"));
 });
@@ -123,7 +159,7 @@ test("the state starts the base map and the toggles", async () => {
   const { map } = await build("?base=imagery&layers=centerlines");
   assert.equal(map.layout("esri").visibility, "visible");
   assert.equal(map.layout("centerlines").visibility, "visible");
-  assert.equal(map.layout("regions-fill").visibility, "none");
+  assert.equal(map.layout("regions-outline-1").visibility, "none");
   assert.equal(map.layout("intersects").visibility, "none");
   assert.equal(map.layout("glaciers-fill").visibility, undefined);
 });
@@ -138,7 +174,7 @@ test("a toggle shows exactly the layers with its source layer", async () => {
   assert.ok(visible.length > 0 && visible.every((v) => v === "visible"));
   assert.equal(map.layout("intersects").visibility, "none");
   rgiMap.setToggle("regions", false);
-  for (const id of ["regions-fill", "regions-outline-1", "region-labels-1"]) {
+  for (const id of ["regions-outline-1", "regions-outline-2", "region-labels-1"]) {
     assert.equal(map.layout(id).visibility, "none", id);
   }
   assert.equal(map.layout("glaciers-fill").visibility, undefined);
@@ -276,7 +312,7 @@ test("glacierAt returns the properties of the first glacier under the point", as
   const { rgiMap, map } = await build();
   assert.equal(rgiMap.glacierAt([5, 5]), null);
   map.rendered = [
-    { layer: { id: "regions-fill" }, properties: { name: "region" } },
+    { layer: { id: "regions-outline-1" }, properties: { name: "region" } },
     { layer: { id: "glaciers-fill" }, properties: { rgi_id: rgiId } },
   ];
   assert.deepEqual(rgiMap.glacierAt([5, 5]), { rgi_id: rgiId });
