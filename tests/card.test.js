@@ -93,6 +93,13 @@ test("a title, subtitle and unnamed glacier", async () => {
   assert.doesNotMatch(bare.root.textContent, /null|undefined/);
 });
 
+test("a glac_name is no title: a glacier without a display_name shows its ID", async () => {
+  const { root, card } = setup({ parquet: { handle, rowOf: () => new Promise(() => {}) } });
+  card.open({ rgiId: IDS[4], props: { rgi_id: IDS[4], display_name: null, glac_name: "Unnamed_23", o1region: "11" } });
+  assert.equal(text(root, ".card-title"), IDS[4]);
+  assert.equal(text(root, ".card-subtitle"), "Glacier · Central Europe");
+});
+
 test("an unnamed glacier's title is its ID before any read", () => {
   const { root, card } = setup({ parquet: { handle, rowOf: () => new Promise(() => {}) } });
   card.open({ rgiId: IDS[4], props: { rgi_id: IDS[4], display_name: null, glac_name: "" } });

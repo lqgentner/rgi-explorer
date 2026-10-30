@@ -9,8 +9,8 @@ const ID = (code, n) => `RGI2000-v7.0-G-${code}-${String(n).padStart(5, "0")}`;
 const UNNAMED_ID = ID("11", 1);
 const cols = {
   rgi_id: [ID("11", 2596), UNNAMED_ID, ID("11", 3), ID("11", 4), ID("01", 5), ID("11", 6)],
-  display_name: ["Aletsch", null, "Aletschfirn", null, "Müller", "Rhône"],
-  glac_name: [null, null, null, "Grosser Aletsch", null, null],
+  display_name: ["Aletsch", null, "Aletschfirn", "Grosser Aletsch", "Müller", "Rhône"],
+  glac_name: [null, "Unnamed_23", null, "GROSSER ALETSCH", null, null],
   complex_id: [CID("11", 1323), CID("11", 1), CID("11", 1323), CID("11", 4), CID("01", 5), CID("11", 6)],
 };
 const names = new Map([["11", "Central Europe"]]);
@@ -99,10 +99,12 @@ test("a word that starts with the query ranks above every place and below a regi
   assert.equal(withId[0].score, 1000);
 });
 
-test("names match without case or accents, and glac_name fills a missing display_name", () => {
+test("names match without case or accents, and only display_name is a name", () => {
   assert.equal(searchGlaciers(idx, "MULLER")[0].score, 900);
   assert.equal(searchGlaciers(idx, "rhone")[0].title, "Rhône");
   assert.equal(searchGlaciers(idx, "grosser")[0].title, "Grosser Aletsch");
+  assert.deepEqual(searchGlaciers(idx, "unnamed"), [], "a glac_name such as Unnamed_23 is no name");
+  assert.equal(searchGlaciers(idx, UNNAMED_ID)[0].title, UNNAMED_ID);
 });
 
 test("a short query gives no hits and the limit caps the list", () => {

@@ -2,7 +2,8 @@
 
 import { decompress } from "fzstd";
 
-export const SEARCH_COLUMNS = ["rgi_id", "display_name", "glac_name", "complex_id"];
+/* Names come from display_name only: glac_name holds placeholders such as "Unnamed_23". */
+export const SEARCH_COLUMNS = ["rgi_id", "display_name", "complex_id"];
 export const CARD_COLUMNS = ["bbox", "hypso_z0_m", "hypso_permille", "rgi6_links"];
 
 /*

@@ -179,7 +179,7 @@ async function membersOf(props, glaciers) {
       }
     }),
   );
-  const nameOf = (row) => index.cols.display_name[row] ?? index.cols.glac_name[row] ?? null;
+  const nameOf = (row) => index.cols.display_name[row] ?? null;
   return ids
     .map((rgiId, i) => ({
       rgiId,

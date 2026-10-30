@@ -162,7 +162,8 @@ export function mountCard(root, ctx) {
 
   function renderHead() {
     const { rgiId, props } = current;
-    const name = nonEmpty(props.display_name) ?? nonEmpty(props.glac_name);
+    /* glac_name holds placeholders such as "Unnamed_23", so a glacier without a display_name shows its ID. */
+    const name = nonEmpty(props.display_name);
     const code = nonEmpty(props.o1region) ?? regionOfId(rgiId);
     const region = (ctx.regions ?? []).find((r) => Number(r.level) === 1 && r.o1region === code)?.full_name;
     const subtitle = ["Glacier", name ? rgiId : null, region].filter(Boolean).join(" · ");

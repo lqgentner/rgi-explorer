@@ -256,10 +256,11 @@ elsewhere closes it.
   - glacier complex (its ID; see the complexes design,
     `2026-10-30-glacier-complexes-design.md`).
 - **Glacier names and IDs.** The first focus of the search bar reads three
-  columns from all 24 row groups of the glaciers GeoParquet: `rgi_id`,
-  `display_name` and `glac_name`, and `complex_id` for finding complexes
-  (about 0.25 MB more, measured on the 7.0 file). That is about 0.6 MB over roughly 72 range
-  requests, using hyparquet. The explorer builds a fuzzy index from them in
+  columns from every row group of the glaciers GeoParquet: `rgi_id`,
+  `display_name` and `complex_id` (for finding complexes), about 0.4 MB on
+  the 7.0 file, using hyparquet. `glac_name` is not a name: it holds
+  placeholders such as "Unnamed_23", so a glacier without a `display_name`
+  is found and titled by its ID. The explorer builds a fuzzy index from them in
   the browser. Each match keeps its row position (row group and offset), so
   no lookup table is needed.
 - **Typing an RGI ID** (full, or the region-and-number part, for example

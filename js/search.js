@@ -39,7 +39,7 @@ export function parseIds(q) {
 /**
  * Index the glaciers for search.
  *
- * @param {{rgi_id: string[], display_name: (string|null)[], glac_name: (string|null)[], complex_id?: string[]}} cols
+ * @param {{rgi_id: string[], display_name: (string|null)[], complex_id?: string[]}} cols
  * @param {Map<string, string>} [regionNames]  two-digit region code to region name
  */
 export function buildGlacierIndex(cols, regionNames = new Map()) {
@@ -49,7 +49,7 @@ export function buildGlacierIndex(cols, regionNames = new Map()) {
   const folded = [];
   for (let row = 0; row < cols.rgi_id.length; row += 1) {
     byId.set(cols.rgi_id[row], row);
-    const name = cols.display_name[row] ?? cols.glac_name[row];
+    const name = cols.display_name[row];
     if (name) {
       rows.push(row);
       folded.push(fold(name));
@@ -69,7 +69,7 @@ function hasWordStart(name, needle) {
 function glacierHit(index, row, score) {
   const { cols, regionNames } = index;
   const rgiId = cols.rgi_id[row];
-  const name = cols.display_name[row] ?? cols.glac_name[row];
+  const name = cols.display_name[row];
   const region = regionNames.get(rgiId.split("-G-")[1].slice(0, 2));
   return {
     kind: "glacier",

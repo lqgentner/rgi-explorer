@@ -55,7 +55,7 @@ test("reads the search columns across groups", async () => {
   ]);
   assert.equal(cols.rgi_id[0], "RGI2000-v7.0-G-11-02596");
   assert.equal(cols.display_name[4], null);
-  assert.equal(cols.glac_name[4], null);
+  assert.equal("glac_name" in cols, false, "search names come from display_name only");
 });
 
 test("finds the group of a row", async () => {
