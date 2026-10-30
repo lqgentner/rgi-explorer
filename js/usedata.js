@@ -1,8 +1,8 @@
 /*
  * "Use this data": a ready snippet for GeoPandas, or the steps to add the
- * GeoParquet in QGIS, for one glacier, its region or all of RGI, or for one
- * complex, its glaciers, its region or all complexes. A dialog on desktop and
- * a pane in the bottom sheet on the phone.
+ * GeoParquet in QGIS, for one glacier, its region or all glaciers, or for one
+ * complex, its region or all complexes. A dialog on desktop and a pane in the
+ * bottom sheet on the phone.
  */
 
 import { regionOfId } from "./card.js";
@@ -18,11 +18,10 @@ const SCOPES = {
   glacier: [
     { value: "glacier", label: "This glacier", file: "glaciers", key: "rgi_id" },
     { value: "region", label: "Its region", file: "glaciers", key: "o1region" },
-    { value: "all", label: "All of RGI", file: "glaciers" },
+    { value: "all", label: "All glaciers", file: "glaciers" },
   ],
   complex: [
     { value: "complex", label: "This complex", file: "complexes", key: "rgi_id" },
-    { value: "members", label: "Its glaciers", file: "glaciers", key: "complex_id" },
     { value: "region", label: "Its region", file: "complexes", key: "o1region" },
     { value: "all", label: "All complexes", file: "complexes" },
   ],

@@ -413,7 +413,7 @@ A dialog, or a bottom pane on the phone, with two choices and a snippet with
 a Copy button:
 
 - **I work in:** Python or QGIS.
-- **Fetch:** this glacier, its region (`o1region`), or all of RGI.
+- **Fetch:** this glacier, its region (`o1region`), or all glaciers.
 
 The Python snippets use GeoPandas, because GeoPandas is more common in
 science than DuckDB:
@@ -425,7 +425,7 @@ url = "https://data.source.coop/lqgentner/rgi/v7.0/glaciers/rgi7.0-glaciers.parq
 gdf = gpd.read_parquet(url, filters=[("rgi_id", "==", "RGI2000-v7.0-G-11-02596")])
 ```
 
-- The region snippet filters on `o1region`. The all-RGI snippet reads the
+- The region snippet filters on `o1region`. The all-glaciers snippet reads the
   whole file and says how large it is.
 - **The QGIS variant** adds the GeoParquet file as an HTTP(S) vector source.
   It offers no PMTiles. The steps, as the author confirmed in QGIS's Data
@@ -440,7 +440,7 @@ gdf = gpd.read_parquet(url, filters=[("rgi_id", "==", "RGI2000-v7.0-G-11-02596")
   - For this glacier, the dialog includes a ready filter
     (`"rgi_id" = 'RGI2000-v7.0-G-11-02596'`) to paste into the layer's Query
     Builder (right-click the layer › Filter…).
-  - For a region, the filter is `"o1region" = '11'`. For all of RGI, there is
+  - For a region, the filter is `"o1region" = '11'`. For all glaciers, there is
     no filter, and the dialog states the file size.
   - The catalog README's QGIS route, the Portolan Registry plugin, does not
     apply. The plugin finds only registered catalogs, and this mirror stays

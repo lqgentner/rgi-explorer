@@ -108,7 +108,7 @@ test("the dialog opens on Python and this glacier with the exact snippet", () =>
   assert.equal(dialog().querySelectorAll('fieldset input[type="radio"]').length, 5);
   assert.deepEqual([...dialog().querySelectorAll("legend")].map((l) => l.textContent), ["I work in", "Fetch"]);
   assert.deepEqual([...dialog().querySelectorAll(".segment span")].map((s) => s.textContent),
-    ["Python", "QGIS", "This glacier", "Its region", "All of RGI"]);
+    ["Python", "QGIS", "This glacier", "Its region", "All glaciers"]);
   click(dialog().querySelector(".usedata-close"));
   assert.equal(dialog().open, false);
   assert.equal(document.activeElement, opener, "focus returns to the opener");
@@ -153,7 +153,7 @@ test("QGIS shows the steps, the URL and the filter, each with its own Copy", asy
   useData.close();
 });
 
-test("All of RGI states the size from one HEAD request", async () => {
+test("All glaciers states the size from one HEAD request", async () => {
   useData.open(ALETSCH);
   choose("all");
   await waitFor(() => dialog().querySelector(".usedata-note")?.textContent === "Reads the whole file, about 258 MB.");
@@ -195,11 +195,9 @@ test("Escape closes the dialog", () => {
 const COMPLEX = { kind: "complex", rgiId: "RGI2000-v7.0-C-11-01323", o1region: "11" };
 const COMPLEXES_URL = "https://data.source.coop/lqgentner/rgi/v7.0/complexes/rgi7.0-complexes.parquet";
 
-test("a complex offers itself, its glaciers, its region and all complexes", () => {
+test("a complex offers itself, its region and all complexes", () => {
   assert.equal(snippet({ tool: "python", scope: "complex" }, COMPLEX, catalog).code,
     `import geopandas as gpd\n\nurl = "${COMPLEXES_URL}"\ngdf = gpd.read_parquet(url, filters=[("rgi_id", "==", "RGI2000-v7.0-C-11-01323")])\n`);
-  assert.equal(snippet({ tool: "python", scope: "members" }, COMPLEX, catalog).code,
-    `import geopandas as gpd\n\nurl = "${URL_}"\ngdf = gpd.read_parquet(url, filters=[("complex_id", "==", "RGI2000-v7.0-C-11-01323")])\n`);
   const region = snippet({ tool: "qgis", scope: "region" }, COMPLEX, catalog);
   assert.equal(region.filter, `"o1region" = '11'`);
   assert.ok(region.steps.includes(`URI: ${COMPLEXES_URL}`));
@@ -211,13 +209,13 @@ test("a complex offers itself, its glaciers, its region and all complexes", () =
 test("the dialog offers a complex's scopes, and a glacier's again after it", () => {
   useData.open(COMPLEX);
   assert.deepEqual([...dialog().querySelectorAll(".segment span")].map((s) => s.textContent),
-    ["Python", "QGIS", "This complex", "Its glaciers", "Its region", "All complexes"]);
+    ["Python", "QGIS", "This complex", "Its region", "All complexes"]);
   assert.equal(radio("complex").checked, true);
   assert.equal(code(), snippet({ tool: "python", scope: "complex" }, COMPLEX, catalog).code);
   useData.close();
   useData.open(ALETSCH);
   assert.deepEqual([...dialog().querySelectorAll(".segment span")].map((s) => s.textContent),
-    ["Python", "QGIS", "This glacier", "Its region", "All of RGI"]);
+    ["Python", "QGIS", "This glacier", "Its region", "All glaciers"]);
   assert.equal(radio("glacier").checked, true);
   useData.close();
 });

@@ -151,12 +151,11 @@ already its ID.
 ## Use this data
 
 The dialog in `js/usedata.js`, with the same Python and QGIS forms. For a
-complex the scopes are:
+complex the three scopes match a glacier's:
 
 | Scope | File | Filter |
 | --- | --- | --- |
 | This complex | complexes | `rgi_id` |
-| Its glaciers | glaciers | `complex_id` |
 | Its region | complexes | `o1region` |
 | All complexes | complexes | none, with the size note |
 
