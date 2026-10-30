@@ -304,6 +304,7 @@ test("a region pick fits the region's bbox and a place pick jumps to zoom 12", a
 });
 
 test("base map, toggles and 3D write the URL and refresh the credits", () => {
+  $("#layers .layers").dispatchEvent(new window.Event("pointerenter"));
   click($("#layers .layers-thumb"));
   assert.equal(params().get("base"), "imagery");
   assert.equal(map.layout("esri").visibility, "visible");

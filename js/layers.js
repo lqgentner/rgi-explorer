@@ -141,11 +141,14 @@ function swapImage(img, url, done) {
   next.src = url;
 }
 
-/** The toggle buttons and the sync functions that update them. */
-function toggleButtons({ layers, onToggle, zoom }) {
+/**
+ * The toggle buttons and the sync functions that update them. With `hints`,
+ * a toggle whose layer has no data at the zoom says from which zoom it shows.
+ */
+function toggleButtons({ layers, onToggle, zoom, hints }) {
   const on = new Set(layers);
   const parts = TOGGLES.map(({ name, label }) => {
-    const hint = h("span", { class: "layer-hint" });
+    const hint = hints ? h("span", { class: "layer-hint" }) : null;
     const tile = preview(name);
     const button = h(
       "button",
@@ -170,6 +173,7 @@ function toggleButtons({ layers, onToggle, zoom }) {
   function refreshZoom() {
     const z = zoom();
     for (const { name, hint } of parts) {
+      if (!hint) continue;
       const from = TOGGLE_MINZOOM[name];
       hint.textContent = z < from ? `visible from zoom ${from}` : "";
     }
@@ -203,7 +207,8 @@ function toggleButtons({ layers, onToggle, zoom }) {
  * @returns {{setBase(base: string): void, setLayers(set: Iterable<string>): void, refreshZoom(): void}}
  */
 export function mountLayers(root, { base, layers, onBase, onToggle, zoom, map = null, standardPicture = null }) {
-  const toggles = toggleButtons({ layers, onToggle, zoom });
+  /* The desktop panel keeps to one row of tiles and leaves the zoom hints out. */
+  const toggles = toggleButtons({ layers, onToggle, zoom, hints: PHONE.matches });
   let current = base;
   const api = {
     setLayers: toggles.setLayers,
@@ -318,8 +323,10 @@ export function mountLayers(root, { base, layers, onBase, onToggle, zoom, map = 
   }
 
   const image = h("img", { alt: "", width: 96, height: 96 });
-  const caption = h("span", { class: "layers-caption" });
-  const thumb = h("button", { type: "button", class: "layers-thumb" }, image, caption);
+  const badge = h("span", { class: "layers-badge" }, icon("layers-2"), "Layers");
+  /* Closed, the picture says "Layers"; open, it names the map a click swaps to. */
+  const caption = h("span", { class: "layers-caption layer-name" });
+  const thumb = h("button", { type: "button", class: "layers-thumb" }, h("span", { class: "layers-picture" }, image, badge, caption));
   const other = () => (current === "standard" ? "imagery" : "standard");
   const syncThumb = () => {
     image.src = latest[other()] ?? BASES[other()].image;
@@ -330,49 +337,56 @@ export function mountLayers(root, { base, layers, onBase, onToggle, zoom, map = 
     catchUp();
   };
   syncThumb();
+
+  /* The panel stays in the page to slide open; it is inert while closed. */
+  const panel = h("div", { class: "layers-panel" }, h("div", { class: "layers-drawer" }, toggles.buttons));
+  const wrapper = h("div", { class: "layers" }, thumb, panel);
+  /*
+   * A mouse opens the control while it rests on it, and focus while it stays
+   * inside. A touch has no hover: a tap on the closed control opens it, and
+   * the thumbnail swaps the base map only when it was open at the press. A
+   * press elsewhere closes it.
+   */
+  const isOpen = () => wrapper.classList.contains("open");
+  const setOpen = (open) => {
+    panel.toggleAttribute("inert", !open);
+    wrapper.classList.toggle("open", open);
+    catchUp();
+  };
+  setOpen(false);
+  let openAtPress = null;
+  togglesShown = isOpen;
+  pictureImage = (key) => (other() === key ? image : null);
+  wrapper.addEventListener("pointerenter", (event) => {
+    if (event.pointerType !== "touch") setOpen(true);
+  });
+  wrapper.addEventListener("pointerleave", (event) => {
+    if (event.pointerType !== "touch") setOpen(false);
+  });
+  wrapper.addEventListener("focusin", () => setOpen(true));
+  wrapper.addEventListener("focusout", (event) => {
+    if (!wrapper.contains(event.relatedTarget) && !wrapper.matches(":hover")) setOpen(false);
+  });
+  document.addEventListener("pointerdown", (event) => {
+    if (!wrapper.contains(event.target)) setOpen(false);
+  });
+  thumb.addEventListener("pointerdown", () => {
+    openAtPress = isOpen();
+  });
   thumb.addEventListener("click", () => {
+    const wasOpen = openAtPress ?? isOpen();
+    openAtPress = null;
+    if (!wasOpen) {
+      setOpen(true);
+      return;
+    }
     current = other();
     syncThumb();
     onBase(current);
   });
-
-  const chevron = h(
-    "button",
-    { type: "button", class: "layers-chevron", "aria-label": "Layer options", "aria-expanded": "false" },
-    icon("chevron-right"),
-  );
-  const panel = h("div", { class: "layers-panel", hidden: true }, toggles.buttons);
-  const wrapper = h("div", { class: "layers" }, thumb, panel, chevron);
-  /* A click pins the panel open. Hover and focus open it only while they last. */
-  let pinned = false;
-  const setOpen = (open) => {
-    if (!open) pinned = false;
-    panel.hidden = !open;
-    chevron.setAttribute("aria-expanded", String(open));
-    wrapper.classList.toggle("open", open);
-    catchUp();
-  };
-  togglesShown = () => !panel.hidden;
-  pictureImage = (key) => (other() === key ? image : null);
-  wrapper.addEventListener("pointerenter", () => setOpen(true));
-  wrapper.addEventListener("pointerleave", () => {
-    if (!pinned) setOpen(false);
-  });
-  wrapper.addEventListener("focusin", () => setOpen(true));
-  wrapper.addEventListener("focusout", (event) => {
-    if (!wrapper.contains(event.relatedTarget)) setOpen(false);
-  });
-  chevron.addEventListener("click", () => {
-    if (panel.hidden || !pinned) {
-      setOpen(true);
-      pinned = true;
-    } else {
-      setOpen(false);
-    }
-  });
   wrapper.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") return;
-    chevron.focus();
+    thumb.focus();
     setOpen(false);
   });
   root.append(wrapper);

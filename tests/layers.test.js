@@ -20,15 +20,21 @@ function layers(extra = {}) {
   return { root, calls, api };
 }
 
-test("the desktop thumbnail shows the other base map and swaps on click", () => {
+const hover = (root, type = "pointerenter") => root.firstElementChild.dispatchEvent(new window.Event(type));
+
+test("the desktop thumbnail shows the other base map under a Layers badge, names it open and swaps on click", () => {
   const { root, calls } = layers();
   const thumb = root.querySelector(".layers-thumb");
+  const caption = () => thumb.querySelector(".layer-name").textContent;
   assert.ok(thumb.querySelector("img").getAttribute("src").endsWith("assets/base-imagery.webp"));
-  assert.equal(thumb.textContent.trim(), "Imagery");
+  assert.equal(thumb.querySelector(".layers-badge").textContent, "Layers");
+  assert.ok(thumb.querySelector(".layers-badge use").getAttribute("href").endsWith("#layers-2"));
+  assert.equal(caption(), "Imagery");
+  hover(root);
   thumb.click();
   assert.deepEqual(calls.bases, ["imagery"]);
   assert.ok(thumb.querySelector("img").getAttribute("src").endsWith("assets/base-standard.webp"));
-  assert.equal(thumb.textContent.trim(), "Standard");
+  assert.equal(caption(), "Standard");
   thumb.click();
   assert.deepEqual(calls.bases, ["imagery", "standard"]);
 });
@@ -36,21 +42,15 @@ test("the desktop thumbnail shows the other base map and swaps on click", () => 
 test("setBase swaps the thumbnail without calling onBase", () => {
   const { root, calls, api } = layers();
   api.setBase("imagery");
-  assert.equal(root.querySelector(".layers-thumb").textContent.trim(), "Standard");
+  assert.equal(root.querySelector(".layers-thumb .layer-name").textContent, "Standard");
   assert.deepEqual(calls.bases, []);
 });
 
-test("a hidden-at-this-zoom toggle says so, and refreshZoom updates the hint", () => {
-  let zoom = 6;
-  const { root, api } = layers({ zoom: () => zoom });
-  const toggle = (label) => [...root.querySelectorAll(".layer-toggle")].find((b) => b.textContent.includes(label));
-  assert.ok(toggle("Ice divides").textContent.includes("visible from zoom 10"));
-  assert.ok(toggle("Centerlines").textContent.includes("visible from zoom 8"));
-  assert.ok(!toggle("RGI regions").textContent.includes("visible from"));
-  zoom = 9;
+test("the desktop toggles leave the zoom hints out", () => {
+  const { root, api } = layers({ zoom: () => 6 });
   api.refreshZoom();
-  assert.ok(!toggle("Centerlines").textContent.includes("visible from"));
-  assert.ok(toggle("Ice divides").textContent.includes("visible from zoom 10"));
+  assert.equal(root.querySelector(".layer-hint"), null);
+  assert.ok(![...root.querySelectorAll(".layer-toggle")].some((b) => b.textContent.includes("visible from")));
 });
 
 test("toggles are pressed buttons that call onToggle, and setLayers syncs them", () => {
@@ -73,23 +73,20 @@ test("toggles are pressed buttons that call onToggle, and setLayers syncs them",
   assert.equal(calls.toggles.length, 1);
 });
 
-test("the panel opens on hover, chevron click and focus", () => {
+test("the control opens on hover and focus", () => {
   const { root } = layers();
-  const chevron = root.querySelector(".layers-chevron");
-  const fire = (node, type) => node.dispatchEvent(new window.Event(type, { bubbles: type === "focusin" }));
-  assert.equal(root.querySelector(".layers-panel").hidden, true);
-  assert.equal(chevron.getAttribute("aria-expanded"), "false");
-  fire(root.firstElementChild, "pointerenter");
-  assert.equal(root.querySelector(".layers-panel").hidden, false);
-  assert.equal(chevron.getAttribute("aria-expanded"), "true");
-  fire(root.firstElementChild, "pointerleave");
-  assert.equal(root.querySelector(".layers-panel").hidden, true);
-  chevron.click();
-  assert.equal(root.querySelector(".layers-panel").hidden, false);
-  chevron.click();
-  assert.equal(root.querySelector(".layers-panel").hidden, true);
-  fire(chevron, "focusin");
-  assert.equal(root.querySelector(".layers-panel").hidden, false);
+  const panel = root.querySelector(".layers-panel");
+  const wrapper = root.firstElementChild;
+  assert.equal(panel.hasAttribute("inert"), true);
+  assert.ok(!wrapper.classList.contains("open"));
+  hover(root);
+  assert.equal(panel.hasAttribute("inert"), false);
+  assert.ok(wrapper.classList.contains("open"));
+  hover(root, "pointerleave");
+  assert.equal(panel.hasAttribute("inert"), true);
+  assert.ok(!wrapper.classList.contains("open"));
+  root.querySelector(".layers-thumb").dispatchEvent(new window.Event("focusin", { bubbles: true }));
+  assert.equal(panel.hasAttribute("inert"), false);
 });
 
 test("the zoom buttons zoom the map", () => {
@@ -161,27 +158,40 @@ test("the terrain notice shows once per session and survives a throwing sessionS
   assert.equal(root.querySelector(".terrain-notice"), null);
 });
 
-test("a click pins the panel open through pointerleave until a second click", () => {
-  const { root } = layers();
+test("a tap opens the closed control, and only a tap on the open one swaps the base map", () => {
+  const { root, calls } = layers();
+  document.body.append(root);
   const panel = root.querySelector(".layers-panel");
-  const chevron = root.querySelector(".layers-chevron");
-  const wrapper = root.firstElementChild;
-  const fire = (type) => wrapper.dispatchEvent(new window.Event(type));
-  fire("pointerenter");
-  chevron.click();
-  assert.equal(panel.hidden, false);
-  fire("pointerleave");
-  assert.equal(panel.hidden, false);
-  chevron.click();
-  assert.equal(panel.hidden, true);
+  const thumb = root.querySelector(".layers-thumb");
+  const touch = (node, type) => {
+    const event = new window.Event(type, { bubbles: type === "pointerdown" });
+    event.pointerType = "touch";
+    node.dispatchEvent(event);
+  };
+  const tap = () => {
+    touch(root.firstElementChild, "pointerenter");
+    touch(thumb, "pointerdown");
+    thumb.dispatchEvent(new window.Event("focusin", { bubbles: true }));
+    touch(root.firstElementChild, "pointerleave");
+    thumb.click();
+  };
+  tap();
+  assert.equal(panel.hasAttribute("inert"), false);
+  assert.deepEqual(calls.bases, []);
+  tap();
+  assert.equal(panel.hasAttribute("inert"), false);
+  assert.deepEqual(calls.bases, ["imagery"]);
+  touch(document.body, "pointerdown");
+  assert.equal(panel.hasAttribute("inert"), true);
+  root.remove();
 });
 
-test("Escape closes the pinned panel and returns focus to the chevron", () => {
+test("Escape closes the control and returns focus to the thumbnail", () => {
   const { root } = layers();
   document.body.append(root);
-  const chevron = root.querySelector(".layers-chevron");
-  chevron.click();
+  hover(root);
   root.querySelector(".layer-toggle").dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
-  assert.equal(root.querySelector(".layers-panel").hidden, true);
-  assert.equal(document.activeElement, chevron);
+  assert.equal(root.querySelector(".layers-panel").hasAttribute("inert"), true);
+  assert.equal(document.activeElement, root.querySelector(".layers-thumb"));
+  root.remove();
 });

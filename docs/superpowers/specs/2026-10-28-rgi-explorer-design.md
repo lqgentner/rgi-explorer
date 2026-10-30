@@ -167,12 +167,17 @@ elsewhere closes it.
 - **Sidebar** on the left, about 408 px wide, running the full window height.
   It slides in from the left when a glacier is selected and slides out when
   the ✕ in the search bar closes it.
-- **Layers control** at the bottom left of the map area. A thumbnail shows a
-  preview of the *other* base map, and clicking it swaps the base map. On
-  hover or click, a white panel grows out to the right from *behind* the
-  thumbnail and shows three toggles. Each has a small preview tile drawn from
-  the layer's real data at a fixed place (High Mountain Asia's regions, the
-  Aletsch glacier's centerlines and ice divides), in the map's colors.
+- **Layers control** at the bottom left of the map area. A white card shows
+  a preview of the *other* base map with Lucide's `layers-2` icon and the
+  word "Layers" in white along its bottom, over a gradient that darkens
+  towards the bottom. On hover or focus a white drawer with the three
+  toggles slides out to the right from behind the card, and the card keeps
+  its size. Open, the bottom line names the map a click swaps to, and
+  hovering the picture zooms it slightly and rings it in dark grey. On a touch screen the first tap opens the
+  control and a press elsewhere closes it. Each toggle has a small preview
+  tile drawn from the layer's real data at a fixed place (High Mountain
+  Asia's regions, the Aletsch glacier's centerlines and ice divides), in the
+  map's colors.
   `scripts/make_layer_previews.py` cuts them from the GeoParquet files into
   `js/previews.js`:
   - RGI regions, on by default;
@@ -192,8 +197,8 @@ elsewhere closes it.
   the phone is touch only.
 - The **layer button** opens a bottom pane like Google Maps' "Map type" pane.
   It has a header with ✕, a "Map type" row with Standard and Imagery tiles,
-  and an "RGI layers" row with the three toggle tiles. A selected tile has a
-  blue border.
+  and an "RGI layers" row with the three toggle tiles. A selected tile's
+  square has a blue border drawn inside it, on the phone and the desktop.
 - **One bottom sheet** for the glacier card, with GLACE Viewer's behavior.
   - Compact height: the name, the RGI ID, area and region, and "Use this
     data".
@@ -226,7 +231,8 @@ elsewhere closes it.
   region labels come from the archive, in Noto Sans, the only fonts Liberty's
   glyph server holds.
 - A toggle whose layer has no data at the current zoom (centerlines below 8,
-  ice divides below 10) stays usable. It shows "visible from zoom N".
+  ice divides below 10) stays usable. In the phone's pane it shows "visible
+  from zoom N".
 - **Selecting a glacier:**
   - draws its outline in red (`#d93025`), dashed and about 2 px wide;
   - dims the rest of the map a little, the way Google Maps highlights an area;
