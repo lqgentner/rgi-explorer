@@ -1,26 +1,51 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildGlacierIndex, parseRgiId, rankHits, searchGlaciers, searchRegions } from "../js/search.js";
+import { buildGlacierIndex, parseIds, rankHits, searchGlaciers, searchRegions } from "../js/search.js";
 import { searchPlaces } from "../js/photon.js";
 
+const CID = (code, n) => `RGI2000-v7.0-C-${code}-${String(n).padStart(5, "0")}`;
 const ID = (code, n) => `RGI2000-v7.0-G-${code}-${String(n).padStart(5, "0")}`;
 const UNNAMED_ID = ID("11", 1);
 const cols = {
   rgi_id: [ID("11", 2596), UNNAMED_ID, ID("11", 3), ID("11", 4), ID("01", 5), ID("11", 6)],
   display_name: ["Aletsch", null, "Aletschfirn", null, "Müller", "Rhône"],
   glac_name: [null, null, null, "Grosser Aletsch", null, null],
+  complex_id: [CID("11", 1323), CID("11", 1), CID("11", 1323), CID("11", 4), CID("01", 5), CID("11", 6)],
 };
 const names = new Map([["11", "Central Europe"]]);
 const idx = buildGlacierIndex(cols, names);
 const placeHit = (title, score = 600) => ({ kind: "place", title, subtitle: "", score, center: [0, 0] });
 
-test("parses every ID form", () => {
-  for (const q of ["RGI2000-v7.0-G-11-02596", "g-11-02596", " 11-02596 "]) {
-    assert.equal(parseRgiId(q), "RGI2000-v7.0-G-11-02596");
+test("an ID names a glacier, a complex or both", () => {
+  for (const q of ["RGI2000-v7.0-G-11-02596", "g-11-02596"]) {
+    assert.deepEqual(parseIds(q), { glacier: "RGI2000-v7.0-G-11-02596", complex: null });
   }
-  assert.equal(parseRgiId("11-2596"), null);
-  assert.equal(parseRgiId("aletsch"), null);
+  for (const q of ["RGI2000-v7.0-C-11-01323", "c-11-01323"]) {
+    assert.deepEqual(parseIds(q), { glacier: null, complex: "RGI2000-v7.0-C-11-01323" });
+  }
+  assert.deepEqual(parseIds(" 11-00001 "), { glacier: "RGI2000-v7.0-G-11-00001", complex: "RGI2000-v7.0-C-11-00001" });
+  assert.deepEqual(parseIds("11-2596"), { glacier: null, complex: null });
+  assert.deepEqual(parseIds("aletsch"), { glacier: null, complex: null });
+});
+
+test("a bare ID lists the glacier first and the complex second, each when it exists", () => {
+  const hits = searchGlaciers(idx, "11-00001");
+  assert.deepEqual(hits.map((h) => [h.kind, h.title, h.subtitle]), [
+    ["glacier", UNNAMED_ID, `Glacier · ${UNNAMED_ID} · Central Europe`],
+    ["complex", CID("11", 1), "Complex · Central Europe"],
+  ]);
+  assert.equal(hits[1].complexId, CID("11", 1));
+  assert.ok(hits[0].score > hits[1].score);
+  assert.ok(hits[1].score > 900, "a complex ID outranks every name");
+  assert.deepEqual(searchGlaciers(idx, "11-01323").map((h) => h.kind), ["complex"], "no glacier 11-01323");
+});
+
+test("a complex ID finds only that complex, when it exists", () => {
+  assert.deepEqual(searchGlaciers(idx, "C-11-01323").map((h) => [h.kind, h.complexId]), [["complex", CID("11", 1323)]]);
+  assert.deepEqual(searchGlaciers(idx, "C-11-02596"), []);
+  const [hit] = searchGlaciers(idx, CID("01", 5));
+  assert.equal(hit.subtitle, "Complex", "no region name for code 01");
 });
 
 test("an exact ID outranks every name", () => {

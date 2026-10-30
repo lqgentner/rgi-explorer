@@ -2,7 +2,7 @@
 
 import { decompress } from "fzstd";
 
-export const SEARCH_COLUMNS = ["rgi_id", "display_name", "glac_name"];
+export const SEARCH_COLUMNS = ["rgi_id", "display_name", "glac_name", "complex_id"];
 export const CARD_COLUMNS = ["bbox", "hypso_z0_m", "hypso_permille", "rgi6_links"];
 
 /*

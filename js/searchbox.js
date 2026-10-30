@@ -5,7 +5,7 @@ import { searchPlaces } from "./photon.js";
 import { MIN_QUERY, rankHits, searchGlaciers, searchRegions } from "./search.js";
 
 const DEBOUNCE_MS = 250;
-const ICONS = { glacier: "mountain-snow", region: "square-dashed", place: "map-pin" };
+const ICONS = { glacier: "mountain-snow", complex: "group", region: "square-dashed", place: "map-pin" };
 
 /**
  * Mount the search box in `root`.

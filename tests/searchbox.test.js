@@ -309,3 +309,19 @@ test("setClosable shows a Close button that calls its function, and null hides i
   close.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
   assert.deepEqual(calls, ["close"], "a hidden button calls nothing");
 });
+
+test("a complex ID lists the complex with its own icon and picks it", async () => {
+  const complexIndex = buildGlacierIndex(
+    { rgi_id: [ID(1)], display_name: ["Aletsch"], glac_name: [null], complex_id: ["RGI2000-v7.0-C-11-01323"] },
+    new Map([["11", "Central Europe"]]),
+  );
+  const { type, key, rows, picks } = setup({ loadGlacierIndex: async () => complexIndex });
+  type("C-11-01323");
+  await flush();
+  assert.equal(rows().length, 1);
+  assert.ok(rows()[0].querySelector("use").getAttribute("href").endsWith("#group"));
+  assert.equal(rows()[0].querySelector(".subtitle").textContent, "Complex · Central Europe");
+  key("Enter");
+  assert.equal(picks[0].kind, "complex");
+  assert.equal(picks[0].complexId, "RGI2000-v7.0-C-11-01323");
+});
