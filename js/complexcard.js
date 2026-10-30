@@ -94,7 +94,7 @@ export function mountComplexCard(root, ctx) {
     }
     const rows = list.map((member) => {
       const tr = h("tr", {},
-        h("td", {}, member.name ?? ""),
+        h("td", { class: "name", title: member.name ?? "" }, member.name ?? ""),
         h("td", {}, h("button", { type: "button", class: "link" }, member.rgiId)),
         h("td", { class: "num" }, Number.isFinite(member.area) ? formatArea(member.area) : ""));
       /* The ID's button and the rest of the row open the glacier alike. */
@@ -105,7 +105,9 @@ export function mountComplexCard(root, ctx) {
       h("h3", {}, "Glaciers"),
       h("div", { class: "members-scroll" },
         h("table", { class: "members" },
-          h("thead", {}, h("tr", {}, h("th", {}, "Name"), h("th", {}, "RGI ID"), h("th", { class: "num" }, `Area (${AREA_UNIT})`))),
+          /* Fixed columns: the ID and the area keep their width and a long name is cut short. */
+          h("colgroup", {}, h("col", { class: "name" }), h("col", { class: "id" }), h("col", { class: "num" })),
+          h("thead", {}, h("tr", {}, h("th", {}, "Name"), h("th", {}, "RGI ID"), h("th", { class: "num" }, "Area", h("br"), AREA_UNIT))),
           h("tbody", {}, rows))),
     );
   }

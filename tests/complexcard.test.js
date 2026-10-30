@@ -69,7 +69,12 @@ test("the panel shows the ID, the region, the area, the rows and the members", a
   assert.deepEqual([...root.querySelectorAll(".row .row-label")].map((n) => n.firstChild.textContent),
     ["Region", "Subregion", "Central point", "UTM zone", "Glaciers"]);
   assert.ok(root.querySelector(".row .info"), "rows carry the catalog's descriptions");
-  assert.deepEqual([...root.querySelectorAll("table.members th")].map((th) => th.textContent), ["Name", "RGI ID", "Area (km²)"]);
+  const lines = (node) => [...node.childNodes].map((n) => (n.nodeName === "BR" ? "\n" : n.textContent)).join("");
+  assert.deepEqual([...root.querySelectorAll("table.members th")].map(lines), ["Name", "RGI ID", "Area\nkm²"],
+    "the unit sits on a second header line, so the area column stays narrow");
+  const name = root.querySelector("table.members tbody td.name");
+  assert.equal(name.title, "Grosser Aletsch Gletscher", "a name cut short with … keeps its full text on hover");
+  assert.equal(root.querySelectorAll("table.members colgroup col").length, 3);
   assert.deepEqual(cells(root), [
     ["Grosser Aletsch Gletscher", "RGI2000-v7.0-G-11-02596", "81.8"],
     ["", "RGI2000-v7.0-G-11-00003", "1.50"],
@@ -162,4 +167,12 @@ test("the panel last opened in the sidebar is the one that stays drawn while it 
   const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
   assert.match(css, /#card\[hidden\] > \.card\.current\[hidden\]\s*\{\s*display: block !important;/);
   assert.doesNotMatch(css, /#card > \.card\[hidden\]/, "a replaced panel is not drawn under the open one");
+});
+
+test("the member table fits its box: fixed columns and names cut with an ellipsis", () => {
+  const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
+  const rule = (selector) => new RegExp(`(^|\\n)${selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*\\{([^}]*)\\}`).exec(css)?.[2] ?? "";
+  assert.match(rule("table.members"), /table-layout:\s*fixed/);
+  const cell = rule("table.members td.name");
+  for (const declaration of [/overflow:\s*hidden/, /text-overflow:\s*ellipsis/, /white-space:\s*nowrap/]) assert.match(cell, declaration);
 });

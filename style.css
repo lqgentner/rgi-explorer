@@ -795,11 +795,29 @@ button:focus-visible {
   border-radius: 8px;
 }
 
-/* Small enough that a name, a whole RGI ID and the area fit the sidebar's width. */
+/*
+ * Fixed columns that fit the sidebar's width: a whole RGI ID, the area with
+ * its unit under the header, and the rest for the name, cut short with "…".
+ */
 table.members {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
   font-size: 12px;
+}
+
+table.members col.id {
+  width: 13.5em;
+}
+
+table.members col.num {
+  width: 5em;
+}
+
+table.members td.name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 table.members th,
