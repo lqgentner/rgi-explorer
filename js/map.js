@@ -6,7 +6,14 @@ import { BASE_PAINT, rgiStyle, TOGGLES } from "./styles.js";
 import { PREVIEW_SPAN } from "./viewpreview.js";
 
 const SELECTION_RED = "#d93025";
-const COMPLEX_GREY = "#5f6368";
+const DIM_GREY = "#5f6368";
+const SELECTION_LINE = { "line-color": SELECTION_RED, "line-width": 2, "line-dasharray": [2, 1.2] };
+const SELECTION_DOT = {
+  "circle-color": SELECTION_RED,
+  "circle-radius": ["interpolate", ["linear"], ["zoom"], 0, 4, 6, 5],
+  "circle-stroke-color": "#ffffff",
+  "circle-stroke-width": 1.5,
+};
 /* The background on imagery, where the imagery has not loaded yet. */
 const IMAGERY_BACKGROUND = "#3c4043";
 const MAX_LAT = 85.05;
@@ -111,6 +118,7 @@ function buildStyle(liberty, rgi, state) {
   });
   const glaciersFill = rgiLayers.find((layer) => layer.id === "glaciers-fill");
   const glacierLabels = rgiLayers.find((layer) => layer.id === "glacier-labels");
+  const glaciersOutline = rgiLayers.find((layer) => layer.id === "glaciers-outline");
 
   const selection = [
     {
@@ -118,7 +126,7 @@ function buildStyle(liberty, rgi, state) {
       type: "fill",
       source: "world",
       layout: NONE,
-      paint: { "fill-color": COMPLEX_GREY, "fill-opacity": 0.15 },
+      paint: { "fill-color": DIM_GREY, "fill-opacity": 0.15 },
     },
     {
       id: "selection-fill",
@@ -134,7 +142,7 @@ function buildStyle(liberty, rgi, state) {
       source: "data",
       "source-layer": "glaciers",
       layout: NONE,
-      paint: { "line-color": SELECTION_RED, "line-width": 2, "line-dasharray": [2, 1.2] },
+      paint: { ...SELECTION_LINE },
     },
     {
       id: "selection-dot",
@@ -143,20 +151,44 @@ function buildStyle(liberty, rgi, state) {
       "source-layer": "glaciers",
       filter: POINTS,
       layout: NONE,
-      paint: {
-        "circle-color": SELECTION_RED,
-        "circle-radius": ["interpolate", ["linear"], ["zoom"], 0, 4, 6, 5],
-        "circle-stroke-color": "#ffffff",
-        "circle-stroke-width": 1.5,
-      },
+      paint: { ...SELECTION_DOT },
+    },
+    /*
+     * A selected complex: lifted out of the dimming like a glacier, its member
+     * glaciers' outlines drawn again above the lift, and its own outline red.
+     */
+    {
+      id: "complex-fill",
+      type: "fill",
+      source: "data",
+      "source-layer": "complexes",
+      layout: NONE,
+      paint: structuredClone(glaciersFill?.paint ?? {}),
     },
     {
-      id: "selection-complex",
+      id: "complex-members",
+      type: "line",
+      source: "data",
+      "source-layer": "glaciers",
+      layout: NONE,
+      paint: structuredClone(glaciersOutline?.paint ?? {}),
+    },
+    {
+      id: "complex-outline",
       type: "line",
       source: "data",
       "source-layer": "complexes",
       layout: NONE,
-      paint: { "line-color": COMPLEX_GREY, "line-width": 2, "line-dasharray": [3, 2] },
+      paint: { ...SELECTION_LINE },
+    },
+    {
+      id: "complex-dot",
+      type: "circle",
+      source: "data",
+      "source-layer": "complexes",
+      filter: POINTS,
+      layout: NONE,
+      paint: { ...SELECTION_DOT },
     },
     /* The selected glacier's name, in red over its outline. It wins the label collisions, so the plain label of the same name gives way. */
     {
@@ -320,6 +352,7 @@ export async function createMap(container, catalog, state) {
   const rgiToggles = rgi.layers.map((layer) => [layer.id, toggleOf(layer)]).filter(([, n]) => n);
   const idFilter = (id) => ["==", ["get", "rgi_id"], id];
   const SELECTION = ["selection-dim", "selection-fill", "selection-outline", "selection-dot", "selection-label"];
+  const COMPLEX = ["complex-fill", "complex-members", "complex-outline", "complex-dot"];
   const show = (id, on) => map.setLayoutProperty(id, "visibility", visibility(on));
   const { covered, background } = splitLiberty(liberty);
   const picture = standardPictures(liberty);
@@ -344,8 +377,10 @@ export async function createMap(container, catalog, state) {
       for (const [id, properties] of Object.entries(paint)) {
         for (const [key, value] of Object.entries(properties)) map.setPaintProperty(id, key, value);
       }
-      /* The selection redraws the glacier fill above the dimming. */
+      /* The selections redraw the glacier fill, and a complex its members' outlines, above the dimming. */
       map.setPaintProperty("selection-fill", "fill-opacity", paint["glaciers-fill"]["fill-opacity"]);
+      map.setPaintProperty("complex-fill", "fill-opacity", paint["glaciers-fill"]["fill-opacity"]);
+      map.setPaintProperty("complex-members", "line-color", paint["glaciers-outline"]["line-color"]);
     },
 
     setToggle(name, on) {
@@ -360,16 +395,22 @@ export async function createMap(container, catalog, state) {
         map.setFilter("selection-dot", ["all", POINTS, idFilter(rgiId)]);
         map.setFilter("selection-label", idFilter(rgiId));
       }
+      for (const id of COMPLEX) show(id, false);
       for (const id of SELECTION) show(id, on);
-      if (!on) {
-        api.showComplex(null);
-        api.pin(null);
-      }
+      if (!on) api.pin(null);
     },
 
-    showComplex(complexId) {
-      if (complexId) map.setFilter("selection-complex", idFilter(complexId));
-      show("selection-complex", Boolean(complexId));
+    /** Select a complex as a glacier is selected, or clear it with null. */
+    selectComplex(complexId) {
+      const on = complexId !== null && complexId !== undefined;
+      if (on) {
+        map.setFilter("complex-fill", idFilter(complexId));
+        map.setFilter("complex-members", ["==", ["get", "complex_id"], complexId]);
+        map.setFilter("complex-outline", idFilter(complexId));
+        map.setFilter("complex-dot", ["all", POINTS, idFilter(complexId)]);
+      }
+      for (const id of SELECTION) show(id, on && id === "selection-dim");
+      for (const id of COMPLEX) show(id, on);
     },
 
     pin(lonLat) {

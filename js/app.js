@@ -325,7 +325,7 @@ function wire(catalog, rgiMap, regions, customCatalog) {
     },
     onAction(action) {
       if (action.type === "pin") rgiMap.pin(action.lonlat);
-      else if (action.type === "complex") rgiMap.showComplex(action.id);
+      else if (action.type === "complex") rgiMap.selectComplex(action.id);
     },
   });
 
@@ -335,7 +335,6 @@ function wire(catalog, rgiMap, regions, customCatalog) {
     state.glacier = glacier.rgiId;
     save();
     rgiMap.pin(null);
-    rgiMap.showComplex(null);
     rgiMap.select(glacier.rgiId);
     showCard(true);
     if (!phone) search.setClosable(closeGlacier);

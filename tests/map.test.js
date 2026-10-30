@@ -295,23 +295,56 @@ test("setBase keeps the selection and the toggles", async () => {
   assert.deepEqual(map.getLayer("selection-outline").filter, ["==", ["get", "rgi_id"], rgiId]);
 });
 
-test("select(null) hides the selection and clears the complex and the pin", async () => {
+test("select(null) hides the selection and clears the pin", async () => {
   const { rgiMap, map } = await build();
   rgiMap.select(rgiId);
-  rgiMap.showComplex("RGI2000-v7.0-C-01-00001");
   rgiMap.pin([10, 20]);
-  assert.equal(map.layout("selection-complex").visibility, "visible");
-  assert.deepEqual(map.getLayer("selection-complex").filter, ["==", ["get", "rgi_id"], "RGI2000-v7.0-C-01-00001"]);
-  assert.equal(map.getLayer("selection-complex")["source-layer"], "complexes");
-  assert.equal(map.getLayer("selection-complex").paint["line-color"], "#5f6368");
   assert.deepEqual(map.getSource("pin").data.geometry.coordinates, [10, 20]);
   assert.equal(map.getLayer("terminus-pin").paint["circle-color"], "#d93025");
 
   rgiMap.select(null);
-  for (const id of ["selection-dim", "selection-fill", "selection-outline", "selection-dot", "selection-complex"]) {
+  for (const id of ["selection-dim", "selection-fill", "selection-outline", "selection-dot"]) {
     assert.equal(map.layout(id).visibility, "none", id);
   }
   assert.deepEqual(map.getSource("pin").data.features, []);
+});
+
+test("a complex is selected like a glacier: dimmed map, lifted complex, red outline, member outlines kept", async () => {
+  const { rgiMap, map } = await build();
+  const id = "RGI2000-v7.0-C-11-01323";
+  rgiMap.select(rgiId);
+  rgiMap.selectComplex(id);
+  for (const layer of ["selection-dim", "complex-fill", "complex-members", "complex-outline", "complex-dot"]) {
+    assert.equal(map.layout(layer).visibility, "visible", layer);
+  }
+  for (const layer of ["selection-fill", "selection-outline", "selection-dot", "selection-label"]) {
+    assert.equal(map.layout(layer).visibility, "none", layer);
+  }
+  assert.deepEqual(map.getLayer("complex-fill").filter, ["==", ["get", "rgi_id"], id]);
+  assert.deepEqual(map.getLayer("complex-outline").filter, ["==", ["get", "rgi_id"], id]);
+  assert.deepEqual(map.getLayer("complex-members").filter, ["==", ["get", "complex_id"], id]);
+  assert.equal(map.getLayer("complex-outline")["source-layer"], "complexes");
+  assert.equal(map.getLayer("complex-members")["source-layer"], "glaciers");
+  assert.deepEqual(map.getLayer("complex-outline").paint, map.getLayer("selection-outline").paint);
+  assert.equal(map.getLayer("complex-outline").paint["line-color"], "#d93025");
+  assert.equal(map.getLayer("complex-members").paint["line-color"], "#80868b");
+  assert.ok(map.indexOf("complex-fill") > map.indexOf("selection-dim"));
+  assert.ok(map.indexOf("complex-members") > map.indexOf("complex-fill"));
+  assert.ok(map.indexOf("complex-outline") > map.indexOf("complex-members"));
+  assert.equal(map.getLayer("selection-complex"), undefined);
+
+  rgiMap.setBase("imagery");
+  assert.equal(map.getLayer("complex-fill").paint["fill-opacity"], 0);
+  assert.equal(map.getLayer("complex-members").paint["line-color"], "#ffffff");
+
+  rgiMap.select(rgiId);
+  assert.equal(map.layout("complex-outline").visibility, "none", "a glacier replaces the complex");
+  assert.equal(map.layout("selection-outline").visibility, "visible");
+  rgiMap.selectComplex(id);
+  rgiMap.selectComplex(null);
+  for (const layer of ["selection-dim", "complex-fill", "complex-members", "complex-outline", "complex-dot"]) {
+    assert.equal(map.layout(layer).visibility, "none", layer);
+  }
 });
 
 test("terrain adds its source once and switches on and off", async () => {
