@@ -394,7 +394,11 @@ function wire(catalog, rgiMap, regions, customCatalog) {
     },
     onAction(action) {
       if (action.type === "pin") rgiMap.pin(action.lonlat);
-      else if (action.type === "complex") openComplex(action.id, true);
+      else if (action.type === "complex") {
+        /* The search text names the glacier this replaces. */
+        search.clear();
+        openComplex(action.id, true);
+      }
     },
   });
 
@@ -424,7 +428,10 @@ function wire(catalog, rgiMap, regions, customCatalog) {
       if (phone) setSheetOpen(true);
       useData.open(target);
     },
-    onOpenGlacier: (rgiId) => openGlacier({ rgiId }, true),
+    onOpenGlacier(rgiId) {
+      search.clear();
+      openGlacier({ rgiId }, true);
+    },
   });
 
   /** Fit the whole complex once its read returns, unless another camera request came first. */
@@ -473,9 +480,10 @@ function wire(catalog, rgiMap, regions, customCatalog) {
 
   /** Open a glacier's card and select it; with `fit`, fit the map to its bbox. */
   function openGlacier(glacier, fit) {
+    /* A page holds one of the two, also while a shared complex is still being read. */
+    state.complex = null;
     if (shownComplex) {
       shownComplex = null;
-      state.complex = null;
       useData.close();
       complexCard.close();
     }

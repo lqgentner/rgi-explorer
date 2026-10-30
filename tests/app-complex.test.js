@@ -89,6 +89,22 @@ test("search opens a complex by its ID", async () => {
   assert.deepEqual(map.getLayer("complex-outline").filter, ["==", ["get", "rgi_id"], "RGI2000-v7.0-C-11-00001"]);
 });
 
+test("moving between the panels clears the search text of the last pick", async () => {
+  const input = $("#search input");
+  assert.equal(input.value, "RGI2000-v7.0-C-11-00001", "a pick keeps its title");
+  await waitFor(() => complexCard().querySelectorAll("table.members button").length === 1);
+  click(complexCard().querySelector("table.members button"));
+  await waitFor(() => glacierCard().querySelector(".card-title")?.textContent === "Morteratsch");
+  assert.equal(input.value, "", "a member glacier opened from the table clears it");
+
+  await searchAndPick("morteratsch", "Morteratsch");
+  assert.equal(input.value, "Morteratsch");
+  await waitFor(() => rowOfLabel("Glacier complex"));
+  click(rowOfLabel("Glacier complex").querySelector("button.link"));
+  await waitFor(() => !complexCard().hidden);
+  assert.equal(input.value, "", "the complex opened from the card clears it");
+});
+
 test("a map click leaves the complex", async () => {
   map.rendered = [];
   map.fire("click", { point: { x: 10, y: 10 } });
