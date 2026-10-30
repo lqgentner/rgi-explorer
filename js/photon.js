@@ -6,6 +6,17 @@ import { SCORE } from "./search.js";
 const LIMIT = 5;
 
 /**
+ * An OSM tag value as a category: "nature_reserve" reads "Nature reserve".
+ * An OSM glacier says where it comes from, as RGI glaciers are hits too.
+ */
+function categoryOf(value) {
+  if (!value) return "";
+  if (value === "glacier") return "Glacier (OSM)";
+  const words = value.replace(/_/g, " ");
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+/**
  * Places that match `q`, biased toward the map view. A non-OK response gives no
  * places. A network error or an abort rejects.
  *
@@ -34,7 +45,7 @@ export async function searchPlaces(q, { lat, lon, zoom }, { fetch = globalThis.f
       return {
         kind: "place",
         title: name,
-        subtitle: [kind, country].filter(Boolean).join(" · "),
+        subtitle: [categoryOf(kind), country].filter(Boolean).join(" · "),
         score: SCORE.place - 10 * i,
         center: feature.geometry.coordinates,
       };

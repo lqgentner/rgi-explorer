@@ -123,6 +123,8 @@ test("Photon results map to place hits with decaying scores", async () => {
     { properties: { osm_value: "peak" }, geometry: { coordinates: [0, 0] } },
     { properties: { name: "Zermatt", country: "Switzerland" }, geometry: { coordinates: [7.75, 46.02] } },
     { properties: { name: "Nowhere" }, geometry: { coordinates: [1, 2] } },
+    { properties: { name: "Aletsch", osm_value: "glacier", country: "Switzerland" }, geometry: { coordinates: [8, 46.5] } },
+    { properties: { name: "Binntal", osm_value: "nature_reserve" }, geometry: { coordinates: [8.2, 46.4] } },
   ];
   const fetch = async (u) => {
     url = new URL(u);
@@ -138,9 +140,11 @@ test("Photon results map to place hits with decaying scores", async () => {
   assert.deepEqual(
     hits.map(({ kind, title, subtitle, score, center }) => ({ kind, title, subtitle, score, center })),
     [
-      { kind: "place", title: "Matterhorn", subtitle: "peak · Switzerland", score: 600, center: [7.65, 45.97] },
+      { kind: "place", title: "Matterhorn", subtitle: "Peak · Switzerland", score: 600, center: [7.65, 45.97] },
       { kind: "place", title: "Zermatt", subtitle: "Switzerland", score: 590, center: [7.75, 46.02] },
       { kind: "place", title: "Nowhere", subtitle: "", score: 580, center: [1, 2] },
+      { kind: "place", title: "Aletsch", subtitle: "Glacier (OSM) · Switzerland", score: 570, center: [8, 46.5] },
+      { kind: "place", title: "Binntal", subtitle: "Nature reserve", score: 560, center: [8.2, 46.4] },
     ],
   );
 });
