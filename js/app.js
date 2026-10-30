@@ -137,6 +137,8 @@ function glacierFile(url, regionNames) {
  */
 function complexFile(url) {
   let opening = null;
+  /* The last complex read, which the panel, the fit and the map share. */
+  let last = null;
   const open = () => {
     opening ??= openParquet(url).catch((error) => {
       opening = null;
@@ -146,13 +148,22 @@ function complexFile(url) {
   };
   return {
     /** The complex's row, null when the file does not hold it; rejects when the file cannot be read. */
-    async read(complexId) {
-      const handle = await open();
-      const group = groupOfKey(handle, "rgi_id", complexId);
-      if (group === -1) return null;
-      const columns = await readColumns(handle, COMPLEX_COLUMNS, group);
-      const at = columns.rgi_id.indexOf(complexId);
-      return at === -1 ? null : Object.fromEntries(COMPLEX_COLUMNS.map((name) => [name, columns[name][at]]));
+    read(complexId) {
+      if (last?.complexId === complexId) return last.row;
+      const row = (async () => {
+        const handle = await open();
+        const group = groupOfKey(handle, "rgi_id", complexId);
+        if (group === -1) return null;
+        const columns = await readColumns(handle, COMPLEX_COLUMNS, group);
+        const at = columns.rgi_id.indexOf(complexId);
+        return at === -1 ? null : Object.fromEntries(COMPLEX_COLUMNS.map((name) => [name, columns[name][at]]));
+      })();
+      const mine = { complexId, row };
+      last = mine;
+      row.catch(() => {
+        if (last === mine) last = null;
+      });
+      return row;
     },
   };
 }
@@ -465,6 +476,12 @@ function wire(catalog, rgiMap, regions) {
     save();
     rgiMap.select(null);
     rgiMap.selectComplex(complexId);
+    complexes.read(complexId).then(
+      (props) => {
+        if (shownComplex === complexId && props?.glacier_ids) rgiMap.selectComplex(complexId, props.glacier_ids);
+      },
+      () => {},
+    );
     showCard(true);
     search.setClosable(closeComplex);
     if (fit) fitComplexLater(complexId);

@@ -205,7 +205,7 @@ test("a toggle shows exactly the layers with its source layer", async () => {
   assert.equal(map.layout("centerlines").visibility, "none");
   rgiMap.setToggle("centerlines", true);
   const visible = [...map.layers.values()]
-    .filter((l) => l["source-layer"] === "centerlines")
+    .filter((l) => l["source-layer"] === "centerlines" && !l.id.startsWith("selection-"))
     .map((l) => l.layout.visibility);
   assert.ok(visible.length > 0 && visible.every((v) => v === "visible"));
   assert.equal(map.layout("intersects").visibility, "none");
@@ -214,6 +214,35 @@ test("a toggle shows exactly the layers with its source layer", async () => {
     assert.equal(map.layout(id).visibility, "none", id);
   }
   assert.equal(map.layout("glaciers-fill").visibility, undefined);
+});
+
+test("a selection draws its own centerlines again above its lift, with their toggle", async () => {
+  const { rgiMap, map } = await build();
+  assert.deepEqual(map.getLayer("selection-centerlines").paint, map.getLayer("centerlines").paint);
+  assert.ok(map.indexOf("selection-centerlines") > map.indexOf("selection-fill"), "above the glacier's lift");
+  assert.ok(map.indexOf("selection-centerlines") > map.indexOf("complex-fill"), "above the complex's lift");
+  assert.ok(map.indexOf("selection-centerlines") < map.indexOf("selection-outline"), "below the red outline");
+  assert.ok(map.indexOf("selection-centerlines") < map.indexOf("complex-outline"), "below the complex's red outline");
+  assert.equal(map.getLayer("selection-intersects"), undefined, "the divides run along the outline, which shows");
+  rgiMap.select(rgiId);
+  assert.equal(map.layout("selection-centerlines").visibility, "none", "the toggle is off");
+  rgiMap.setToggle("centerlines", true);
+  assert.equal(map.layout("selection-centerlines").visibility, "visible");
+  assert.deepEqual(map.getLayer("selection-centerlines").filter, ["in", ["get", "rgi_g_id"], ["literal", [rgiId]]]);
+  rgiMap.setToggle("centerlines", false);
+  assert.equal(map.layout("selection-centerlines").visibility, "none");
+
+  const complexId = "RGI2000-v7.0-C-11-01323";
+  const members = [rgiId, "RGI2000-v7.0-G-11-01451"];
+  rgiMap.setToggle("centerlines", true);
+  rgiMap.selectComplex(complexId);
+  assert.deepEqual(map.getLayer("selection-centerlines").filter, ["in", ["get", "rgi_g_id"], ["literal", []]],
+    "nothing until the complex's glaciers are known");
+  rgiMap.selectComplex(complexId, members);
+  assert.equal(map.layout("selection-centerlines").visibility, "visible");
+  assert.deepEqual(map.getLayer("selection-centerlines").filter, ["in", ["get", "rgi_g_id"], ["literal", members]]);
+  rgiMap.selectComplex(null);
+  assert.equal(map.layout("selection-centerlines").visibility, "none");
 });
 
 test("selection draws a red dashed outline filtered to the ID", async () => {

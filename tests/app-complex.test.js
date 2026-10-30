@@ -66,6 +66,9 @@ test("the Glacier complex row opens the complex panel and fits the whole complex
   assert.equal(params().get("glacier"), null);
   assert.equal(map.layout("complex-outline").visibility, "visible");
   assert.equal(map.layout("selection-outline").visibility, "none");
+  const drawnAgain = () => map.getLayer("selection-centerlines").filter?.[2]?.[1];
+  await waitFor(() => drawnAgain()?.length === 2);
+  assert.ok(drawnAgain().includes(ALETSCH), "the complex's glaciers' centerlines are drawn above its lift");
   await waitFor(() => JSON.stringify(map.lastFit?.bounds) === JSON.stringify(COMPLEX_BBOX));
   assert.equal(map.lastFit.options.padding.left, 408 + 24, "the fit keeps clear of the panel");
 });

@@ -27,6 +27,11 @@ const POINTS = ["in", ["geometry-type"], ["literal", ["Point", "MultiPoint"]]];
 /* The camera tilt in 3D, in degrees from straight down. */
 const TERRAIN_PITCH = 60;
 const NONE = { visibility: "none" };
+/*
+ * The toggled layers that a selection's lift would hide, drawn again above it.
+ * The divides are not: they run along the outline, which the lift leaves showing.
+ */
+const SELECTION_OVERLAYS = ["centerlines"];
 const EMPTY = { type: "FeatureCollection", features: [] };
 const WORLD = {
   type: "Feature",
@@ -142,23 +147,6 @@ function buildStyle(liberty, rgi, state) {
       layout: NONE,
       paint: structuredClone(glaciersFill?.paint ?? {}),
     },
-    {
-      id: "selection-outline",
-      type: "line",
-      source: "data",
-      "source-layer": "glaciers",
-      layout: NONE,
-      paint: { ...SELECTION_LINE },
-    },
-    {
-      id: "selection-dot",
-      type: "circle",
-      source: "data",
-      "source-layer": "glaciers",
-      filter: POINTS,
-      layout: NONE,
-      paint: { ...SELECTION_DOT },
-    },
     /*
      * A selected complex: lifted out of the dimming like a glacier, its member
      * glaciers' outlines and the glacier names drawn again above the lift, and
@@ -180,6 +168,32 @@ function buildStyle(liberty, rgi, state) {
       "source-layer": "glaciers",
       layout: NONE,
       paint: structuredClone(glaciersOutline?.paint ?? {}),
+    },
+    /* The selection's own centerlines, drawn again above its lift, which hides the plain ones. They show with their toggle. */
+    ...SELECTION_OVERLAYS.map((id) => {
+      const plain = rgiLayers.find((layer) => layer.id === id);
+      return {
+        ...structuredClone(plain),
+        id: `selection-${id}`,
+        layout: { ...structuredClone(plain?.layout ?? {}), ...NONE },
+      };
+    }),
+    {
+      id: "selection-outline",
+      type: "line",
+      source: "data",
+      "source-layer": "glaciers",
+      layout: NONE,
+      paint: { ...SELECTION_LINE },
+    },
+    {
+      id: "selection-dot",
+      type: "circle",
+      source: "data",
+      "source-layer": "glaciers",
+      filter: POINTS,
+      layout: NONE,
+      paint: { ...SELECTION_DOT },
     },
     {
       id: "complex-labels",
@@ -386,6 +400,18 @@ export async function createMap(container, catalog, state) {
   const SELECTION = ["selection-dim", "selection-fill", "selection-outline", "selection-dot", "selection-label"];
   const COMPLEX = ["complex-fill", "complex-members", "complex-labels", "complex-outline", "complex-dot"];
   const show = (id, on) => map.setLayoutProperty(id, "visibility", visibility(on));
+  /* The toggles that are on, and the glaciers whose centerlines the selection draws again. */
+  const toggles = new Set(state.layers);
+  let picked = null;
+  const OVERLAY_FILTERS = {
+    centerlines: (ids) => ["in", ["get", "rgi_g_id"], ["literal", ids]],
+  };
+  const showOverlays = () => {
+    for (const id of SELECTION_OVERLAYS) {
+      if (picked !== null) map.setFilter(`selection-${id}`, OVERLAY_FILTERS[id](picked));
+      show(`selection-${id}`, picked !== null && rgiToggles.some(([layer, name]) => layer === id && toggles.has(name)));
+    }
+  };
   const { covered, background } = splitLiberty(liberty);
   const picture = standardPictures(liberty);
 
@@ -421,6 +447,9 @@ export async function createMap(container, catalog, state) {
 
     setToggle(name, on) {
       for (const [id, owner] of rgiToggles) if (owner === name) show(id, on);
+      if (on) toggles.add(name);
+      else toggles.delete(name);
+      showOverlays();
     },
 
     select(rgiId) {
@@ -433,11 +462,16 @@ export async function createMap(container, catalog, state) {
       }
       for (const id of COMPLEX) show(id, false);
       for (const id of SELECTION) show(id, on);
+      picked = on ? [rgiId] : null;
+      showOverlays();
       if (!on) api.pin(null);
     },
 
-    /** Select a complex as a glacier is selected, or clear it with null. */
-    selectComplex(complexId) {
+    /**
+     * Select a complex as a glacier is selected, or clear it with null. Its
+     * centerlines show once `glacierIds`, its glaciers, are given.
+     */
+    selectComplex(complexId, glacierIds = []) {
       const on = complexId !== null && complexId !== undefined;
       if (on) {
         map.setFilter("complex-fill", idFilter(complexId));
@@ -447,6 +481,8 @@ export async function createMap(container, catalog, state) {
       }
       for (const id of SELECTION) show(id, on && id === "selection-dim");
       for (const id of COMPLEX) show(id, on);
+      picked = on ? glacierIds : null;
+      showOverlays();
     },
 
     pin(lonLat) {
