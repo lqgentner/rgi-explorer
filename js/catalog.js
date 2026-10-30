@@ -38,8 +38,8 @@ function toCollection({ url, json }) {
   return { id: json.id, dataUrl: abs(data), pmtilesUrl: abs(pmtiles), styleUrl: abs(style), json };
 }
 
-function toColumns(glaciers) {
-  const data = Object.values(glaciers.assets ?? {}).find((a) => a.roles?.includes("data"));
+function toColumns(collection) {
+  const data = Object.values(collection.assets ?? {}).find((a) => a.roles?.includes("data"));
   const columns = new Map();
   for (const column of data?.["table:columns"] ?? []) {
     const classes = column["classification:classes"];
@@ -55,7 +55,7 @@ function toColumns(glaciers) {
 
 /**
  * Walks the catalog at `rootUrl` and returns the highest version's five
- * collections with absolute asset URLs, the glaciers column labels, the
+ * collections with absolute asset URLs, the glaciers and complexes column labels, the
  * citation and the license. Rejects when a collection is missing.
  */
 export async function loadCatalog(rootUrl, fetchJson = defaultFetchJson) {
@@ -74,11 +74,13 @@ export async function loadCatalog(rootUrl, fetchJson = defaultFetchJson) {
   }
 
   const { json, url } = inVersion.find((c) => c.name === "glaciers");
+  const complexes = inVersion.find((c) => c.name === "complexes").json;
   const licenseLink = (json.links ?? []).find((l) => l.rel === "license");
   return {
     version: `${top.major}.${top.minor}`,
     collections,
     columns: toColumns(json),
+    complexColumns: toColumns(complexes),
     citation: json["sci:citation"],
     license: { id: json.license, href: licenseLink ? resolve(licenseLink.href, url) : null },
     doi: json["sci:doi"],

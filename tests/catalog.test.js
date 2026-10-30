@@ -114,3 +114,9 @@ test("a child that fails to load rejects the walk", async () => {
   };
   await assert.rejects(loadCatalog(ROOT, fetchJson), /centerlines: HTTP 503/);
 });
+
+test("the catalog carries the complexes column descriptions", async () => {
+  const c = await loadCatalog(ROOT, fixtureFetch());
+  assert.match(c.complexColumns.get("glacier_ids").description, /rgi_id of every glacier in this complex/);
+  assert.equal(c.complexColumns.has("complex_id"), false, "the complexes table, not the glaciers table");
+});

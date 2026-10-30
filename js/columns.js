@@ -59,6 +59,15 @@ export const DISPLAY = [
   { column: "subm_rc_id", label: "Regional center ID", group: "submission", more: true },
 ];
 
+/* The complex panel's rows. Its area sits in the header, as a glacier's does. */
+const COMPLEX_DISPLAY = [
+  { column: "o1region", label: "Region" },
+  { column: "o2region", label: "Subregion" },
+  { column: "cenlat", label: "Central point", format: "coord", with: ["cenlon"] },
+  { column: "utm_zone", label: "UTM zone" },
+  { column: "glacier_ids", label: "Glaciers" },
+];
+
 /** Every scalar column the card shows or titles itself with, without duplicates. */
 export const ATTRIBUTE_COLUMNS = [
   ...new Set([
@@ -195,4 +204,20 @@ export function overviewRows(props, columns, regions) {
     groups.find((g) => g.group === entry.group).rows.push(row);
   }
   return groups;
+}
+
+/**
+ * The complex panel's rows: what RGI publishes for the complex, and the number
+ * of its glaciers. Rows without a value are left out.
+ */
+export function complexRows(props, columns, regions) {
+  return COMPLEX_DISPLAY.flatMap((entry) => {
+    const ids = props.glacier_ids;
+    const value =
+      entry.column === "glacier_ids"
+        ? Array.isArray(ids) ? formatInt(ids.length) : null
+        : valueOf(entry, props, columns, regions);
+    if (value === null) return [];
+    return [{ label: entry.label, value, description: columns.get(entry.column)?.description ?? "" }];
+  });
 }

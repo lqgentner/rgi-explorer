@@ -8,7 +8,7 @@ import { loadPage, load } from "./helpers/browser.js";
 
 await loadPage();
 const { loadCatalog } = await load("js/catalog.js");
-const { ATTRIBUTE_COLUMNS, DISPLAY, GROUP_TITLES, formatArea, formatCoord, formatDate, formatInt, overviewRows } =
+const { ATTRIBUTE_COLUMNS, DISPLAY, GROUP_TITLES, complexRows, formatArea, formatCoord, formatDate, formatInt, overviewRows } =
   await load("js/columns.js");
 
 const ROOT = "https://data.source.coop/lqgentner/rgi/catalog.json";
@@ -149,4 +149,22 @@ test("the IDs sit behind show more", () => {
 test("rows carry the column description verbatim", () => {
   assert.equal(row(ALETSCH, "key", "Area").description, columns.get("area_km2").description);
   assert.equal(row(ALETSCH, "outline", "GLIMS ID").description, columns.get("glims_id").description);
+});
+
+const COMPLEX = {
+  rgi_id: "RGI2000-v7.0-C-11-01323", o1region: "11", o2region: "11-01", cenlon: 7.97, cenlat: 46.48,
+  utm_zone: 32, area_km2: 83.28, glacier_ids: ["RGI2000-v7.0-G-11-00003", "RGI2000-v7.0-G-11-02596"],
+};
+
+test("a complex shows its region, point, UTM zone and glacier count", () => {
+  const rows = complexRows(COMPLEX, catalog.complexColumns, regions);
+  assert.deepEqual(rows.map((r) => [r.label, r.value]), [
+    ["Region", "11 · Central Europe"],
+    ["Subregion", "11-01 · Alps"],
+    ["Central point", "46.4800° N, 7.9700° E"],
+    ["UTM zone", "32"],
+    ["Glaciers", "2"],
+  ]);
+  assert.match(rows.at(-1).description, /rgi_id of every glacier/);
+  assert.deepEqual(complexRows({ rgi_id: COMPLEX.rgi_id }, catalog.complexColumns, regions), []);
 });
