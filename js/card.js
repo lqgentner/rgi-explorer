@@ -32,6 +32,15 @@ export function infoButton(label, description) {
  * attribution does; a press anywhere else but the photo arrows, or Escape,
  * folds it again. `onToggle(open)` hears each change.
  */
+/**
+ * Marks `section` as the panel last opened in `root`, which holds the glacier
+ * card and the complex panel. On desktop the sidebar keeps drawing that panel
+ * while it slides out; a panel the other replaced is not drawn.
+ */
+export function markCurrent(root, section) {
+  for (const panel of root.children) panel.classList.toggle("current", panel === section);
+}
+
 export function photoCredit(label, className, open, onToggle, ...children) {
   const button = h("button", { type: "button", class: "icon-button photo-info", "aria-label": label }, icon("info"));
   const text = h("div", { class: `photo-attrib-text ${className}` }, ...children);
@@ -368,6 +377,7 @@ export function mountCard(root, ctx) {
       state.moreOpen = false;
       root.hidden = false;
       section.hidden = false;
+      markCurrent(root, section);
       showBand(true);
       render();
       selectTab(state.tab);

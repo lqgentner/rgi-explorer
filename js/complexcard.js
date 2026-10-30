@@ -4,7 +4,7 @@
  * place; one of the two is open at a time.
  */
 
-import { IMAGERY_CREDIT, infoButton, photoCredit } from "./card.js";
+import { IMAGERY_CREDIT, infoButton, markCurrent, photoCredit } from "./card.js";
 import { complexRows, formatArea } from "./columns.js";
 import { esriCrop } from "./photo.js";
 import { h, icon } from "./ui.js";
@@ -175,6 +175,7 @@ export function mountComplexCard(root, ctx) {
       current = mine;
       root.hidden = false;
       section.hidden = false;
+      markCurrent(root, section);
       showBand(true);
       render();
       return load(mine);

@@ -331,6 +331,9 @@ test("a complex is selected like a glacier: dimmed map, lifted complex, red outl
   assert.ok(map.indexOf("complex-fill") > map.indexOf("selection-dim"));
   assert.ok(map.indexOf("complex-members") > map.indexOf("complex-fill"));
   assert.ok(map.indexOf("complex-outline") > map.indexOf("complex-members"));
+  assert.equal(map.layout("complex-labels").visibility, "visible", "glacier names show above the lifted complex");
+  assert.deepEqual(map.getLayer("complex-labels").layout["text-field"], map.getLayer("glacier-labels").layout["text-field"]);
+  assert.ok(map.indexOf("complex-labels") > map.indexOf("complex-members"));
   assert.equal(map.getLayer("selection-complex"), undefined);
 
   rgiMap.setBase("imagery");
@@ -342,7 +345,7 @@ test("a complex is selected like a glacier: dimmed map, lifted complex, red outl
   assert.equal(map.layout("selection-outline").visibility, "visible");
   rgiMap.selectComplex(id);
   rgiMap.selectComplex(null);
-  for (const layer of ["selection-dim", "complex-fill", "complex-members", "complex-outline", "complex-dot"]) {
+  for (const layer of ["selection-dim", "complex-fill", "complex-members", "complex-labels", "complex-outline", "complex-dot"]) {
     assert.equal(map.layout(layer).visibility, "none", layer);
   }
 });

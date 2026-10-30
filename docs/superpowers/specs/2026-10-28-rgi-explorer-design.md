@@ -233,7 +233,10 @@ elsewhere closes it.
   - fits the view to the glacier's bbox, padded so the sidebar or sheet
     doesn't cover it.
 - **Clicking the map** selects the glacier under the pointer. Only glaciers
-  are selectable. Clicking empty map closes the card.
+  are selectable: a complex opens from search or from a glacier's card.
+  Clicking empty map closes the card or the complex panel.
+- **Selecting a complex** looks the same, for the whole complex, with its
+  member glaciers' outlines drawn again above it (see the complexes design).
 - **3D mode:**
   - the 3D button loads Mapterhorn terrain
     (`https://tiles.mapterhorn.com/tilejson.json`, terrarium, 512 px) and
@@ -249,15 +252,18 @@ elsewhere closes it.
   - glacier (RGI ID and area);
   - RGI region (its code);
   - place (OSM type, capitalised, and country; an OSM glacier reads
-    "Glacier (OSM)" to set it apart from RGI glaciers).
+    "Glacier (OSM)" to set it apart from RGI glaciers);
+  - glacier complex (its ID; see the complexes design,
+    `2026-10-30-glacier-complexes-design.md`).
 - **Glacier names and IDs.** The first focus of the search bar reads three
   columns from all 24 row groups of the glaciers GeoParquet: `rgi_id`,
-  `display_name` and `glac_name`. That is about 0.6 MB over roughly 72 range
+  `display_name` and `glac_name`, and `complex_id` for finding complexes. That is about 0.6 MB over roughly 72 range
   requests, using hyparquet. The explorer builds a fuzzy index from them in
   the browser. Each match keeps its row position (row group and offset), so
   no lookup table is needed.
 - **Typing an RGI ID** (full, or the region-and-number part, for example
-  `11-02596`) puts that glacier first.
+  `11-02596`) puts that glacier first. A complex ID (`C-11-01323`) finds that
+  complex, and a bare `11-01323` lists the glacier and then the complex.
 - **RGI regions** come from the regions GeoParquet (`full_name`, codes), which
   is small. Picking one fits the region's bbox.
 - **OSM places** come from Photon (`photon.komoot.io`), queried with a
@@ -283,8 +289,8 @@ elsewhere closes it.
 
 - **Photo area** at the top, about 280 px high on desktop (see Photo below).
 - **Name:** `display_name`. When that is empty, the RGI ID is the title.
-- **Subtitle:** the RGI ID and the first-order region name. It does not say
-  "Glacier", because only glaciers are selectable.
+- **Subtitle:** "Glacier", the RGI ID and the first-order region name, so the
+  card tells itself apart from the complex panel.
 - **Buttons:**
   - "Use this data", the primary button in blue;
   - "Zoom to";
@@ -305,7 +311,7 @@ From top to bottom:
    - source date;
    - same as RGI 6.0;
    - RGI 6.0 overlaps from `rgi6_links`;
-   - glacier complex (click to outline the whole complex);
+   - glacier complex (opens the complex panel; see the complexes design);
    - topography DEM;
    - GLIMS ID (links to the GLIMS viewer in a new tab, marked with an
      external-link icon).
@@ -426,7 +432,8 @@ gdf = gpd.read_parquet(url, filters=[("rgi_id", "==", "RGI2000-v7.0-G-11-02596")
 
 ## URL state
 
-- `?glacier=<rgi_id>` opens that glacier's card.
+- `?glacier=<rgi_id>` opens that glacier's card, and `?complex=<rgi_id>`
+  opens a complex's panel. A glacier wins when both are given.
 - `#zoom/lat/lon` holds the view.
 - `?base=imagery` and `?layers=regions,centerlines,intersects` record the
   base map and toggles.

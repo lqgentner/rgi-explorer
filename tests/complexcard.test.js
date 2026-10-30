@@ -145,3 +145,21 @@ test("on the phone the head goes to the band and hides when closed", async () =>
   card.close();
   for (const node of band.children) assert.equal(node.hidden, true);
 });
+
+test("the panel last opened in the sidebar is the one that stays drawn while it slides out", async () => {
+  const { mountCard } = await load("js/card.js");
+  const { root, card } = setup();
+  const glacier = mountCard(root, { catalog, regions, parquet: { rowOf: async () => null }, photos: async () => [] });
+  await glacier.open({ rgiId: "RGI2000-v7.0-G-11-02596", props: {} });
+  const [glacierSection, complexSection] = [root.querySelector("section.card:not(.complex-card)"), root.querySelector("section.complex-card")];
+  assert.ok(glacierSection.classList.contains("current"));
+  glacier.close();
+  await card.open(ID);
+  assert.deepEqual([glacierSection.classList.contains("current"), complexSection.classList.contains("current")], [false, true]);
+  card.close();
+  assert.ok(complexSection.classList.contains("current"), "the closed panel keeps the slide-out");
+
+  const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
+  assert.match(css, /#card\[hidden\] > \.card\.current\[hidden\]\s*\{\s*display: block !important;/);
+  assert.doesNotMatch(css, /#card > \.card\[hidden\]/, "a replaced panel is not drawn under the open one");
+});

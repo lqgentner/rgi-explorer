@@ -155,7 +155,9 @@ function buildStyle(liberty, rgi, state) {
     },
     /*
      * A selected complex: lifted out of the dimming like a glacier, its member
-     * glaciers' outlines drawn again above the lift, and its own outline red.
+     * glaciers' outlines and the glacier names drawn again above the lift, and
+     * its own outline red. The label tiles do not name a glacier's complex, so
+     * every glacier name is drawn again; the copy below gives way to it.
      */
     {
       id: "complex-fill",
@@ -172,6 +174,16 @@ function buildStyle(liberty, rgi, state) {
       "source-layer": "glaciers",
       layout: NONE,
       paint: structuredClone(glaciersOutline?.paint ?? {}),
+    },
+    {
+      id: "complex-labels",
+      type: "symbol",
+      source: "data",
+      "source-layer": "glacier-labels",
+      ...(glacierLabels?.minzoom === undefined ? {} : { minzoom: glacierLabels.minzoom }),
+      ...(glacierLabels?.filter ? { filter: structuredClone(glacierLabels.filter) } : {}),
+      layout: { ...structuredClone(glacierLabels?.layout ?? {}), ...NONE },
+      paint: structuredClone(glacierLabels?.paint ?? {}),
     },
     {
       id: "complex-outline",
@@ -352,7 +364,7 @@ export async function createMap(container, catalog, state) {
   const rgiToggles = rgi.layers.map((layer) => [layer.id, toggleOf(layer)]).filter(([, n]) => n);
   const idFilter = (id) => ["==", ["get", "rgi_id"], id];
   const SELECTION = ["selection-dim", "selection-fill", "selection-outline", "selection-dot", "selection-label"];
-  const COMPLEX = ["complex-fill", "complex-members", "complex-outline", "complex-dot"];
+  const COMPLEX = ["complex-fill", "complex-members", "complex-labels", "complex-outline", "complex-dot"];
   const show = (id, on) => map.setLayoutProperty(id, "visibility", visibility(on));
   const { covered, background } = splitLiberty(liberty);
   const picture = standardPictures(liberty);

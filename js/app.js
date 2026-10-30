@@ -1,15 +1,16 @@
 /*
  * Startup and wiring. Reads the page state and the catalog, builds the map,
- * and connects the search, the controls, the status line, the glacier card and
- * "Use this data". Every change of state is written back to the page address.
+ * and connects the search, the controls, the status line, the glacier card, the
+ * complex panel and "Use this data". Every change of state is written back to the page address.
  */
 
 import { mountCard } from "./card.js";
 import { loadCatalog } from "./catalog.js";
+import { mountComplexCard } from "./complexcard.js";
 import { CATALOG_URL, resolveCatalogUrl, TIMEOUT_MS } from "./config.js";
 import { mountLayers, mountTerrain, mountZoom } from "./layers.js";
 import { createMap } from "./map.js";
-import { openParquet, readColumns, readRow, SEARCH_COLUMNS } from "./parquet.js";
+import { groupOfKey, openParquet, readColumns, readRow, rowGroupOf, SEARCH_COLUMNS } from "./parquet.js";
 import { findPhotos } from "./photo.js";
 import { buildGlacierIndex } from "./search.js";
 import { mountSearch } from "./searchbox.js";
@@ -33,6 +34,7 @@ const PHONE_CROP = { size: [816, 400], top: 0 };
 const NOTICE_MS = 2000;
 const REGION_COLUMNS = ["level", "o1region", "o2region", "full_name", "bbox"];
 const FACT_COLUMNS = ["bbox", "glims_id"];
+const COMPLEX_COLUMNS = ["rgi_id", "o1region", "o2region", "cenlon", "cenlat", "utm_zone", "area_km2", "glacier_ids", "bbox"];
 const CATALOG_ERROR = "The catalog could not be loaded.";
 const MAP_ERROR = "The map could not be loaded.";
 
@@ -123,6 +125,70 @@ function glacierFile(url, regionNames) {
   return file;
 }
 
+/**
+ * The complexes GeoParquet, opened on first use. The file is sorted by ID, so a
+ * complex's row group comes from the ID statistics and one group is read.
+ */
+function complexFile(url) {
+  let opening = null;
+  const open = () => {
+    opening ??= openParquet(url).catch((error) => {
+      opening = null;
+      throw error;
+    });
+    return opening;
+  };
+  return {
+    /** The complex's row, null when the file does not hold it; rejects when the file cannot be read. */
+    async read(complexId) {
+      const handle = await open();
+      const group = groupOfKey(handle, "rgi_id", complexId);
+      if (group === -1) return null;
+      const columns = await readColumns(handle, COMPLEX_COLUMNS, group);
+      const at = columns.rgi_id.indexOf(complexId);
+      return at === -1 ? null : Object.fromEntries(COMPLEX_COLUMNS.map((name) => [name, columns[name][at]]));
+    },
+  };
+}
+
+/**
+ * The glaciers of a complex with their names and areas, largest first. Names
+ * come from the search index; areas from the glaciers file, one read per row
+ * group that holds a member. A glacier that cannot be placed keeps its ID only.
+ */
+async function membersOf(props, glaciers) {
+  const ids = props.glacier_ids ?? [];
+  let index = null;
+  let handle = null;
+  try {
+    index = await glaciers.index();
+    handle = await glaciers.open();
+  } catch (error) {
+    console.warn("complex members:", error.message);
+  }
+  const rows = ids.map((rgiId) => index?.byId.get(rgiId));
+  const areas = new Map();
+  const groups = handle ? new Set(rows.filter((row) => row !== undefined).map((row) => rowGroupOf(handle, row))) : [];
+  await Promise.all(
+    [...groups].map(async (group) => {
+      try {
+        const { area_km2: values } = await readColumns(handle, ["area_km2"], group);
+        values.forEach((area, i) => areas.set(handle.groups[group].start + i, area));
+      } catch (error) {
+        console.warn("complex member areas:", error.message);
+      }
+    }),
+  );
+  const nameOf = (row) => index.cols.display_name[row] ?? index.cols.glac_name[row] ?? null;
+  return ids
+    .map((rgiId, i) => ({
+      rgiId,
+      name: rows[i] === undefined ? null : nameOf(rows[i]),
+      area: areas.get(rows[i]) ?? null,
+    }))
+    .sort((a, b) => (b.area ?? -Infinity) - (a.area ?? -Infinity));
+}
+
 /** Resolve on the map's next idle, after TIMEOUT_MS, or on abort, whichever comes first. */
 function nextIdle(map, signal) {
   return new Promise((resolve) => {
@@ -171,6 +237,7 @@ function wire(catalog, rgiMap, regions, customCatalog) {
     regions.filter((region) => Number(region.level) === 1).map((region) => [region.o1region, region.full_name]),
   );
   const glaciers = glacierFile(catalog.collections.glaciers.dataUrl, regionNames);
+  const complexes = complexFile(catalog.collections.complexes.dataUrl);
   if (state.terrain) rgiMap.setTerrain(true);
 
   const notice = el("notice");
@@ -222,6 +289,8 @@ function wire(catalog, rgiMap, regions, customCatalog) {
 
   /* The glacier on the card, and the fit that a search pick started for it. */
   let shown = null;
+  /* The ID of the complex on the complex panel. Only one of the two is open. */
+  let shownComplex = null;
   let fitting = null;
   /*
    * Each explicit camera request takes the next number. A fit that waits for a
@@ -236,7 +305,7 @@ function wire(catalog, rgiMap, regions, customCatalog) {
 
   const padding = () => {
     if (phone) return { top: PHONE_TOP, right: GAP, bottom: (popupPadding()?.bottom ?? 0) + GAP, left: GAP };
-    return { top: GAP, right: GAP, bottom: GAP, left: (shown ? CARD_WIDTH : 0) + GAP };
+    return { top: GAP, right: GAP, bottom: GAP, left: (shown || shownComplex ? CARD_WIDTH : 0) + GAP };
   };
   const fitTo = (bbox) => rgiMap.fitBbox(bbox, padding());
 
@@ -321,16 +390,95 @@ function wire(catalog, rgiMap, regions, customCatalog) {
     },
     onUseData(glacier) {
       if (phone) setSheetOpen(true);
-      useData.open({ rgiId: glacier.rgiId, o1region: glacier.props?.o1region });
+      useData.open({ kind: "glacier", rgiId: glacier.rgiId, o1region: glacier.props?.o1region });
     },
     onAction(action) {
       if (action.type === "pin") rgiMap.pin(action.lonlat);
-      else if (action.type === "complex") rgiMap.selectComplex(action.id);
+      else if (action.type === "complex") openComplex(action.id, true);
     },
   });
 
+  const complexCard = mountComplexCard(cardRoot, {
+    catalog,
+    regions,
+    band,
+    crop: phone ? PHONE_CROP : DESKTOP_CROP,
+    read: (complexId) => complexes.read(complexId),
+    members: (props) => membersOf(props, glaciers),
+    onClose: closeComplex,
+    onZoom(bbox) {
+      if (isBbox(bbox)) {
+        camera += 1;
+        fitTo(bbox);
+      } else if (shownComplex) fitComplexLater(shownComplex);
+    },
+    async onShare() {
+      try {
+        await globalThis.navigator.clipboard.writeText(location.href);
+      } catch {
+        return;
+      }
+      announce("Link copied");
+    },
+    onUseData(target) {
+      if (phone) setSheetOpen(true);
+      useData.open(target);
+    },
+    onOpenGlacier: (rgiId) => openGlacier({ rgiId }, true),
+  });
+
+  /** Fit the whole complex once its read returns, unless another camera request came first. */
+  function fitComplexLater(complexId) {
+    const mine = ++camera;
+    complexes.read(complexId).then(
+      (props) => {
+        if (mine === camera && shownComplex === complexId && isBbox(props?.bbox)) fitTo(props.bbox);
+      },
+      () => {},
+    );
+  }
+
+  /** Open a complex's panel in place of any glacier card and select it; with `fit`, fit the map to it. */
+  function openComplex(complexId, fit) {
+    if (shown) {
+      shown = null;
+      fitting = null;
+      card.close();
+    }
+    useData.close();
+    shownComplex = complexId;
+    state.glacier = null;
+    state.complex = complexId;
+    save();
+    rgiMap.select(null);
+    rgiMap.selectComplex(complexId);
+    showCard(true);
+    if (!phone) search.setClosable(closeComplex);
+    if (fit) fitComplexLater(complexId);
+    complexCard.open(complexId);
+    if (phone) setSheetOpen(false);
+  }
+
+  function closeComplex() {
+    shownComplex = null;
+    state.complex = null;
+    save();
+    rgiMap.selectComplex(null);
+    search.setClosable(null);
+    search.clear();
+    useData.close();
+    complexCard.close();
+    showCard(false);
+  }
+
   /** Open a glacier's card and select it; with `fit`, fit the map to its bbox. */
   function openGlacier(glacier, fit) {
+    if (shownComplex) {
+      shownComplex = null;
+      state.complex = null;
+      useData.close();
+      complexCard.close();
+    }
     shown = glacier;
     state.glacier = glacier.rgiId;
     save();
@@ -347,12 +495,15 @@ function wire(catalog, rgiMap, regions, customCatalog) {
     const props = rgiMap.glacierAt(event.point);
     if (props?.rgi_id) openGlacier({ rgiId: props.rgi_id, props }, false);
     else if (shown) closeGlacier();
+    else if (shownComplex) closeComplex();
   });
 
   const search = mountSearch(el("search"), {
     onPick(hit) {
       if (hit.kind === "glacier") {
         openGlacier({ rgiId: hit.rgiId, row: hit.row }, true);
+      } else if (hit.kind === "complex") {
+        openComplex(hit.complexId, true);
       } else if (hit.kind === "region" && isBbox(hit.bbox)) {
         camera += 1;
         fitTo(hit.bbox);
@@ -384,6 +535,23 @@ function wire(catalog, rgiMap, regions, customCatalog) {
         openGlacier({ rgiId, row }, !hadView);
       },
       (error) => console.warn("glacier index:", error.message),
+    );
+  }
+
+  /* A shared link's complex opens once its row is read; an ID the file lacks is dropped. */
+  if (state.complex) {
+    const complexId = state.complex;
+    complexes.read(complexId).then(
+      (props) => {
+        if (state.complex !== complexId || shownComplex || shown) return;
+        if (!props) {
+          state.complex = null;
+          save();
+          return;
+        }
+        openComplex(complexId, !hadView);
+      },
+      (error) => console.warn("complex:", error.message),
     );
   }
 }
