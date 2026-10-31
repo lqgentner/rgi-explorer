@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { PREVIEWS, GLACIERS } from "../js/previews.js";
-import { rgiStyle, TOGGLES } from "../js/styles.js";
+import { LINE_WIDTH, rgiStyle, TOGGLES } from "../js/styles.js";
 
 const PMTILES = "https://data.source.coop/lqgentner/rgi/v7.0/rgi7.0.pmtiles";
 
@@ -31,6 +31,24 @@ test("rgiStyle draws regions as dashed outlines from the boundary lines, without
     assert.equal(outline.type, "line");
     assert.ok(Array.isArray(outline.paint["line-dasharray"]), outline.id);
   }
+});
+
+test("rgiStyle draws each casing outside its line, below every line", () => {
+  const { layers } = rgiStyle(PMTILES);
+  const index = (id) => layers.findIndex((l) => l.id === id);
+  for (const [casing, line] of [
+    ["glaciers-casing", "glaciers-outline"],
+    ["intersects-casing", "intersects"],
+  ]) {
+    const paint = layers[index(casing)].paint;
+    assert.deepEqual(paint["line-gap-width"], LINE_WIDTH[line], "the gap is as wide as the line");
+    assert.deepEqual(layers[index(line)].paint["line-width"], LINE_WIDTH[line]);
+    assert.equal(paint["line-color"], layers[index("glaciers-casing")].paint["line-color"], "the casings match");
+    assert.equal(paint["line-width"], layers[index("glaciers-casing")].paint["line-width"]);
+    assert.equal(layers[index(casing)]["source-layer"], layers[index(line)]["source-layer"]);
+    assert.ok(index(casing) < index("glaciers-outline"), casing);
+  }
+  assert.ok(!layers.some((l) => l["source-layer"] === "centerlines" && l.id !== "centerlines"), "centerlines need no casing");
 });
 
 test("rgiStyle uses only fonts the glyph server holds", () => {
