@@ -247,6 +247,18 @@ export class FakeMap {
     return this.zoom;
   }
 
+  /** The bounds of a 1024 x 768 px view around the center, in 512 px tiles. */
+  getBounds() {
+    const n = 512 * 2 ** this.zoom;
+    const y = (lat) => (0.5 - Math.asinh(Math.tan((lat * Math.PI) / 180)) / (2 * Math.PI)) * n;
+    const lat = (px) => (Math.atan(Math.sinh((0.5 - px / n) * 2 * Math.PI)) * 180) / Math.PI;
+    const half = (512 / n) * 360;
+    const cy = y(this.center.lat);
+    const [west, east] = [this.center.lng - half, this.center.lng + half];
+    const [north, south] = [lat(cy - 384), lat(cy + 384)];
+    return { getWest: () => west, getEast: () => east, getNorth: () => north, getSouth: () => south };
+  }
+
   on(event, fn) {
     (this.handlers[event] ??= []).push(fn);
   }

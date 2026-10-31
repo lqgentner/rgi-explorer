@@ -77,7 +77,8 @@ These would make the project a failure even if everything technically works:
 - **Content-Security-Policy.** Same-origin scripts and styles only. Each data
   host is listed explicitly: `data.source.coop`, `tiles.openfreemap.org`,
   `server.arcgisonline.com`, `tiles.mapterhorn.com`, `photon.komoot.io`,
-  `query.wikidata.org`, `commons.wikimedia.org`, `upload.wikimedia.org`.
+  `query.wikidata.org`, `commons.wikimedia.org`, `upload.wikimedia.org`, and
+  `download.mapterhorn.com` for `connect-src` only.
   A test checks the policy offline, as glace-viewer's `page-assets.test.js`
   does.
 - **The explorer depends only on the published catalog**, never on
@@ -474,7 +475,14 @@ named for what it draws:
   linked to the catalog's DOI, whose landing page names the license;
 - **Basemap:** © OpenStreetMap contributors, OpenFreeMap, © OpenMapTiles;
 - **Imagery:** Esri, when imagery is shown;
-- **Terrain:** © Mapterhorn, when 3D is on.
+- **Terrain:** © Mapterhorn, when 3D is on, then the producers of the
+  elevation sources in view, finest data first. After each move the page
+  reads them from Mapterhorn's coverage index
+  (`download.mapterhorn.com/coverage-index.pmtiles`, zooms 4 to 12), as
+  Mapterhorn's "attribute visible sources" example does. It reads at most 16
+  index tiles, at a coarser zoom for a wide view. Below zoom 4, past 15
+  sources, or when the index does not answer, © Mapterhorn stands alone and
+  links to its attribution page, which lists every source.
 
 Photo credits sit with the photo.
 

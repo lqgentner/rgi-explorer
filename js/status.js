@@ -3,6 +3,7 @@
  * credits into an info button and draws no scale bar.
  */
 
+import { TERRAIN_COVERAGE } from "./config.js";
 import { PHONE, h, icon } from "./ui.js";
 
 const EARTH_CIRCUMFERENCE = 40075016.686;
@@ -13,8 +14,15 @@ const OPENMAPTILES = { text: "© OpenMapTiles", href: "https://www.openmaptiles.
 const ESRI = { text: "Esri, Maxar, Earthstar Geographics, and the GIS User Community" };
 const MAPTERHORN = { text: "© Mapterhorn", href: "https://mapterhorn.com/attribution" };
 const DOI = /^10\.\d{4,}\/\S+$/;
+const WEB = /^https?:\/\//;
 
 const MAX_LAT = 85.05;
+/* Mapterhorn's coverage index holds zooms 4 to 12. */
+const COVERAGE_ZOOMS = { min: 4, max: 12 };
+/* A view needing more index tiles is looked up at a coarser zoom. */
+const MAX_COVERAGE_TILES = 16;
+/* Past this many sources in view, "© Mapterhorn" alone links to the full list, as Mapterhorn's own example does. */
+const MAX_TERRAIN_SOURCES = 15;
 
 /** Ground meters per screen pixel at a latitude in degrees (clamped to the map's) and a zoom level. */
 export function metersPerPixel(lat, zoom) {
@@ -32,6 +40,59 @@ export function scaleBar(mpp, maxPx = 80) {
   return { px: Math.round(meters / mpp), label };
 }
 
+/**
+ * The coverage-index tiles over a view's bounds, at the deepest zoom up to the
+ * map's that needs at most MAX_COVERAGE_TILES, or none below the index's zooms.
+ */
+export function coverageTiles({ west, south, east, north }, zoom) {
+  const latY = (lat, n) => {
+    const r = (Math.max(-MAX_LAT, Math.min(MAX_LAT, lat)) * Math.PI) / 180;
+    return Math.min(n - 1, Math.max(0, Math.floor(((1 - Math.asinh(Math.tan(r)) / Math.PI) / 2) * n)));
+  };
+  for (let z = Math.min(Math.floor(zoom), COVERAGE_ZOOMS.max); z >= COVERAGE_ZOOMS.min; z--) {
+    const n = 2 ** z;
+    const [x0, x1] = [west, east].map((lon) => Math.floor(((lon + 180) / 360) * n));
+    const [y0, y1] = [latY(north, n), latY(south, n)];
+    if ((x1 - x0 + 1) * (y1 - y0 + 1) > MAX_COVERAGE_TILES) continue;
+    const tiles = [];
+    /* A view across the antimeridian runs past ±180°; its tiles wrap around. */
+    for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) tiles.push({ z, x: ((x % n) + n) % n, y });
+    return tiles;
+  }
+  return [];
+}
+
+/**
+ * The producers of the elevation sources in a set of coverage-index entries,
+ * finest data first and each producer once, as credits. Null when there are
+ * none or too many to list.
+ */
+export function terrainProducers(sources) {
+  const entries = Object.values(sources).sort((a, b) => a.resolution - b.resolution);
+  if (!entries.length || entries.length > MAX_TERRAIN_SOURCES) return null;
+  const seen = new Set();
+  return entries
+    .filter(({ producer_short: name }) => name && !seen.has(name) && seen.add(name))
+    .map(({ producer_short: name, website }) => ({ text: `© ${name}`, href: WEB.test(website ?? "") ? website : null }));
+}
+
+let coverage = null;
+
+/** The producers behind the terrain in view, or null when the index has no answer. */
+async function lookUpProducers(bounds, zoom) {
+  const tiles = coverageTiles(bounds, zoom);
+  if (!tiles.length) return null;
+  coverage ??= new globalThis.pmtiles.PMTiles(TERRAIN_COVERAGE);
+  const decoder = new TextDecoder();
+  const found = await Promise.all(
+    tiles.map(async ({ z, x, y }) => {
+      const tile = await coverage.getZxy(z, x, y);
+      return tile ? JSON.parse(decoder.decode(tile.data)) : {};
+    }),
+  );
+  return terrainProducers(Object.assign({}, ...found));
+}
+
 /** "RGI Consortium" and the year of the catalog's citation, when it holds one. */
 function rgiCredit(citation) {
   const year = /\((\d{4})\)/.exec(citation ?? "")?.[1];
@@ -40,16 +101,17 @@ function rgiCredit(citation) {
 
 /**
  * The credits for what the map shows, in reading order, as groups of
- * `{ label, items }`, each item `{ text, href? }`.
+ * `{ label, items }`, each item `{ text, href? }`. `producers` credits the
+ * elevation sources of the terrain in view after Mapterhorn.
  */
-export function credits({ base, terrain, catalog }) {
+export function credits({ base, terrain, catalog, producers = null }) {
   const doi = DOI.test(catalog.doi ?? "") ? `https://doi.org/${catalog.doi}` : null;
   return [
     /* The DOI's landing page names the license. */
     { label: "Glaciers", items: [{ text: rgiCredit(catalog.citation), href: doi }] },
     { label: "Basemap", items: [OSM, OPENFREEMAP, OPENMAPTILES] },
     base === "imagery" ? { label: "Imagery", items: [ESRI] } : null,
-    terrain ? { label: "Terrain", items: [MAPTERHORN] } : null,
+    terrain ? { label: "Terrain", items: [MAPTERHORN, ...(producers ?? [])] } : null,
   ].filter(Boolean);
 }
 
@@ -58,6 +120,10 @@ export function credits({ base, terrain, catalog }) {
  *
  * @param getState  returns the current `{ base, terrain }`
  * @returns {{refresh(): void}}  redraws both, after a base map or terrain change
+ *
+ * With terrain on, each move looks up the elevation sources in view. Until an
+ * answer arrives, the credits keep the last one; a failed lookup leaves
+ * "© Mapterhorn" alone.
  */
 export function mountStatus(root, rgiMap, catalog, getState) {
   const list = h("span", { class: "credits" });
@@ -67,8 +133,10 @@ export function mountStatus(root, rgiMap, catalog, getState) {
 
   const item = ({ text, href }) =>
     href ? h("a", { class: "credit", href, target: "_blank", rel: "noopener" }, text) : h("span", { class: "credit" }, text);
+  let producers = null;
+  let asked = 0;
   const drawCredits = () => {
-    const groups = credits({ ...getState(), catalog });
+    const groups = credits({ ...getState(), catalog, producers });
     list.replaceChildren(
       ...groups.map(({ label, items }) =>
         h(
@@ -89,6 +157,25 @@ export function mountStatus(root, rgiMap, catalog, getState) {
     scaleLine.style.width = `${px}px`;
     scaleLabel.textContent = label;
   };
+  /* Only the latest lookup draws, so a slow answer for an old view never replaces a newer one. */
+  const lookUpTerrain = () => {
+    const ask = ++asked;
+    if (!getState().terrain) {
+      producers = null;
+      return;
+    }
+    const { map } = rgiMap;
+    const bounds = map.getBounds();
+    const view = { west: bounds.getWest(), south: bounds.getSouth(), east: bounds.getEast(), north: bounds.getNorth() };
+    lookUpProducers(view, map.getZoom())
+      .catch(() => null)
+      .then((found) => {
+        if (ask !== asked) return;
+        producers = found;
+        drawCredits();
+      });
+  };
+  lookUpTerrain();
   drawCredits();
 
   /*
@@ -117,7 +204,10 @@ export function mountStatus(root, rgiMap, catalog, getState) {
   root.append(scale, box);
 
   /* Redraw the scale and publish the status line's height, which the desktop controls sit above. */
-  rgiMap.onMove(({ zoom, lat }) => drawScale(lat, zoom));
+  rgiMap.onMove(({ zoom, lat }) => {
+    drawScale(lat, zoom);
+    lookUpTerrain();
+  });
   const publishHeight = () => {
     const height = root.getBoundingClientRect().height;
     document.documentElement.style.setProperty("--status-h", `${height}px`);
@@ -131,6 +221,7 @@ export function mountStatus(root, rgiMap, catalog, getState) {
 
   return {
     refresh() {
+      lookUpTerrain();
       drawCredits();
       relayout();
     },

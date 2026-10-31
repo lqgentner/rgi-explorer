@@ -8,6 +8,8 @@ export const ESRI_TILES =
 export const ESRI_EXPORT =
   "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export";
 export const TERRAIN_TILEJSON = "https://tiles.mapterhorn.com/tilejson.json";
+/* Which elevation sources Mapterhorn used in each tile, for the credits. */
+export const TERRAIN_COVERAGE = "https://download.mapterhorn.com/coverage-index.pmtiles";
 export const PHOTON = "https://photon.komoot.io/api/";
 export const SPARQL = "https://query.wikidata.org/sparql";
 export const COMMONS_API = "https://commons.wikimedia.org/w/api.php";

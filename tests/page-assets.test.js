@@ -201,7 +201,8 @@ test("CSP lists exactly the spec's data hosts", () => {
     "https://tiles.openfreemap.org",
     "https://upload.wikimedia.org",
   ];
-  assert.deepEqual(cspHosts("connect-src").sort(), hosts);
+  /* The terrain credits read Mapterhorn's coverage index; no image comes from there. */
+  assert.deepEqual(cspHosts("connect-src").sort(), [...hosts, "https://download.mapterhorn.com"].sort());
   assert.deepEqual(cspHosts("img-src").sort(), [...hosts, "https://thumb.wikimedia.org"].sort());
 });
 
