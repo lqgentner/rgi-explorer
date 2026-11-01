@@ -4,8 +4,8 @@
  * place; one of the two is open at a time.
  */
 
-import { cardFrame, imageryCrop, infoButton, placeholder, regionOfId } from "./card.js";
-import { complexRows, formatArea } from "./columns.js";
+import { cardFrame, imageryCrop, infoButton, keyGrid, placeholder, regionOfId } from "./card.js";
+import { GROUP_TITLES, complexRows, formatArea } from "./columns.js";
 import { h } from "./ui.js";
 
 const AREA_UNIT = "km²";
@@ -22,7 +22,8 @@ const READ_FAILED = "The complex could not be read.";
 export function mountComplexCard(root, ctx) {
   let current = null;
 
-  const facts = h("section", { class: "group group-complex" });
+  /* The key numbers and the location, as the glacier card's overview shows them. */
+  const facts = h("div", { class: "complex-facts" });
   const members = h("section", { class: "group members" });
   const regionCode = () => current.props?.o1region ?? regionOfId(current.id);
   const { photo, head, show } = cardFrame(root, ctx, {
@@ -49,15 +50,20 @@ export function mountComplexCard(root, ctx) {
       facts.replaceChildren(h("p", { class: "muted" }, state === "loading" ? "Loading…" : READ_FAILED));
       return;
     }
+    const row = (r) => {
+      const [info, popover] = infoButton(r.label, r.description);
+      return h("div", { class: "row" },
+        h("div", { class: "row-label" }, r.label),
+        h("div", { class: "row-value" }, r.value),
+        info,
+        popover);
+    };
     facts.replaceChildren(
-      ...complexRows(props, ctx.catalog.complexColumns ?? new Map(), ctx.regions).map((row) => {
-        const [info, popover] = infoButton(row.label, row.description);
-        return h("div", { class: "row" },
-          h("div", { class: "row-label" }, row.label),
-          h("div", { class: "row-value" }, row.value),
-          info,
-          popover);
-      }),
+      ...complexRows(props, ctx.catalog.complexColumns ?? new Map(), ctx.regions).map(({ group, rows }) => {
+        if (group === "key") return keyGrid(rows);
+        if (!rows.length) return null;
+        return h("section", { class: `group group-${group}` }, h("h3", {}, GROUP_TITLES[group]), rows.map(row));
+      }).filter(Boolean),
     );
   }
 

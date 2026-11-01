@@ -59,14 +59,15 @@ export const DISPLAY = [
   { column: "subm_rc_id", label: "Regional center ID", group: "submission", more: true },
 ];
 
-/* The complex panel's rows. Its area sits in the header, as a glacier's does. */
+/*
+ * The complex panel's rows: its area and glacier count as key numbers, then
+ * the glacier card's location rows. A complex has no terminus, so that row
+ * drops out as any row without a value does.
+ */
 const COMPLEX_DISPLAY = [
-  { column: "o1region", label: "Region" },
-  { column: "o2region", label: "Subregion" },
-  { column: "area_km2", label: "Area", unit: "km²", format: "km" },
-  { column: "glacier_ids", label: "Glaciers" },
-  { column: "cenlat", label: "Central point", format: "coord", with: ["cenlon"] },
-  { column: "utm_zone", label: "UTM zone" },
+  { column: "area_km2", label: "Area", unit: "km²", group: "key", format: "km" },
+  { column: "glacier_ids", label: "Glaciers", group: "key" },
+  ...DISPLAY.filter((entry) => entry.group === "location"),
 ];
 
 /** Every scalar column the card shows or titles itself with, without duplicates. */
@@ -208,17 +209,24 @@ export function overviewRows(props, columns, regions) {
 }
 
 /**
- * The complex panel's rows: what RGI publishes for the complex, and the number
- * of its glaciers. Rows without a value are left out.
+ * The complex panel's rows, grouped as the glacier card's overview: what RGI
+ * publishes for the complex, and the number of its glaciers. As there, a key
+ * number without a value shows "—" and other rows without one are left out.
  */
 export function complexRows(props, columns, regions) {
-  return COMPLEX_DISPLAY.flatMap((entry) => {
+  const groups = ["key", "location"].map((group) => ({ group, rows: [] }));
+  for (const entry of COMPLEX_DISPLAY) {
     const ids = props.glacier_ids;
-    const value =
+    let value =
       entry.column === "glacier_ids"
         ? Array.isArray(ids) ? formatInt(ids.length) : null
         : valueOf(entry, props, columns, regions);
-    if (value === null) return [];
-    return [{ label: entry.label, value, description: columns.get(entry.column)?.description ?? "" }];
-  });
+    if (value === null) {
+      if (entry.group !== "key") continue;
+      value = "—";
+    }
+    const row = { label: entry.label, value, description: columns.get(entry.column)?.description ?? "" };
+    groups.find((g) => g.group === entry.group).rows.push(row);
+  }
+  return groups;
 }

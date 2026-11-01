@@ -76,8 +76,11 @@ test("the panel shows the ID, the region, the area, the rows and the members", a
   await settle();
   assert.equal(root.querySelector("section.complex-card").getAttribute("aria-label"), "Glacier complex");
   assert.equal(root.querySelector(".card-head").textContent.includes("km²"), false, "the area is a fact, not a header line");
-  assert.deepEqual([...root.querySelectorAll(".row .row-label")].map((n) => n.firstChild.textContent),
-    ["Region", "Subregion", "Area", "Glaciers", "Central point", "UTM zone"]);
+  assert.deepEqual([...root.querySelectorAll(".key-tile")].map((n) => [n.querySelector(".row-label").firstChild.textContent, n.querySelector(".key-value").textContent]),
+    [["Area", "83.3 km²"], ["Glaciers", "2"]], "the key numbers sit in tiles, as on the glacier card");
+  assert.equal(text(root, ".group-location h3"), "Location");
+  assert.deepEqual([...root.querySelectorAll(".group-location .row .row-label")].map((n) => n.firstChild.textContent),
+    ["Region", "Subregion", "Central point", "UTM zone"]);
   assert.ok(root.querySelector(".row .info"), "rows carry the catalog's descriptions");
   const lines = (node) => [...node.childNodes].map((n) => (n.nodeName === "BR" ? "\n" : n.textContent)).join("");
   assert.deepEqual([...root.querySelectorAll("table.members th")].map(lines), ["Name", "RGI ID", "Area\nkm²"],

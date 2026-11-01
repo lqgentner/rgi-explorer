@@ -156,16 +156,20 @@ const COMPLEX = {
   utm_zone: 32, area_km2: 83.28, glacier_ids: ["RGI2000-v7.0-G-11-00003", "RGI2000-v7.0-G-11-02596"],
 };
 
-test("a complex shows its region, area, glacier count, point and UTM zone", () => {
-  const rows = complexRows(COMPLEX, catalog.complexColumns, regions);
-  assert.deepEqual(rows.map((r) => [r.label, r.value]), [
+test("a complex shows its area and glacier count as key numbers, then the glacier card's location rows", () => {
+  const groups = complexRows(COMPLEX, catalog.complexColumns, regions);
+  const pairs = (group) => groups.find((g) => g.group === group).rows.map((r) => [r.label, r.value]);
+  assert.deepEqual(groups.map((g) => g.group), ["key", "location"]);
+  assert.deepEqual(pairs("key"), [["Area", "83.3 km²"], ["Glaciers", "2"]]);
+  assert.deepEqual(pairs("location"), [
     ["Region", "11 · Central Europe"],
     ["Subregion", "11-01 · Alps"],
-    ["Area", "83.3 km²"],
-    ["Glaciers", "2"],
     ["Central point", "46.4800° N, 7.9700° E"],
     ["UTM zone", "32"],
-  ]);
-  assert.match(rows.find((r) => r.label === "Glaciers").description, /rgi_id of every glacier/);
-  assert.deepEqual(complexRows({ rgi_id: COMPLEX.rgi_id }, catalog.complexColumns, regions), []);
+  ], "no terminus: a complex has none");
+  const glaciers = groups[0].rows.find((r) => r.label === "Glaciers");
+  assert.match(glaciers.description, /rgi_id of every glacier/);
+  const bare = complexRows({ rgi_id: COMPLEX.rgi_id }, catalog.complexColumns, regions);
+  assert.deepEqual(bare.map((g) => g.rows.map((r) => [r.label, r.value])), [[["Area", "—"], ["Glaciers", "—"]], []],
+    "key numbers without a value show a dash, as the glacier card's do");
 });

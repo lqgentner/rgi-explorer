@@ -69,6 +69,17 @@ function settle(container) {
  * moves them across. `onUseData` and `onZoom` serve the actions.
  * `show(on)` opens or closes the panel.
  */
+/** The key numbers as tiles, each with its label and info button. */
+export function keyGrid(rows) {
+  return h("div", { class: "key-grid" }, rows.map((row) => {
+    const [info, popover] = infoButton(row.label, row.description);
+    return h("div", { class: "key-tile" },
+      h("div", { class: "row-label" }, row.label, info),
+      h("div", { class: "key-value" }, row.value),
+      popover);
+  }));
+}
+
 export function cardFrame(root, ctx, { label, className, body, onUseData, onZoom }) {
   const photo = h("div", { class: "photo" });
   const head = h("header", { class: "card-head" });
@@ -263,15 +274,7 @@ export function mountCard(root, ctx) {
 
   function renderOverview() {
     const nodes = overviewRows(current.props, ctx.catalog.columns, ctx.regions).map(({ group, rows }) => {
-      if (group === "key") {
-        return h("div", { class: "key-grid" }, rows.map((row) => {
-          const [info, popover] = infoButton(row.label, row.description);
-          return h("div", { class: "key-tile" },
-            h("div", { class: "row-label" }, row.label, info),
-            h("div", { class: "key-value" }, row.value),
-            popover);
-        }));
-      }
+      if (group === "key") return keyGrid(rows);
       if (!rows.length) return null;
       const body = rows.map(renderRow);
       if (rows.some((r) => r.more)) {

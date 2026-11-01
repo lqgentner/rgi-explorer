@@ -105,13 +105,13 @@ bottom sheet on the phone, with the same widths, motion and close behaviour.
   "Complex · Central Europe".
 - **Actions.** The glacier card's: zoom to the complex, share the link, Use
   this data, close.
-- **Attributes.** One list with no tabs, labelled as the glacier card labels
-  its rows:
-  - first-order region and second-order region, each with its code and name;
-  - area, in km²;
-  - the number of glaciers in the complex;
-  - the representative point (`cenlon`, `cenlat`);
-  - the UTM zone.
+- **Attributes.** No tabs; laid out as the glacier card's overview:
+  - key number tiles for the area, in km², and the number of glaciers in the
+    complex;
+  - a "Location" group with the glacier card's location rows: first-order
+    and second-order region, each with its code and name, the
+    representative point (`cenlon`, `cenlat`) and the UTM zone. A complex
+    has no terminus, so that row is left out.
 - **Glaciers.** A table of the member glaciers with name, RGI ID and area,
   largest first. A glacier without a name shows an empty name cell. The table
   scrolls inside its own box when it is long, so a complex of 893 glaciers

@@ -79,8 +79,8 @@ test("the member table lists both glaciers, largest first", async () => {
     ["Grosser Aletsch Gletscher", ALETSCH, "81.8"],
     ["", "RGI2000-v7.0-G-11-00003", "1.50"],
   ]);
-  const glaciers = [...complexCard().querySelectorAll(".row")].find((row) => row.querySelector(".row-label").firstChild.textContent === "Glaciers");
-  assert.equal(glaciers.querySelector(".row-value").textContent, "2");
+  const glaciers = [...complexCard().querySelectorAll(".key-tile")].find((tile) => tile.querySelector(".row-label").firstChild.textContent === "Glaciers");
+  assert.equal(glaciers.querySelector(".key-value").textContent, "2");
 });
 
 test("opening a member glacier closes the complex", async () => {

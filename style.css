@@ -1140,7 +1140,11 @@ button:focus-visible {
   padding: 12px 16px 0;
 }
 
-/* The complex panel has no tabs; its groups take a tab panel's inset. */
+/* The complex panel has no tabs; its facts and groups take a tab panel's inset. */
+.complex-card > .complex-facts {
+  padding: 12px 16px 0;
+}
+
 .complex-card > .group {
   padding: 0 16px;
 }
