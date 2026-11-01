@@ -120,3 +120,13 @@ test("easeTo fires page events without an originalEvent, and gesture fires them 
   assert.equal(map.getPitch(), 30);
   assert.equal(map.calls.at(-1), 'gesture {"bearing":40,"pitch":30}');
 });
+
+test("a gesture that MapLibre snaps north cuts off an ease its pitchend started", () => {
+  const map = new FakeMap();
+  map.on("pitchend", (e) => {
+    if (e.originalEvent) map.easeTo({ pitch: 0 });
+  });
+  map.gesture({ bearing: -2.4, pitch: 4 }, { snapNorth: true });
+  assert.equal(map.getPitch(), 4, "the level ease never ran a frame");
+  assert.equal(map.getBearing(), 0);
+});

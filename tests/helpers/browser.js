@@ -234,19 +234,31 @@ export class FakeMap {
     this.#camera(options, eventData);
   }
 
-  /** The reader turns or tilts the map by hand: the events carry the input event, as MapLibre's do. */
-  gesture(change) {
+  /**
+   * The reader turns or tilts the map by hand: the events carry the input
+   * event, as MapLibre's do. With `snapNorth`, the gesture ends as MapLibre
+   * ends one within 7° of north: its bearing snap eases to north and cuts off
+   * any ease a handler started meanwhile before its first frame, so the
+   * camera's pitch stays where the gesture left it.
+   */
+  gesture(change, { snapNorth = false } = {}) {
     if (change.pitch !== undefined) this.pitch = change.pitch;
     if (change.bearing !== undefined) this.bearing = change.bearing;
     this.calls.push(`gesture ${JSON.stringify(change)}`);
-    this.#camera(change, { originalEvent: { type: "pointermove" } });
+    const left = this.pitch;
+    this.#camera(change, { originalEvent: { type: "pointermove" } }, false);
+    this.fire("moveend");
+    if (snapNorth) {
+      this.pitch = left;
+      this.easeTo({ bearing: 0 });
+    }
   }
 
-  #camera({ pitch, bearing }, eventData) {
+  #camera({ pitch, bearing }, eventData, end = true) {
     this.fire("move", eventData);
     if (pitch !== undefined) this.fire("pitchend", eventData);
     if (bearing !== undefined) this.fire("rotateend", eventData);
-    this.fire("moveend");
+    if (end) this.fire("moveend");
   }
 
   getPitch() {

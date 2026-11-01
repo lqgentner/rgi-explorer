@@ -444,7 +444,37 @@ test("onCamera follows every move; onTilt hears only the reader's tilts", async 
   rgiMap.rotateBy(22.5);
   map.gesture({ pitch: 3 });
   assert.deepEqual(camera.at(-1), { bearing: 22.5, pitch: 3 });
+  await settle();
   assert.deepEqual(tilts, [3], "the 60° ease of setTerrain is the page's own and does not count");
+});
+
+test("onTilt waits for the camera to come to rest and reports where it ends", async () => {
+  const { rgiMap, map } = await build();
+  const tilts = [];
+  rgiMap.onTilt((pitch) => tilts.push(pitch));
+  map.moving = true;
+  map.gesture({ pitch: 30 });
+  map.gesture({ pitch: 3 }, { snapNorth: false });
+  await settle();
+  assert.deepEqual(tilts, [], "still gliding");
+  map.moving = false;
+  map.fire("moveend");
+  await settle();
+  assert.deepEqual(tilts, [3], "a touch's second pitchend replaces the first");
+});
+
+test("arrow clicks during a turn add up to whole steps", async () => {
+  const { rgiMap, map } = await build();
+  map.moving = true;
+  rgiMap.rotateBy(45);
+  map.bearing = 10;
+  rgiMap.rotateBy(45);
+  assert.equal(map.calls.at(-1), 'easeTo {"bearing":90}', "from the first click's target, not from mid-turn");
+  map.moving = false;
+  map.fire("moveend");
+  map.bearing = 100;
+  rgiMap.rotateBy(45);
+  assert.equal(map.calls.at(-1), 'easeTo {"bearing":145}', "a finished turn starts again from where the map faces");
 });
 
 test("MapLibre adds no attribution control of its own", async () => {

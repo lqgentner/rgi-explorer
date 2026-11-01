@@ -426,6 +426,11 @@ export async function createMap(container, catalog, state) {
   };
   const { covered, background } = splitLiberty(liberty);
   const picture = standardPictures(liberty);
+  /* The bearing the arrows' last turn eases to, while it runs. */
+  let turnTo = null;
+  map.on("moveend", () => {
+    if (!map.isMoving()) turnTo = null;
+  });
 
   const api = {
     map,
@@ -527,9 +532,15 @@ export async function createMap(container, catalog, state) {
       if (move) map.easeTo(on ? { pitch: TERRAIN_PITCH } : { pitch: 0, bearing: 0 });
     },
 
-    /** Turn the map by `degrees`; a positive turn is counter-clockwise. */
+    /**
+     * Turn the map by `degrees`; a positive turn is counter-clockwise. A turn
+     * asked for while the last one runs adds to its target, so quick clicks
+     * add up to whole steps.
+     */
     rotateBy(degrees) {
-      map.easeTo({ bearing: map.getBearing() + degrees });
+      const from = turnTo !== null && map.isMoving() ? turnTo : map.getBearing();
+      map.easeTo({ bearing: from + degrees });
+      turnTo = from + degrees;
     },
 
     /** Face north and level the camera. */
@@ -580,13 +591,25 @@ export async function createMap(container, catalog, state) {
     },
 
     /**
-     * Hear the tilts the reader makes, with the pitch they end at. MapLibre
-     * marks a gesture's or a key's events with the input event; the page's
-     * own camera moves carry none and are not heard.
+     * Hear the tilts the reader makes, with the pitch the camera ends at.
+     * MapLibre marks a gesture's or a key's events with the input event; the
+     * page's own camera moves carry none and are not heard. The callback waits
+     * until MapLibre has finished the gesture and the camera is at rest: an
+     * ease started inside pitchend would be cut off by the bearing snap that
+     * follows it, or would stop the gesture's glide, and a touch tilt ends
+     * with a second pitchend after its glide. The last tilt wins.
      */
     onTilt(callback) {
+      let latest = 0;
       map.on("pitchend", (event) => {
-        if (event?.originalEvent) callback(map.getPitch());
+        if (!event?.originalEvent) return;
+        const tilt = ++latest;
+        const atRest = () => {
+          if (tilt !== latest) return;
+          if (map.isMoving()) map.once("moveend", () => setTimeout(atRest, 0));
+          else callback(map.getPitch());
+        };
+        setTimeout(atRest, 0);
       });
     },
   };

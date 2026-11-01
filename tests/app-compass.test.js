@@ -5,7 +5,7 @@ import { test } from "node:test";
 
 import * as hyparquet from "hyparquet";
 
-import { load, loadPage, waitFor } from "./helpers/browser.js";
+import { load, loadPage, settle, waitFor } from "./helpers/browser.js";
 import { makeParquet, servedFetch } from "./helpers/served.js";
 
 const page = await loadPage({ fetch: servedFetch(makeParquet()) });
@@ -34,9 +34,10 @@ test("the compass leads the column, idle, and the arrows turn the map 45°", () 
   assert.equal(params().get("3d"), null, "facing north in 2D stays in 2D");
 });
 
-test("a tilt by hand past 5° turns 3D on where the reader left the camera, with the notice", () => {
+test("a tilt by hand past 5° turns 3D on where the reader left the camera, with the notice", async () => {
   const mark = map().calls.length;
   map().gesture({ bearing: 40, pitch: 30 });
+  await settle();
   assert.equal(params().get("3d"), "1");
   assert.equal(map().getTerrain().source, "terrain");
   assert.equal(pressed(), "true");
@@ -45,9 +46,10 @@ test("a tilt by hand past 5° turns 3D on where the reader left the camera, with
   assert.ok(!since(mark).some((c) => c.startsWith("easeTo")));
 });
 
-test("tilting back flat by hand leaves 3D and keeps the bearing", () => {
+test("tilting back flat by hand leaves 3D and keeps the bearing", async () => {
   const mark = map().calls.length;
   map().gesture({ pitch: 3 });
+  await settle();
   assert.equal(params().get("3d"), null);
   assert.equal(map().getTerrain(), null);
   assert.equal(pressed(), "false");
@@ -58,16 +60,26 @@ test("tilting back flat by hand leaves 3D and keeps the bearing", () => {
   assert.equal($(".compass").hasAttribute("data-idle"), false, "still turned, so the phone compass stays");
 });
 
-test("a small tilt by hand in 2D eases back flat without 3D", () => {
+test("a small tilt by hand in 2D eases back flat without 3D", async () => {
   const mark = map().calls.length;
   map().gesture({ pitch: 4 });
+  await settle();
   assert.equal(params().get("3d"), null);
   assert.ok(since(mark).includes('easeTo {"pitch":0}'));
   assert.ok(!since(mark).includes("+terrain"));
 });
 
-test("the compass leaves 3D the way the 3D button does", () => {
+test("a small tilt that MapLibre snaps north still ends flat", async () => {
+  map().gesture({ bearing: -2.4, pitch: 4 }, { snapNorth: true });
+  await settle();
+  assert.equal(map().getPitch(), 0);
+  assert.equal(map().getBearing(), 0);
+  assert.equal(params().get("3d"), null);
+});
+
+test("the compass leaves 3D the way the 3D button does", async () => {
   map().gesture({ pitch: 45 });
+  await settle();
   assert.equal(params().get("3d"), "1");
   click($('.compass button[aria-label="Face north"]'));
   assert.equal(params().get("3d"), null);
