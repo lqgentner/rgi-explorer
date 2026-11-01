@@ -6,7 +6,7 @@
 
 import { GLACIERS, PREVIEWS } from "./previews.js";
 import { PALETTE, REGION_DASH } from "./styles.js";
-import { PHONE, h, icon, svg } from "./ui.js";
+import { PHONE, h, icon, inertAround, svg } from "./ui.js";
 import { imageryUrl } from "./viewpreview.js";
 
 const BASES = {
@@ -251,20 +251,13 @@ export function mountLayers(root, { base, layers, onBase, onToggle, map = null, 
    * live, and the elements that were inert already stay so.
    */
   const scrim = h("div", { class: "layers-scrim", hidden: true });
-  let madeInert = [];
+  let restore = null;
   const showPane = (show) => {
     if (show === !pane.hidden) return;
     pane.hidden = !show;
     scrim.hidden = !show;
-    if (show) {
-      madeInert = [...document.body.children].filter(
-        (node) => node !== pane && node !== scrim && !node.matches("script, .notice") && !node.inert,
-      );
-      for (const node of madeInert) node.inert = true;
-    } else {
-      for (const node of madeInert) node.inert = false;
-      madeInert = [];
-    }
+    if (show) restore = inertAround(pane, scrim);
+    else restore?.();
   };
 
   openPane.addEventListener("click", () => {

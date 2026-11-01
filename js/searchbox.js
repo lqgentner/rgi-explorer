@@ -1,6 +1,10 @@
-/* The search input and its result list. */
+/*
+ * The search input and its result list. On the phone, focus opens the search
+ * full screen, over the map and the sheet, until a pick, the back button or
+ * Escape closes it.
+ */
 
-import { h, icon, PHONE } from "./ui.js";
+import { h, icon, inertAround, PHONE } from "./ui.js";
 import { searchPlaces } from "./photon.js";
 import { MIN_QUERY, rankHits, searchGlaciers, searchRegions } from "./search.js";
 
@@ -40,13 +44,35 @@ export function mountSearch(root, { onPick, loadGlacierIndex, regions, view }) {
     { type: "button", class: "icon-button search-close", "aria-label": "Close", hidden: true },
     icon("x"),
   );
+  /* The full screen search's way back to the map, in the search icon's place. */
+  const backButton = h(
+    "button",
+    { type: "button", class: "icon-button search-back", "aria-label": "Back to the map" },
+    icon("arrow-left"),
+  );
+  /* The full screen search's ✕, in Close's place: it empties the input. */
+  const clearButton = h(
+    "button",
+    { type: "button", class: "icon-button search-clear", "aria-label": "Clear the search" },
+    icon("x"),
+  );
   const searchIcon = icon("search");
   searchIcon.classList.add("search-icon");
   let onClose = null;
   /* The open glacier's or complex's name, which Escape puts back. */
   let named = "";
   closeButton.addEventListener("click", () => onClose?.());
-  root.append(searchIcon, input, closeButton, list);
+  root.append(searchIcon, backButton, input, closeButton, clearButton, list);
+
+  /* While the search fills the phone's screen, the page behind it is inert. */
+  let restore = null;
+  const isFull = () => root.classList.contains("fullscreen");
+  function setFull(on) {
+    if (on === isFull()) return;
+    root.classList.toggle("fullscreen", on);
+    if (on) restore = inertAround(root);
+    else restore?.();
+  }
 
   let glacierIndex = null;
   let indexLoad = null;
@@ -117,7 +143,15 @@ export function mountSearch(root, { onPick, loadGlacierIndex, regions, view }) {
     reset(hit.title);
     /* On the phone the keyboard covers the map, so a pick puts it away. */
     if (PHONE.matches) input.blur();
+    setFull(false);
     onPick(hit);
+  }
+
+  /* Close the full screen search, with the open panel's name back in the input. */
+  function leave() {
+    reset(named);
+    setFull(false);
+    input.blur();
   }
 
   function searchLocal() {
@@ -174,15 +208,38 @@ export function mountSearch(root, { onPick, loadGlacierIndex, regions, view }) {
     timer = setTimeout(() => askPhoton(mine), DEBOUNCE_MS);
   }
 
+  /*
+   * On the phone, focus opens the full screen search and starts it: a name
+   * already there is looked up. The text is not selected: selected on a tap,
+   * Chromium opens its touch selection menu, and the ✕ empties the input.
+   */
   input.addEventListener("focus", () => {
     ensureIndex();
+    if (PHONE.matches && !isFull()) {
+      setFull(true);
+      if (!hits.length && input.value.trim().length >= MIN_QUERY) update();
+    }
     if (hits.length) {
       list.hidden = false;
       input.setAttribute("aria-expanded", "true");
     }
   });
+  /* Full screen, the list stays while the keyboard is put away. */
   root.addEventListener("focusout", (event) => {
-    if (!root.contains(event.relatedTarget)) hide();
+    if (!root.contains(event.relatedTarget) && !isFull()) hide();
+  });
+  backButton.addEventListener("click", leave);
+  /* The press keeps the focus, and the keyboard, in the input. */
+  clearButton.addEventListener("mousedown", (event) => event.preventDefault());
+  clearButton.addEventListener("click", () => {
+    reset("");
+    input.focus();
+  });
+  root.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && isFull()) leave();
+  });
+  PHONE.addEventListener("change", (event) => {
+    if (!event.matches) setFull(false);
   });
   list.addEventListener("mousedown", (event) => event.preventDefault());
   input.addEventListener("input", update);

@@ -270,7 +270,7 @@ test("the service worker is registered by a relative path", () => {
 
 test("the icon sprite holds the icons the interface uses", () => {
   const sprite = read("node_modules/lucide-static/sprite.svg");
-  for (const name of ["layers-2", "search", "x", "info", "copy", "share-2", "maximize", "box", "chevron-down"]) {
+  for (const name of ["layers-2", "search", "x", "info", "copy", "share-2", "maximize", "box", "chevron-down", "arrow-left"]) {
     assert.ok(sprite.includes(`id="${name}"`), `Lucide has no icon ${name}`);
   }
 });

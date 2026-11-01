@@ -199,7 +199,10 @@ elsewhere closes it.
 
 ### Phone
 
-- The search bar stretches across the top.
+- The search bar stretches across the top. A tap on it opens the search
+  full screen: the bar stays in place, with a back arrow in place of the
+  search icon and a ✕ that empties it, and the results fill the screen below. A pick, the back arrow or Escape returns
+  to the map.
 - Round **layer** and **3D** buttons sit at the top right, using Lucide's
   `layers-2` icon for the layers. There is no scale bar and no + / −, since
   the phone is touch only.

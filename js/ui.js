@@ -10,6 +10,22 @@ export const PHONE = window.matchMedia("(max-width: 640px)");
 
 export const el = (id) => document.getElementById(id);
 
+/**
+ * Make the page inert around `keep`, for a pane that covers it: each child of
+ * the body that holds none of `keep`, except the scripts and the notice, which
+ * stays live. Returns the function that undoes it. Elements that were inert
+ * already stay so.
+ */
+export function inertAround(...keep) {
+  const nodes = [...document.body.children].filter(
+    (node) => !keep.some((kept) => node.contains(kept)) && !node.matches("script, .notice") && !node.inert,
+  );
+  for (const node of nodes) node.inert = true;
+  return () => {
+    for (const node of nodes) node.inert = false;
+  };
+}
+
 /*
  * Append children as nodes or text. Set known DOM properties directly and other
  * keys as attributes. `style` takes an object of CSSOM properties. A string
