@@ -506,6 +506,14 @@ test("North Asia and Antarctic Mainland fit without throwing", async () => {
   assert.equal(map.lastFit.options.padding, 8);
 });
 
+test("fitting a glacier, complex or region keeps the reader's bearing", async () => {
+  const { rgiMap, map } = await build();
+  map.gesture({ bearing: 40 });
+  rgiMap.fitBbox({ xmin: 7.9, ymin: 46.4, xmax: 8.1, ymax: 46.6 }, 8, undefined, { maxZoom: 15 });
+  assert.equal(map.lastFit.options.bearing, 40, "MapLibre's fitBounds faces north unless told otherwise");
+  assert.equal(map.lastFit.options.maxZoom, 15);
+});
+
 test("a bbox 360 degrees wide jumps to its center at zoom 3", async () => {
   const { rgiMap, map } = await build();
   rgiMap.fitBbox({ xmin: -180, ymin: 50, xmax: 180, ymax: 80 }, 0, [90, 65]);

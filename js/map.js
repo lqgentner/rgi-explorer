@@ -563,7 +563,8 @@ export async function createMap(container, catalog, state) {
           [xmin, clampLat(ymin)],
           [xmax, clampLat(ymax)],
         ],
-        { padding, ...options },
+        /* MapLibre's fit faces north unless told otherwise; it keeps the reader's turn instead. */
+        { padding, bearing: map.getBearing(), ...options },
       );
     },
 

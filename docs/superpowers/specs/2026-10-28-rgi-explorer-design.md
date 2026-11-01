@@ -254,6 +254,7 @@ elsewhere closes it.
   - fits the view to the glacier's bbox, padded so the sidebar or sheet
     doesn't cover it, with half the glacier's size free on every side and
     no closer than zoom 15, so the map around it shows for orientation.
+  - keeps the map's bearing and tilt, so a turn the reader made stays.
 - **Clicking the map** selects the glacier under the pointer. Only glaciers
   are selectable: a complex opens from search or from a glacier's card.
   Clicking empty map closes the card or the complex panel.
