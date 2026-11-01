@@ -220,13 +220,32 @@ export class FakeMap {
     this.fire("moveend");
   }
 
-  /** An animated move; the fake ends it at once. */
-  easeTo(options) {
+  /**
+   * An animated move; the fake ends it at once. Like MapLibre it hands
+   * `eventData` to the events it fires, and the page passes none, so its own
+   * moves carry no `originalEvent`.
+   */
+  easeTo(options, eventData = {}) {
     if (options.center) this.center = { lng: options.center[0], lat: options.center[1] };
     if (options.zoom !== undefined) this.zoom = options.zoom;
     if (options.pitch !== undefined) this.pitch = options.pitch;
     if (options.bearing !== undefined) this.bearing = options.bearing;
     this.calls.push(`easeTo ${JSON.stringify(options)}`);
+    this.#camera(options, eventData);
+  }
+
+  /** The reader turns or tilts the map by hand: the events carry the input event, as MapLibre's do. */
+  gesture(change) {
+    if (change.pitch !== undefined) this.pitch = change.pitch;
+    if (change.bearing !== undefined) this.bearing = change.bearing;
+    this.calls.push(`gesture ${JSON.stringify(change)}`);
+    this.#camera(change, { originalEvent: { type: "pointermove" } });
+  }
+
+  #camera({ pitch, bearing }, eventData) {
+    this.fire("move", eventData);
+    if (pitch !== undefined) this.fire("pitchend", eventData);
+    if (bearing !== undefined) this.fire("rotateend", eventData);
     this.fire("moveend");
   }
 

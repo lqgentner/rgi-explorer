@@ -510,7 +510,11 @@ export async function createMap(container, catalog, state) {
       );
     },
 
-    setTerrain(on) {
+    /**
+     * Add or remove the terrain. By default the camera tilts to 3D, or levels
+     * and faces north for 2D; with `move: false` it stays where it is.
+     */
+    setTerrain(on, { move = true } = {}) {
       if (on && !map.getSource("terrain")) {
         map.addSource("terrain", {
           type: "raster-dem",
@@ -520,7 +524,22 @@ export async function createMap(container, catalog, state) {
         });
       }
       map.setTerrain(on ? { source: "terrain", exaggeration: 1 } : null);
-      map.easeTo(on ? { pitch: TERRAIN_PITCH } : { pitch: 0, bearing: 0 });
+      if (move) map.easeTo(on ? { pitch: TERRAIN_PITCH } : { pitch: 0, bearing: 0 });
+    },
+
+    /** Turn the map by `degrees`; a positive turn is counter-clockwise. */
+    rotateBy(degrees) {
+      map.easeTo({ bearing: map.getBearing() + degrees });
+    },
+
+    /** Face north and level the camera. */
+    faceNorth() {
+      map.easeTo({ bearing: 0, pitch: 0 });
+    },
+
+    /** Level the camera and keep its bearing. */
+    level() {
+      map.easeTo({ pitch: 0 });
     },
 
     fitBbox({ xmin, ymin, xmax, ymax }, padding, center, options = {}) {
@@ -552,6 +571,22 @@ export async function createMap(container, catalog, state) {
       map.on("moveend", () => {
         const { lng, lat } = map.getCenter();
         callback({ zoom: map.getZoom(), lat, lon: lng });
+      });
+    },
+
+    /** Follow the camera's bearing and pitch through every move, gestures and animations alike. */
+    onCamera(callback) {
+      map.on("move", () => callback({ bearing: map.getBearing(), pitch: map.getPitch() }));
+    },
+
+    /**
+     * Hear the tilts the reader makes, with the pitch they end at. MapLibre
+     * marks a gesture's or a key's events with the input event; the page's
+     * own camera moves carry none and are not heard.
+     */
+    onTilt(callback) {
+      map.on("pitchend", (event) => {
+        if (event?.originalEvent) callback(map.getPitch());
       });
     },
   };

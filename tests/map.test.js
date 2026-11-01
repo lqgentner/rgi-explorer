@@ -409,6 +409,44 @@ test("3D tilts the camera after the terrain is set, and 2D levels it and faces n
   assert.equal(map.getBearing(), 0);
 });
 
+test("setTerrain without a move switches the terrain and leaves the camera", async () => {
+  const { rgiMap, map } = await build();
+  map.gesture({ pitch: 30, bearing: 40 });
+  rgiMap.setTerrain(true, { move: false });
+  assert.equal(map.getTerrain().source, "terrain");
+  rgiMap.setTerrain(false, { move: false });
+  assert.equal(map.getTerrain(), null);
+  assert.equal(map.calls.filter((c) => c.startsWith("easeTo")).length, 0);
+  assert.equal(map.getPitch(), 30);
+  assert.equal(map.getBearing(), 40);
+});
+
+test("rotateBy turns from the current bearing, faceNorth resets, level flattens", async () => {
+  const { rgiMap, map } = await build();
+  rgiMap.rotateBy(22.5);
+  rgiMap.rotateBy(22.5);
+  assert.equal(map.calls.at(-1), 'easeTo {"bearing":45}');
+  map.gesture({ pitch: 30 });
+  rgiMap.level();
+  assert.equal(map.calls.at(-1), 'easeTo {"pitch":0}');
+  assert.equal(map.getBearing(), 45);
+  rgiMap.faceNorth();
+  assert.equal(map.calls.at(-1), 'easeTo {"bearing":0,"pitch":0}');
+});
+
+test("onCamera follows every move; onTilt hears only the reader's tilts", async () => {
+  const { rgiMap, map } = await build();
+  const camera = [];
+  const tilts = [];
+  rgiMap.onCamera((view) => camera.push(view));
+  rgiMap.onTilt((pitch) => tilts.push(pitch));
+  rgiMap.setTerrain(true);
+  rgiMap.rotateBy(22.5);
+  map.gesture({ pitch: 3 });
+  assert.deepEqual(camera.at(-1), { bearing: 22.5, pitch: 3 });
+  assert.deepEqual(tilts, [3], "the 60° ease of setTerrain is the page's own and does not count");
+});
+
 test("MapLibre adds no attribution control of its own", async () => {
   const { map } = await build();
   assert.equal(map.options.attributionControl, false);

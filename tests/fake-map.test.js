@@ -104,3 +104,19 @@ test("loaded and isMoving answer what the test stages", () => {
   assert.equal(map.loaded(), false);
   assert.equal(map.isMoving(), true);
 });
+
+test("easeTo fires page events without an originalEvent, and gesture fires them with one", () => {
+  const map = new FakeMap();
+  const seen = [];
+  for (const name of ["move", "pitchend", "rotateend", "moveend"]) {
+    map.on(name, (e) => seen.push([name, Boolean(e.originalEvent)]));
+  }
+  map.easeTo({ pitch: 60 });
+  assert.deepEqual(seen, [["move", false], ["pitchend", false], ["moveend", false]]);
+  seen.length = 0;
+  map.gesture({ bearing: 40, pitch: 30 });
+  assert.deepEqual(seen, [["move", true], ["pitchend", true], ["rotateend", true], ["moveend", false]]);
+  assert.equal(map.getBearing(), 40);
+  assert.equal(map.getPitch(), 30);
+  assert.equal(map.calls.at(-1), 'gesture {"bearing":40,"pitch":30}');
+});
