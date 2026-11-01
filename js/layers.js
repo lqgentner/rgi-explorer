@@ -6,10 +6,8 @@
 
 import { GLACIERS, PREVIEWS } from "./previews.js";
 import { PALETTE, REGION_DASH, TOGGLE_MINZOOM } from "./styles.js";
-import { PHONE, h, icon } from "./ui.js";
+import { PHONE, h, icon, svg } from "./ui.js";
 import { imageryUrl } from "./viewpreview.js";
-
-const SVG_NS = "http://www.w3.org/2000/svg";
 
 const BASES = {
   standard: { label: "Standard" },
@@ -32,14 +30,6 @@ const PREVIEW_DELAY_MS = 500;
 const NOTICE_KEY = "rgi-explorer.terrain-notice";
 const NOTICE_TEXT =
   "3D terrain is newer than the RGI outlines. Mapterhorn elevation and the outlines come from different years, so edges may not match.";
-
-/** An SVG element with attributes. */
-function svg(tag, attrs = {}, ...children) {
-  const node = document.createElementNS(SVG_NS, tag);
-  for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
-  node.append(...children);
-  return node;
-}
 
 /* The land behind the previews, near Liberty's own. */
 const PREVIEW_LAND = "#eceff1";

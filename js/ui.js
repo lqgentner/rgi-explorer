@@ -39,6 +39,14 @@ const SVG_NS = "http://www.w3.org/2000/svg";
 /* Lucide's sprite holds every icon as a symbol named like the icon. */
 const ICON_SPRITE = "node_modules/lucide-static/sprite.svg";
 
+/** An SVG element with attributes. */
+export function svg(tag, attrs = {}, ...children) {
+  const node = document.createElementNS(SVG_NS, tag);
+  for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
+  node.append(...children);
+  return node;
+}
+
 /** An inline SVG for any lucide-static icon name, drawn in the current text color. */
 export function icon(name) {
   const svg = document.createElementNS(SVG_NS, "svg");
