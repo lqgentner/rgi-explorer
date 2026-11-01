@@ -1443,7 +1443,7 @@ table.members .num {
   color: inherit;
 }
 
-/* The card's area line shows only in the phone's compact sheet. */
+/* The card's area line shows only on the phone, in the sheet above its compact height. */
 .card-area {
   display: none;
   margin: 2px 0 0;
@@ -1621,8 +1621,10 @@ dialog.usedata::backdrop {
   }
 
   /*
-   * A sheet docked to the bottom, open or compact; js/sheet.js drags it between
-   * the two through --sheet-progress.
+   * A sheet docked to the bottom, compact, middle or full; js/sheet.js moves it
+   * between them through --sheet-visible, the px it shows. At full height it
+   * reaches the search bar's top. 160px is about the compact height with a
+   * one-line name, until the script measures.
    */
   #sheet {
     position: fixed;
@@ -1630,22 +1632,64 @@ dialog.usedata::backdrop {
     right: 0;
     bottom: 0;
     z-index: 3;
-    height: 66dvh;
+    height: calc(100dvh - 12px);
     display: flex;
     flex-direction: column;
     border-radius: 16px 16px 0 0;
     background: var(--surface);
     box-shadow: var(--shadow);
-    transform: translateY(calc(var(--sheet-travel, 0px) * (1 - var(--sheet-progress, 0))));
+    transform: translateY(calc(100% - var(--sheet-visible, 160px)));
+    transition: transform 220ms ease-out, z-index 0s 220ms;
+  }
+
+  /*
+   * Full or in a drag, the sheet lies over the search bar: both sit at
+   * z-index 4, and the sheet comes later in the page. It drops back under
+   * once it has slid down, so the search's results stay above a lower sheet.
+   */
+  #sheet[data-level="full"],
+  #sheet.dragging {
+    z-index: 4;
+  }
+
+  #sheet[data-level="full"] {
     transition: transform 220ms ease-out;
   }
 
   /*
-   * Compact before the script measures: only the band shows. 160px is about its
-   * height with a one-line name.
+   * The compact sheet's body is inert, so a press on the photo's top lands on
+   * the sheet, which js/sheet.js drags; the browser must not pan it.
    */
-  #sheet:not(.expanded) {
-    transform: translateY(calc(66dvh - var(--sheet-visible, 160px)));
+  #sheet[data-level="compact"] {
+    touch-action: none;
+  }
+
+  /* The compact band keeps to the name and the actions. */
+  #sheet[data-level="compact"] .card-subtitle,
+  #sheet[data-level="compact"] .card-area {
+    display: none;
+  }
+
+  /*
+   * The credits ride on the sheet's edge, as GLACE Viewer's do. They fade as
+   * the sheet rises from compact to middle, --sheet-rise from 0 to 1, and
+   * hide once it rests above compact.
+   */
+  #status {
+    transition: translate 220ms ease-out, opacity 220ms ease-out, visibility 220ms;
+  }
+
+  body.card-open #status {
+    translate: 0 calc(-1 * var(--sheet-visible, 160px));
+    opacity: calc(1 - var(--sheet-rise, 0));
+  }
+
+  body.card-open:has(#sheet:not([data-level="compact"]):not(.dragging)) #status {
+    visibility: hidden;
+  }
+
+  body:has(#sheet.dragging) #status {
+    transition: none;
   }
 
   #sheet.dragging {
@@ -1701,9 +1745,11 @@ dialog.usedata::backdrop {
     top: 12px;
   }
 
+  /* The same space above the buttons, under the name or the area, as below them. */
   #sheet-head .card-actions {
     gap: 6px;
-    padding-bottom: 8px;
+    padding-top: 16px;
+    padding-bottom: 16px;
   }
 
   /* Three buttons with their icons fit across a 360px phone. */

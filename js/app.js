@@ -15,7 +15,7 @@ import { groupOfKey, openParquet, readColumns, readRow, rowGroupOf, SEARCH_COLUM
 import { findPhotos } from "./photo.js";
 import { buildGlacierIndex } from "./search.js";
 import { mountSearch } from "./searchbox.js";
-import { initSheet, popupPadding, setSheetOpen } from "./sheet.js";
+import { initSheet, popupPadding, setSheetLevel } from "./sheet.js";
 import { parseState, writeState } from "./state.js";
 import { mountStatus } from "./status.js";
 import { el, PHONE } from "./ui.js";
@@ -449,7 +449,7 @@ function wire(catalog, rgiMap, regions) {
       if (shown) search.setText(title);
     },
     onUseData(glacier) {
-      if (PHONE.matches) setSheetOpen(true);
+      if (PHONE.matches) setSheetLevel("full");
       useData.open({ kind: "glacier", rgiId: glacier.rgiId, o1region: glacier.props?.o1region });
     },
     onAction(action) {
@@ -472,7 +472,7 @@ function wire(catalog, rgiMap, regions) {
     onZoom: zoomTo,
     onShare: share,
     onUseData(target) {
-      if (PHONE.matches) setSheetOpen(true);
+      if (PHONE.matches) setSheetLevel("full");
       useData.open(target);
     },
     onOpenGlacier: (rgiId) => openGlacier({ rgiId }, true),
@@ -516,7 +516,7 @@ function wire(catalog, rgiMap, regions) {
     search.setClosable(closeComplex);
     if (fit) fitComplexLater(complexId);
     complexCard.open(complexId);
-    if (PHONE.matches) setSheetOpen(false);
+    if (PHONE.matches) setSheetLevel("compact");
   }
 
   function closeComplex() {
@@ -550,7 +550,7 @@ function wire(catalog, rgiMap, regions) {
     search.setClosable(closeGlacier);
     fitting = fit ? fitGlacierLater(glacier) : null;
     card.open(glacier);
-    if (PHONE.matches) setSheetOpen(false);
+    if (PHONE.matches) setSheetLevel("compact");
   }
 
   map.on("click", (event) => {

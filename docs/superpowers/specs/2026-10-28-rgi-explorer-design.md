@@ -97,7 +97,7 @@ on purpose, and the first commit names them:
 - the CSP and its offline test;
 - `sw.js`, which serves JSON stale-while-revalidate;
 - the jsdom test helpers;
-- `js/sheet.js`, the phone bottom sheet with two snap heights and flick handling.
+- `js/sheet.js`, the phone bottom sheet with three snap heights and flick handling.
 
 Nothing raster-specific is copied. Of glace-viewer's visual style, only the
 globe projection and MapLibre's atmosphere around it are.
@@ -206,13 +206,19 @@ elsewhere closes it.
 - A round **compass** sits under the 3D button while the map is turned or
   in 3D. A tap faces north and leaves 3D.
 - The **layer button** opens a bottom pane like Google Maps' "Map type" pane.
-  It has a header with ✕, a "Map type" row with Standard and Imagery tiles,
-  and an "RGI layers" row with the three toggle tiles. A selected tile's
+  Its "Map type" row, with ✕ beside the heading, holds the Standard and
+  Imagery tiles, and below a rule the "RGI layers" row holds the three toggle
+  tiles, all centred. A scrim darkens the page behind it, and a tap there
+  closes it. A selected tile's
   square has a blue border drawn inside it, on the phone and the desktop.
 - **One bottom sheet** for the glacier card, with GLACE Viewer's behavior.
-  - Compact height: the name, the RGI ID, area and region, and "Use this
-    data".
-  - Pulled up all the way: the photo and both tabs.
+  - Compact height: the name, "Use this data" and the top of the photo.
+  - Middle height: the RGI ID, region and area join the name, and the photo
+    and the start of the tabs show.
+  - Full height, up to the search bar's top: the photo and both tabs, which
+    scroll.
+  - The credits button rides on the sheet's edge, fades as the sheet rises
+    from compact to middle, and hides above compact.
 - The credits fold into an ⓘ button.
 
 ## The map

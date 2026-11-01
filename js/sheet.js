@@ -1,9 +1,13 @@
 /*
- * The glacier card on phones: a sheet docked to the bottom at two heights,
- * compact (the band: the handle, the name, the ID or region line, the area and
- * "Use this data") and open (the photo and the tabs as well). A drag writes
- * --sheet-progress on the root, and style.css turns it into the sheet's
- * transform. Nothing moves between input events but CSS transitions.
+ * The glacier card on phones: a sheet docked to the bottom at three heights.
+ * Compact shows the band (the handle, the name and "Use this data") and the
+ * top of the photo; middle adds the ID or region line and the area to the
+ * band and shows the photo and the start of the tabs; full reaches the search
+ * bar's top, and only there does the body scroll. A drag writes two
+ * properties on the root: --sheet-visible, which style.css turns into the
+ * sheet's transform, and --sheet-rise, 0 at compact and 1 from middle up,
+ * which fades the credits that ride on the sheet's edge. Nothing moves
+ * between input events but CSS transitions.
  */
 
 import { el, PHONE } from "./ui.js";
@@ -12,13 +16,25 @@ import { el, PHONE } from "./ui.js";
 export const LOCK_PX = 8;
 /** Release speed in px/ms past which the sheet follows the flick. */
 export const FLICK = 0.5;
+/** The heights, lowest first. */
+export const LEVELS = ["compact", "middle", "full"];
+/** How much of the photo the compact sheet shows below the band, in px. */
+export const PEEK_PX = 20;
+/** The middle height, as a share of the full one. */
+export const MIDDLE_SHARE = 0.65;
 
 /* Release speed is measured over this many ms before the release. */
 const VELOCITY_WINDOW_MS = 100;
 /* A click this soon after a drag is the drag's own click. */
 const DRAG_CLICK_MS = 300;
 
-const PROPERTIES = ["--sheet-travel", "--sheet-progress", "--sheet-visible"];
+const LABELS = {
+  compact: "Show the glacier details",
+  middle: "Show all the glacier details",
+  full: "Hide the glacier details",
+};
+/* A tap on the handle moves up a height, and from the top back down to compact. */
+const NEXT = { compact: "middle", middle: "full", full: "compact" };
 
 /** The gesture's axis once it has moved LOCK_PX, before that null. */
 export function lockAxis(dx, dy) {
@@ -27,74 +43,110 @@ export function lockAxis(dx, dy) {
 }
 
 /**
- * The height a released sheet settles at.
+ * The height a released sheet settles at: with a flick, the next stop in its
+ * direction, else the nearest stop.
  *
- * @param {number} progress  0 compact, 1 open
+ * @param {number} visible   px of the sheet on screen at the release
  * @param {number} velocity  px/ms, positive upward
+ * @param {number[]} stops   px on screen at each level, lowest first
+ * @returns {string} one of LEVELS
  */
-export function snapTarget(progress, velocity) {
-  if (velocity > FLICK) return "open";
-  if (velocity < -FLICK) return "compact";
-  return progress >= 0.5 ? "open" : "compact";
+export function snapTarget(visible, velocity, stops) {
+  let index;
+  if (velocity > FLICK) {
+    index = stops.findIndex((stop) => stop > visible);
+    if (index < 0) index = stops.length - 1;
+  } else if (velocity < -FLICK) {
+    index = stops.findLastIndex((stop) => stop < visible);
+    if (index < 0) index = 0;
+  } else {
+    index = 0;
+    for (let i = 1; i < stops.length; i++) {
+      if (Math.abs(stops[i] - visible) < Math.abs(stops[index] - visible)) index = i;
+    }
+  }
+  return LEVELS[index];
 }
 
-let isOpen = false;
-/* The band above the body, which the compact sheet shows, and the distance to open. */
-let band = 0;
-let travel = 0;
+let level = "compact";
+/* The px on screen at each level, lowest first, and now. */
+let stops = [0, 0, 0];
 let visible = 0;
 /* The touch or pointer moving the sheet: its start, axis and recent positions. */
 let gesture = null;
 
+/* The height of an element's box with its margins, or 0 when it does not show. */
+function outerHeight(node) {
+  if (!node.getClientRects().length) return 0;
+  const style = getComputedStyle(node);
+  return node.offsetHeight + parseFloat(style.marginTop || 0) + parseFloat(style.marginBottom || 0);
+}
+
+/*
+ * The band's height comes from the body's offset. The compact band leaves out
+ * the lines that only the higher sheets show, whichever height it is at now.
+ */
 function measure() {
-  band = el("sheet-body").offsetTop;
-  travel = Math.max(0, el("sheet").offsetHeight - band);
+  const full = el("sheet").offsetHeight;
+  const band = el("sheet-body").offsetTop;
+  const extra = [...el("sheet-band").querySelectorAll(".card-subtitle, .card-area")].reduce(
+    (sum, node) => sum + outerHeight(node),
+    0,
+  );
+  const compact = Math.min(full, band - extra + PEEK_PX);
+  stops = [compact, Math.max(compact, Math.round(full * MIDDLE_SHARE)), full];
 }
 
-function show(progress) {
-  visible = band + progress * travel;
+function show(px) {
+  visible = px;
+  const rise = stops[1] > stops[0] ? (px - stops[0]) / (stops[1] - stops[0]) : 1;
   const style = document.documentElement.style;
-  style.setProperty("--sheet-travel", `${travel}px`);
-  style.setProperty("--sheet-progress", String(progress));
-  style.setProperty("--sheet-visible", `${visible}px`);
+  style.setProperty("--sheet-visible", `${px}px`);
+  style.setProperty("--sheet-rise", String(Math.min(1, Math.max(0, rise))));
 }
 
-/** Open or lower the sheet; on desktop only the handle's state changes. */
-export function setSheetOpen(open) {
-  isOpen = open;
-  el("sheet").classList.toggle("expanded", open);
+/** Move the sheet to `next`, one of LEVELS; on desktop only the handle's state changes. */
+export function setSheetLevel(next) {
+  level = next;
+  el("sheet").dataset.level = next;
   const handle = el("sheet-handle");
-  handle.setAttribute("aria-expanded", String(open));
-  const action = open ? "Hide the glacier details" : "Show the glacier details";
-  handle.title = action;
-  handle.setAttribute("aria-label", action);
+  handle.setAttribute("aria-expanded", String(next !== "compact"));
+  handle.title = LABELS[next];
+  handle.setAttribute("aria-label", LABELS[next]);
   if (!PHONE.matches) return;
-  // The photo and the tabs sit below the compact sheet's edge.
-  el("sheet-body").toggleAttribute("inert", !open);
+  // Below the compact sheet's edge sit all but the top of the photo.
+  el("sheet-body").toggleAttribute("inert", next === "compact");
   measure();
-  show(open ? 1 : 0);
+  show(stops[LEVELS.indexOf(next)]);
 }
+
+/** The sheet's height now, one of LEVELS. */
+export const sheetLevel = () => level;
 
 /** On desktop the sheet is unused and carries none of its state. */
 function toWide() {
   gesture = null;
   el("sheet").classList.remove("dragging");
-  for (const name of PROPERTIES) document.documentElement.style.removeProperty(name);
+  for (const name of ["--sheet-visible", "--sheet-rise"]) document.documentElement.style.removeProperty(name);
   el("sheet-body").removeAttribute("inert");
-  setSheetOpen(true);
+  setSheetLevel("full");
 }
 
-/** On phones, the padding that keeps a map fit clear of the sheet's visible part. */
+/*
+ * On phones, the padding that keeps a map fit clear of the sheet's visible
+ * part. Above the middle height the map is mostly covered, and a fit keeps to
+ * the space the middle sheet leaves.
+ */
 export function popupPadding() {
-  return PHONE.matches ? { bottom: visible } : undefined;
+  return PHONE.matches ? { bottom: Math.min(visible, stops[1]) } : undefined;
 }
 
 const startsOnRange = (target) => target.closest?.('input[type="range"]') != null;
 
 function begin(x, y, time) {
   measure();
-  const from = isOpen ? 1 : 0;
-  gesture = { x, y, axis: null, from, progress: from, samples: [] };
+  const from = stops[LEVELS.indexOf(level)];
+  gesture = { x, y, axis: null, from, visible: from, samples: [] };
   track(y, time);
 }
 
@@ -105,25 +157,31 @@ function track(y, time) {
 }
 
 function drag(y, time) {
-  const offset = travel ? (gesture.y - y) / travel : 0;
-  gesture.progress = Math.min(1, Math.max(0, gesture.from + offset));
+  gesture.visible = Math.min(stops.at(-1), Math.max(stops[0], gesture.from + gesture.y - y));
   el("sheet").classList.add("dragging");
-  show(gesture.progress);
+  show(gesture.visible);
   track(y, time);
 }
 
 /* Settle a drag, released at `time`, at the height its position and speed point to. */
 function release(time) {
-  const { samples, progress } = gesture;
+  const { samples } = gesture;
   const last = samples.at(-1);
   const first = samples.find((sample) => time - sample.time <= VELOCITY_WINDOW_MS) ?? last;
   // Upward is positive; no time between samples reads as a flick. A finger held
   // still sends no moves, so after a pause only `last` is recent: no speed.
   const velocity = (first.y - last.y) / (last.time - first.time) || 0;
+  const at = gesture.visible;
   gesture = null;
   el("sheet").classList.remove("dragging");
-  setSheetOpen(snapTarget(progress, velocity) === "open");
+  setSheetLevel(snapTarget(at, velocity, stops));
 }
+
+/*
+ * The compact sheet's body is inert, so a press on the photo's top lands on
+ * the sheet itself. The band and that strip move the sheet.
+ */
+const grips = (target) => el("sheet-band").contains(target) || target === el("sheet");
 
 /*
  * A drag on the band ends without the click that browsers may send at its
@@ -135,7 +193,7 @@ function swallowNextClick() {
     window.removeEventListener("pointerdown", stop, { capture: true });
   };
   const swallow = (event) => {
-    if (!el("sheet-band").contains(event.target)) return;
+    if (!grips(event.target)) return;
     event.preventDefault();
     event.stopPropagation();
     stop();
@@ -146,23 +204,24 @@ function swallowNextClick() {
 }
 
 /*
- * The band drags on pointer events. A gesture that never locks is a tap and
- * clicks as usual.
+ * The band and the compact sheet's photo strip drag on pointer events. A
+ * gesture that never locks is a tap: on the band it clicks as usual, and on
+ * the photo strip it raises the sheet to the middle.
  */
-function wireBand(nav) {
-  nav.addEventListener("pointerdown", (event) => {
+function wireGrips(sheet) {
+  sheet.addEventListener("pointerdown", (event) => {
     if (!PHONE.matches || !event.isPrimary || event.button !== 0) return;
-    if (startsOnRange(event.target)) return;
+    if (!grips(event.target) || startsOnRange(event.target)) return;
     begin(event.clientX, event.clientY, event.timeStamp);
     gesture.pointerId = event.pointerId;
   });
-  nav.addEventListener("pointermove", (event) => {
+  sheet.addEventListener("pointermove", (event) => {
     if (gesture?.pointerId !== event.pointerId) return;
     if (!gesture.axis) {
       gesture.axis = lockAxis(event.clientX - gesture.x, event.clientY - gesture.y);
       if (gesture.axis !== "y") return;
-      // Captured only once it is a drag: a captured tap would click the band, not its target.
-      nav.setPointerCapture?.(event.pointerId);
+      // Captured only once it is a drag: a captured tap would click the sheet, not its target.
+      sheet.setPointerCapture?.(event.pointerId);
     }
     if (gesture.axis === "y") drag(event.clientY, event.timeStamp);
   });
@@ -175,22 +234,27 @@ function wireBand(nav) {
     if (event.type === "pointerup") swallowNextClick();
     release(event.timeStamp);
   };
-  nav.addEventListener("pointerup", end);
-  nav.addEventListener("pointercancel", end);
+  sheet.addEventListener("pointerup", end);
+  sheet.addEventListener("pointercancel", end);
+  sheet.addEventListener("click", (event) => {
+    if (PHONE.matches && event.target === sheet && level === "compact") setSheetLevel("middle");
+  });
 }
 
 /*
- * The body scrolls; scrolled to its top, a pull down moves the sheet. Touch
- * events, since only a cancelable touchmove can take the gesture from the scroller.
+ * Below full height a vertical drag on the body moves the sheet. At full
+ * height the body scrolls; scrolled to its top, a pull down moves the sheet.
+ * Touch events, since only a cancelable touchmove can take the gesture from
+ * the scroller.
  */
 function wireContent(body) {
-  // A drag on the band belongs to its pointer, whatever other fingers do.
-  const onBand = () => gesture?.pointerId !== undefined;
+  // A drag that started on a grip belongs to its pointer, whatever other fingers do.
+  const onGrip = () => gesture?.pointerId !== undefined;
   body.addEventListener(
     "touchstart",
     (event) => {
       // A second finger leaves the gesture under way alone.
-      if (event.touches.length > 1 || onBand()) return;
+      if (event.touches.length > 1 || onGrip()) return;
       gesture = null;
       if (!PHONE.matches || startsOnRange(event.target)) return;
       const [{ clientX, clientY }] = event.touches;
@@ -201,14 +265,15 @@ function wireContent(body) {
   body.addEventListener(
     "touchmove",
     (event) => {
-      if (!gesture || onBand() || event.touches.length > 1) return;
+      if (!gesture || onGrip() || event.touches.length > 1) return;
       const [{ clientX, clientY }] = event.touches;
       if (!gesture.axis) {
         const dy = clientY - gesture.y;
         gesture.axis = lockAxis(clientX - gesture.x, dy);
         if (!gesture.axis) return;
         // An uncancelable move means the browser is already scrolling.
-        if (gesture.axis !== "y" || dy < 0 || body.scrollTop > 0 || !event.cancelable) {
+        const scrolls = level === "full" && (dy < 0 || body.scrollTop > 0);
+        if (gesture.axis !== "y" || scrolls || !event.cancelable) {
           gesture = null;
           return;
         }
@@ -219,7 +284,7 @@ function wireContent(body) {
     { passive: false },
   );
   const end = (event) => {
-    if (onBand()) return;
+    if (onGrip()) return;
     if (gesture?.axis === "y") release(event.timeStamp);
     gesture = null;
   };
@@ -228,25 +293,25 @@ function wireContent(body) {
 }
 
 export function initSheet() {
-  el("sheet-handle").addEventListener("click", () => setSheetOpen(!isOpen));
-  wireBand(el("sheet-band"));
+  el("sheet-handle").addEventListener("click", () => setSheetLevel(NEXT[level]));
+  wireGrips(el("sheet"));
   wireContent(el("sheet-body"));
 
-  // The band's height changes with the glacier's name; the sheet's with the viewport.
+  // The band's height changes with the glacier's name and the sheet's height; the sheet's with the viewport.
   if (typeof ResizeObserver === "function") {
     const observer = new ResizeObserver(() => {
       if (!PHONE.matches || gesture?.axis === "y") return;
       measure();
-      show(isOpen ? 1 : 0);
+      show(stops[LEVELS.indexOf(level)]);
     });
     observer.observe(el("sheet-band"));
     observer.observe(el("sheet"));
   }
 
   PHONE.addEventListener("change", (event) => {
-    if (event.matches) setSheetOpen(false);
+    if (event.matches) setSheetLevel("compact");
     else toWide();
   });
-  if (PHONE.matches) setSheetOpen(false);
+  if (PHONE.matches) setSheetLevel("compact");
   else toWide();
 }
