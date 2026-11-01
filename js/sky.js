@@ -57,23 +57,37 @@ export function globeDisc(map, width, height) {
   // Tangent beneath the camera; with right, it starts the samples at the outline's extremes.
   const across = cross(below, right);
 
-  let minX = Infinity;
-  let maxX = -Infinity;
-  let minY = Infinity;
-  let maxY = -Infinity;
+  // The camera looks at the map center; a sample behind it projects mirrored.
+  const forward = up.map((u, i) => u * radius - camera[i]);
+  const points = [];
   for (let i = 0; i < LIMB_SAMPLES; i += 1) {
     const angle = (i / LIMB_SAMPLES) * 2 * Math.PI;
-    const [x, y, z] = below.map(
+    const sample = below.map(
       (b, k) =>
         b * Math.cos(horizon) +
         (right[k] * Math.cos(angle) + across[k] * Math.sin(angle)) * Math.sin(horizon),
     );
-    const point = map.project([deg(Math.atan2(y, x)), deg(Math.asin(z))]);
-    minX = Math.min(minX, point.x);
-    maxX = Math.max(maxX, point.x);
-    minY = Math.min(minY, point.y);
-    maxY = Math.max(maxY, point.y);
+    const depth = forward.reduce((sum, f, k) => sum + f * (sample[k] * radius - camera[k]), 0);
+    if (depth <= 0) continue;
+    const [x, y, z] = sample;
+    points.push(map.project([deg(Math.atan2(y, x)), deg(Math.asin(z))]));
   }
+  // With no sample in front of the camera, the globe covers the view.
+  if (points.length === 0) return { x: 0, y: 0, rx: Infinity, ry: Infinity };
+  if (points.length < LIMB_SAMPLES) {
+    /*
+     * Steeply tilted, the horizon runs out behind the camera and its outline is
+     * open. Fit a circle through its top and the sample nearest a viewport side.
+     */
+    const top = points.reduce((a, b) => (b.y < a.y ? b : a));
+    const off = (p) => Math.abs(Math.abs(p.x - top.x) - width / 2);
+    const side = points.reduce((a, b) => (off(b) < off(a) ? b : a));
+    const r = ((side.x - top.x) ** 2 + (side.y - top.y) ** 2) / (2 * (side.y - top.y));
+    return { x: top.x, y: top.y + r, rx: r, ry: r };
+  }
+  const xs = points.map((p) => p.x);
+  const ys = points.map((p) => p.y);
+  const [minX, maxX, minY, maxY] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
   // Tilt only stretches the outline vertically on screen, so it stays axis-aligned.
   const rx = (maxX - minX) / 2;
   const ry = (maxY - minY) / 2;
