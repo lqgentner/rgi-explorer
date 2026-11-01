@@ -16,7 +16,7 @@ function setup(base = "standard", standardPicture = async () => "data:image/jpeg
   const root = document.createElement("div");
   const map = new FakeMap({ center: [0, 0], zoom: 11 });
   const api = mountLayers(root, {
-    base, layers: new Set(), onBase() {}, onToggle() {}, zoom: () => map.getZoom(), map, standardPicture, backgrounds: BACKGROUNDS,
+    base, layers: new Set(), onBase() {}, onToggle() {}, map, standardPicture, backgrounds: BACKGROUNDS,
   });
   const rest = () => {
     map.fire("idle");

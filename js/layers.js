@@ -5,7 +5,7 @@
  */
 
 import { GLACIERS, PREVIEWS } from "./previews.js";
-import { PALETTE, REGION_DASH, TOGGLE_MINZOOM } from "./styles.js";
+import { PALETTE, REGION_DASH } from "./styles.js";
 import { PHONE, h, icon, svg } from "./ui.js";
 import { imageryUrl } from "./viewpreview.js";
 
@@ -87,21 +87,15 @@ function swapImage(img, url, done) {
   next.src = url;
 }
 
-/**
- * The toggle buttons and the sync functions that update them. On the phone, a
- * toggle whose layer has no data at the zoom says from which zoom it shows;
- * the desktop keeps to one row of tiles and leaves the hints out.
- */
-function toggleButtons({ layers, onToggle, zoom }) {
+/** The toggle buttons and the sync function that updates them. */
+function toggleButtons({ layers, onToggle }) {
   const on = new Set(layers);
   const parts = TOGGLES.map(({ name, label }) => {
-    const hint = h("span", { class: "layer-hint" });
     const button = h(
       "button",
       { type: "button", class: "layer-toggle", dataset: { name } },
       preview(name),
       h("span", { class: "layer-name" }, label),
-      hint,
     );
     button.addEventListener("click", () => {
       const next = !on.has(name);
@@ -110,25 +104,16 @@ function toggleButtons({ layers, onToggle, zoom }) {
       sync();
       onToggle(name, next);
     });
-    return { name, button, hint };
+    return { name, button };
   });
 
   function sync() {
     for (const { name, button } of parts) button.setAttribute("aria-pressed", String(on.has(name)));
   }
-  function refreshZoom() {
-    const z = zoom();
-    for (const { name, hint } of parts) {
-      const from = TOGGLE_MINZOOM[name];
-      hint.textContent = PHONE.matches && z < from ? `visible from zoom ${from}` : "";
-    }
-  }
   sync();
-  refreshZoom();
 
   return {
     buttons: parts.map((p) => p.button),
-    refreshZoom,
     setLayers(set) {
       on.clear();
       for (const name of set) on.add(name);
@@ -155,10 +140,10 @@ const swatch = (color = "transparent") =>
  * picture comes from `standardPicture(px)`, a promise of an image URL or null.
  * A picture that is hidden catches up when it shows.
  *
- * @returns {{setBase(base: string): void, setLayers(set: Iterable<string>): void, refreshZoom(): void}}
+ * @returns {{setBase(base: string): void, setLayers(set: Iterable<string>): void}}
  */
-export function mountLayers(root, { base, layers, onBase, onToggle, zoom, map = null, standardPicture = null, backgrounds = {} }) {
-  const toggles = toggleButtons({ layers, onToggle, zoom });
+export function mountLayers(root, { base, layers, onBase, onToggle, map = null, standardPicture = null, backgrounds = {} }) {
+  const toggles = toggleButtons({ layers, onToggle });
   let current = base;
   const other = () => (current === "standard" ? "imagery" : "standard");
 
@@ -186,14 +171,17 @@ export function mountLayers(root, { base, layers, onBase, onToggle, zoom, map = 
   });
   const close = h("button", { type: "button", class: "icon-button", "aria-label": "Close" }, icon("x"));
   const paneToggles = h("div", { class: "tile-row" });
+  /* No title: the close button sits in the first section's heading row, and a line parts the sections. */
   const pane = h(
     "div",
-    { class: "layers-pane", hidden: true },
-    h("div", { class: "pane-header" }, h("h2", {}, "Layers"), close),
-    h("h3", {}, "Map type"),
-    h("div", { class: "tile-row" }, tiles.map((t) => t.button)),
-    h("h3", {}, "RGI layers"),
-    paneToggles,
+    { class: "layers-pane", role: "group", "aria-label": "Layers", hidden: true },
+    h(
+      "section",
+      { class: "pane-section" },
+      h("div", { class: "pane-header" }, h("h3", {}, "Map type"), close),
+      h("div", { class: "tile-row" }, tiles.map((t) => t.button)),
+    ),
+    h("section", { class: "pane-section" }, h("h3", {}, "RGI layers"), paneToggles),
   );
   const openPane = h("button", { type: "button", class: "round-button layers-open", "aria-label": "Layers" }, icon("layers-2"));
 
@@ -257,16 +245,39 @@ export function mountLayers(root, { base, layers, onBase, onToggle, zoom, map = 
     catchUp();
   };
 
+  /*
+   * While the pane is open a scrim darkens the page behind it, and the rest of
+   * the page is inert. A tap on the scrim closes the pane. The notice stays
+   * live, and the elements that were inert already stay so.
+   */
+  const scrim = h("div", { class: "layers-scrim", hidden: true });
+  let madeInert = [];
+  const showPane = (show) => {
+    if (show === !pane.hidden) return;
+    pane.hidden = !show;
+    scrim.hidden = !show;
+    if (show) {
+      madeInert = [...document.body.children].filter(
+        (node) => node !== pane && node !== scrim && !node.matches("script, .notice") && !node.inert,
+      );
+      for (const node of madeInert) node.inert = true;
+    } else {
+      for (const node of madeInert) node.inert = false;
+      madeInert = [];
+    }
+  };
+
   openPane.addEventListener("click", () => {
-    pane.hidden = false;
+    showPane(true);
     catchUp();
     close.focus();
   });
   const closePane = () => {
-    pane.hidden = true;
+    showPane(false);
     openPane.focus();
   };
   close.addEventListener("click", closePane);
+  scrim.addEventListener("click", closePane);
   pane.addEventListener("keydown", (event) => {
     if (event.key === "Escape") closePane();
   });
@@ -332,10 +343,9 @@ export function mountLayers(root, { base, layers, onBase, onToggle, zoom, map = 
       setOpen(false);
       paneToggles.append(...toggles.buttons);
     } else {
-      pane.hidden = true;
+      showPane(false);
       drawer.append(...toggles.buttons);
     }
-    toggles.refreshZoom();
     for (const tile of tiles) tile.img.src = pictureSrc(tile.key);
     for (const key of Object.keys(BASES)) picturesBehind.add(key);
     syncBase();
@@ -346,15 +356,14 @@ export function mountLayers(root, { base, layers, onBase, onToggle, zoom, map = 
   started = true;
 
   /*
-   * The pane goes in the body. Inside root it would share root's stacking
-   * context, which sits below the bottom sheet.
+   * The pane and its scrim go in the body. Inside root they would share
+   * root's stacking context, which sits below the bottom sheet.
    */
   root.append(wrapper, openPane);
-  document.body.append(pane);
+  document.body.append(scrim, pane);
 
   return {
     setLayers: toggles.setLayers,
-    refreshZoom: toggles.refreshZoom,
     setBase(next) {
       current = next;
       syncBase();

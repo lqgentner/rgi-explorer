@@ -504,15 +504,6 @@ button:focus-visible {
   font-weight: 600;
 }
 
-.layer-hint {
-  color: var(--muted);
-  font-size: 11px;
-}
-
-.layer-hint:empty {
-  display: none;
-}
-
 /* Compass, 3D, zoom and notice */
 
 /*
@@ -674,38 +665,79 @@ button:focus-visible {
 
 /* Layers pane, phone */
 
+/* Behind the open pane: it darkens the page and takes the taps meant for it. */
+.layers-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  background: rgb(0 0 0 / 40%);
+  touch-action: none;
+}
+
 .layers-pane {
   position: fixed;
   left: 0;
   right: 0;
   bottom: 0;
   z-index: 5;
-  padding: 8px 16px 24px;
+  padding: 12px 16px 32px;
   border-radius: 16px 16px 0 0;
   background: var(--surface);
   box-shadow: var(--shadow);
 }
 
+.pane-section {
+  padding: 8px 0 20px;
+}
+
+/* A line parts the two sections. */
+.pane-section + .pane-section {
+  padding-top: 20px;
+  padding-bottom: 0;
+  border-top: 1px solid var(--line);
+}
+
+/* The first section's heading shares its row with the close button. */
 .pane-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
-.pane-header h2 {
-  margin: 0;
-  font-size: 16px;
+.layers-pane h3 {
+  margin: 0 0 12px;
+  font-size: 14px;
+  color: var(--muted);
 }
 
-.layers-pane h3 {
-  margin: 12px 0 4px;
-  font-size: 13px;
-  color: var(--muted);
+.pane-header h3 {
+  margin: 0;
+}
+
+.pane-header + .tile-row {
+  margin-top: 12px;
 }
 
 .tile-row {
   display: flex;
-  gap: 8px;
+  justify-content: center;
+  gap: 16px;
+}
+
+/* The phone's tiles, larger than the desktop drawer's. They narrow on a small screen. */
+.layers-pane .layer-toggle,
+.layers-pane .base-tile {
+  flex: 0 1 96px;
+  min-width: 0;
+  gap: 6px;
+  font-size: 14px;
+}
+
+.layers-pane .layer-preview,
+.layers-pane .base-tile img {
+  width: 72px;
+  height: 72px;
+  border-radius: 8px;
 }
 
 /* Status line */

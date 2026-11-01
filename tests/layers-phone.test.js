@@ -15,7 +15,6 @@ test("the phone layer button opens a pane with map types and RGI layers", () => 
     layers: new Set(["regions"]),
     onBase: (b) => bases.push(b),
     onToggle: (n, on) => toggles.push([n, on]),
-    zoom: () => 12,
   });
   const fab = root.querySelector('button[aria-label="Layers"]');
   assert.ok(fab.querySelector("use").getAttribute("href").endsWith("#layers-2"));
@@ -25,8 +24,9 @@ test("the phone layer button opens a pane with map types and RGI layers", () => 
   assert.equal(pane.hidden, true);
   fab.click();
   assert.equal(pane.hidden, false);
+  assert.equal(pane.getAttribute("aria-label"), "Layers");
   const headings = [...pane.querySelectorAll("h2, h3")].map((n) => n.textContent);
-  assert.deepEqual(headings, ["Layers", "Map type", "RGI layers"]);
+  assert.deepEqual(headings, ["Map type", "RGI layers"]);
 
   const tile = (label) => [...pane.querySelectorAll("button")].find((b) => b.textContent.includes(label));
   assert.equal(tile("Standard").getAttribute("aria-pressed"), "true");
@@ -48,7 +48,7 @@ test("the phone layer button opens a pane with map types and RGI layers", () => 
 test("Escape closes the pane and returns focus to the layers button", () => {
   const root = document.createElement("div");
   document.body.append(root);
-  mountLayers(root, { base: "standard", layers: new Set(), onBase() {}, onToggle() {}, zoom: () => 12 });
+  mountLayers(root, { base: "standard", layers: new Set(), onBase() {}, onToggle() {} });
   const fab = root.querySelector('button[aria-label="Layers"]');
   fab.click();
   const pane = [...document.querySelectorAll(".layers-pane")].at(-1);
@@ -57,25 +57,44 @@ test("Escape closes the pane and returns focus to the layers button", () => {
   assert.equal(document.activeElement, fab);
 });
 
-test("a phone toggle hidden at this zoom says so, and refreshZoom updates the hint", () => {
-  let zoom = 6;
+test("the open pane darkens and stills the page behind it, and a tap there closes it", () => {
   const root = document.createElement("div");
-  const api = mountLayers(root, { base: "standard", layers: new Set(), onBase() {}, onToggle() {}, zoom: () => zoom });
+  const other = document.createElement("div");
+  const already = document.createElement("div");
+  already.inert = true;
+  const notice = document.createElement("div");
+  notice.className = "notice";
+  document.body.append(root, other, already, notice);
+  mountLayers(root, { base: "standard", layers: new Set(), onBase() {}, onToggle() {} });
   const pane = [...document.querySelectorAll(".layers-pane")].at(-1);
-  const toggle = (label) => [...pane.querySelectorAll(".layer-toggle")].find((b) => b.textContent.includes(label));
-  assert.ok(toggle("Intersects").textContent.includes("visible from zoom 10"));
-  assert.ok(toggle("Centerlines").textContent.includes("visible from zoom 8"));
-  assert.ok(!toggle("RGI regions").textContent.includes("visible from"));
-  zoom = 9;
-  api.refreshZoom();
-  assert.ok(!toggle("Centerlines").textContent.includes("visible from"));
-  assert.ok(toggle("Intersects").textContent.includes("visible from zoom 10"));
+  const scrim = [...document.querySelectorAll(".layers-scrim")].at(-1);
+  const fab = root.querySelector(".layers-open");
+  assert.equal(scrim.hidden, true);
+
+  fab.click();
+  assert.equal(scrim.hidden, false);
+  assert.ok(root.inert && other.inert, "the page behind the pane is inert");
+  assert.ok(!pane.inert && !scrim.inert && !notice.inert);
+
+  scrim.click();
+  assert.equal(pane.hidden, true);
+  assert.equal(scrim.hidden, true);
+  assert.ok(!root.inert && !other.inert);
+  assert.ok(already.inert, "an element that was inert before stays so");
+  assert.equal(document.activeElement, fab);
+
+  fab.click();
+  setPhone(false);
+  assert.equal(scrim.hidden, true, "the scrim goes with the pane on desktop");
+  assert.ok(!root.inert && !other.inert);
+  setPhone(true);
+  for (const node of [root, other, already, notice]) node.remove();
 });
 
 test("a change of layout moves the toggles between the pane and the drawer, and closes the control left behind", () => {
   const root = document.createElement("div");
   document.body.append(root);
-  const api = mountLayers(root, { base: "standard", layers: new Set(), onBase() {}, onToggle() {}, zoom: () => 6 });
+  mountLayers(root, { base: "standard", layers: new Set(), onBase() {}, onToggle() {} });
   const pane = [...document.querySelectorAll(".layers-pane")].at(-1);
   const drawer = root.querySelector(".layers-drawer");
   root.querySelector(".layers-open").click();
@@ -85,13 +104,10 @@ test("a change of layout moves the toggles between the pane and the drawer, and 
   assert.equal(pane.hidden, true, "the pane closes on desktop");
   assert.equal(drawer.querySelectorAll(".layer-toggle").length, 3);
   assert.equal(pane.querySelectorAll(".layer-toggle").length, 0);
-  assert.ok([...drawer.querySelectorAll(".layer-hint")].every((hint) => hint.textContent === ""), "no hints on desktop");
 
   root.querySelector(".layers").dispatchEvent(new window.Event("focusin"));
   assert.ok(root.querySelector(".layers").classList.contains("open"));
   setPhone(true);
   assert.ok(!root.querySelector(".layers").classList.contains("open"), "the drawer closes on the phone");
   assert.equal(pane.querySelectorAll(".layer-toggle").length, 3);
-  api.refreshZoom();
-  assert.ok(pane.textContent.includes("visible from zoom 10"));
 });

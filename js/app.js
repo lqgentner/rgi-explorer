@@ -272,7 +272,6 @@ function wire(catalog, rgiMap, regions) {
     map,
     standardPicture: (px) => rgiMap.standardPicture(px),
     backgrounds: rgiMap.backgrounds,
-    zoom: () => map.getZoom(),
     onBase(base) {
       state.base = base;
       rgiMap.setBase(base);
@@ -329,7 +328,6 @@ function wire(catalog, rgiMap, regions) {
   rgiMap.onMove((view) => {
     state.view = view;
     save();
-    layers.refreshZoom();
   });
 
   /* The glacier on the card, and the fit that a search pick started for it. */

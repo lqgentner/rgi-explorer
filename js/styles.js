@@ -14,9 +14,6 @@ export const TOGGLES = {
   intersects: ["intersects"],
 };
 
-/** The zoom from which each toggle's tiles hold data. */
-export const TOGGLE_MINZOOM = { regions: 0, centerlines: 8, intersects: 10 };
-
 /** The zoom from which the map draws the second-order region outlines. */
 export const REGION2_MINZOOM = 3;
 

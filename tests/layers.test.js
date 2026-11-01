@@ -19,7 +19,6 @@ function layers(extra = {}) {
     layers: new Set(["regions"]),
     onBase: (b) => calls.bases.push(b),
     onToggle: (n, on) => calls.toggles.push([n, on]),
-    zoom: () => 12,
     backgrounds: BACKGROUNDS,
     ...extra,
   });
@@ -60,13 +59,6 @@ test("setBase swaps the thumbnail without calling onBase", () => {
   api.setBase("imagery");
   assert.equal(root.querySelector(".layers-caption").textContent, "Standard");
   assert.deepEqual(calls.bases, []);
-});
-
-test("the desktop toggles leave the zoom hints out", () => {
-  const { root, api } = layers({ zoom: () => 6 });
-  api.refreshZoom();
-  assert.ok([...root.querySelectorAll(".layer-hint")].every((hint) => hint.textContent === ""));
-  assert.ok(![...root.querySelectorAll(".layer-toggle")].some((b) => b.textContent.includes("visible from")));
 });
 
 test("toggles are pressed buttons that call onToggle, and setLayers syncs them", () => {
