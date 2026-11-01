@@ -63,15 +63,11 @@ kbd {
   font-family: var(--mono);
 }
 
-/*
- * Space, behind the transparent map canvas around the globe. It shows dark,
- * not the white page, in any frame where js/sky.js finds no space to halo.
- */
+/* Space, behind the transparent map canvas around the globe and its atmosphere. */
 #map {
-  --space-fill: radial-gradient(ellipse at center, #141a28, var(--space) 70%);
   position: fixed;
   inset: 0;
-  background: var(--space-fill);
+  background: radial-gradient(ellipse at center, #141a28, var(--space) 70%);
 }
 
 /* js/map.js draws the Standard thumbnail on this hidden map, off screen but laid out. */
@@ -82,27 +78,6 @@ kbd {
   pointer-events: none;
 }
 
-/*
- * js/sky.js supplies the globe disc for this halo behind the transparent map
- * canvas, as in glace-viewer. Opacity falls off beyond the limb; the sky class
- * is absent when the globe fills the viewport.
- */
-#map.sky {
-  background:
-    radial-gradient(
-      var(--globe-rx) var(--globe-ry) at var(--globe-x) var(--globe-y),
-      transparent 100%,
-      rgb(178 196 228 / 42%) 100%,
-      rgb(178 196 228 / 33%) 110%,
-      rgb(178 196 228 / 23%) 125%,
-      rgb(178 196 228 / 14%) 150%,
-      rgb(178 196 228 / 7%) 180%,
-      rgb(178 196 228 / 3%) 220%,
-      rgb(178 196 228 / 1%) 260%,
-      transparent 300%
-    ),
-    var(--space-fill);
-}
 
 .icon {
   width: 1.25em;

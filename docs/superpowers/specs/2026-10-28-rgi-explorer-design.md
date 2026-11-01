@@ -100,7 +100,7 @@ on purpose, and the first commit names them:
 - `js/sheet.js`, the phone bottom sheet with two snap heights and flick handling.
 
 Nothing raster-specific is copied. Of glace-viewer's visual style, only the
-globe projection and the halo behind it (`js/sky.js`) are.
+globe projection and MapLibre's atmosphere around it are.
 
 ## The catalog contract
 
@@ -220,7 +220,8 @@ elsewhere closes it.
   are switched off, so they neither draw nor fetch tiles; the background
   stays and shows while the imagery loads.
 - **The map is a globe.** MapLibre's globe projection turns into Mercator as
-  the view zooms in. A halo, as in glace-viewer, shows around the globe.
+  the view zooms in. MapLibre's own atmosphere, as in glace-viewer, glows
+  around the globe against dark space.
   The centre stops at the Mercator edge (±85.05°), where the tiles end, so
   the globe never turns on a pole. The imagery picture in the layers card
   keeps its export box inside the world, since Esri draws past an edge in

@@ -1,7 +1,6 @@
 /* The map: base maps, the RGI layers, the selection and the terminus pin. */
 
 import { ESRI_TILES, GLYPHS, LIBERTY_STYLE, startView, TERRAIN_TILEJSON, TIMEOUT_MS } from "./config.js";
-import { installSky } from "./sky.js";
 import { BASE_PAINT, rgiStyle, TOGGLES } from "./styles.js";
 import { PREVIEW_SPAN } from "./viewpreview.js";
 
@@ -20,6 +19,19 @@ const SELECTION_DOT = {
   "circle-stroke-color": "#ffffff",
   "circle-stroke-width": 1.5,
 };
+/*
+ * MapLibre's own atmosphere around the globe, per base map: fainter over the
+ * light standard map, which its haze pales. The sky and fog stay clear, as with
+ * no sky at all, so a tilted view close in shows the space behind the canvas.
+ */
+const ATMOSPHERE = { standard: 0.5, imagery: 0.8 };
+const sky = (base) => ({
+  "sky-color": "transparent",
+  "horizon-color": "transparent",
+  "fog-color": "transparent",
+  "fog-ground-blend": 1,
+  "atmosphere-blend": ATMOSPHERE[base] ?? ATMOSPHERE.standard,
+});
 /* The background on imagery, where the imagery has not loaded yet. */
 const IMAGERY_BACKGROUND = "#3c4043";
 const MAX_LAT = 85.05;
@@ -253,6 +265,7 @@ function buildStyle(liberty, rgi, state) {
     version: 8,
     /* MapLibre turns the globe into Mercator as it zooms in. */
     projection: { type: "globe" },
+    sky: sky(state.base),
     ...(liberty.sprite ? { sprite: liberty.sprite } : {}),
     glyphs: GLYPHS,
     sources: {
@@ -393,7 +406,6 @@ export async function createMap(container, catalog, state) {
       resolve();
     });
   });
-  installSky(map, container);
 
   const rgiToggles = rgi.layers.map((layer) => [layer.id, toggleOf(layer)]).filter(([, n]) => n);
   const idFilter = (id) => ["==", ["get", "rgi_id"], id];
@@ -440,6 +452,7 @@ export async function createMap(container, catalog, state) {
       }
       /* The selections redraw the glacier fill, and a complex its members' outlines, above the dimming. */
       map.setPaintProperty("selection-dim", "fill-opacity", DIM_OPACITY[base]);
+      map.setSky(sky(base));
       map.setPaintProperty("selection-fill", "fill-opacity", paint["glaciers-fill"]["fill-opacity"]);
       map.setPaintProperty("complex-fill", "fill-opacity", paint["glaciers-fill"]["fill-opacity"]);
       map.setPaintProperty("complex-members", "line-color", paint["glaciers-outline"]["line-color"]);

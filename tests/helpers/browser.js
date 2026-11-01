@@ -179,6 +179,15 @@ export class FakeMap {
     this.calls.push(`paint ${id} ${key}`);
   }
 
+  setSky(sky) {
+    this.sky = sky;
+    this.calls.push("sky");
+  }
+
+  getSky() {
+    return this.sky ?? this.options.style?.sky;
+  }
+
   setFilter(id, filter) {
     const layer = this.layers.get(id);
     if (!layer) throw new Error(`setFilter on missing layer '${id}'`);

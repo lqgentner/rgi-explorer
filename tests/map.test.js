@@ -88,6 +88,7 @@ test("over imagery glaciers are white outlines without a fill, and region outlin
   for (const id of ["glaciers-casing", "intersects-casing"]) assert.equal(paint(id, "line-opacity"), 1);
   assert.equal(paint("regions-outline-1", "line-color"), "#f1f3f4");
   assert.equal(paint("regions-outline-2", "line-color"), "#bdc1c6");
+  assert.equal(map.getSky()["atmosphere-blend"], 0.8, "MapLibre draws the atmosphere");
   rgiMap.setBase("standard");
   assert.equal(paint("glaciers-fill", "fill-opacity"), 1);
   assert.equal(paint("selection-fill", "fill-opacity"), 1);
@@ -95,10 +96,12 @@ test("over imagery glaciers are white outlines without a fill, and region outlin
   assert.equal(paint("glaciers-outline", "line-color"), "#80868b");
   for (const id of ["glaciers-casing", "intersects-casing"]) assert.equal(paint(id, "line-opacity"), 0);
   assert.equal(paint("regions-outline-1", "line-color"), "#5f6368");
+  assert.equal(map.getSky()["atmosphere-blend"], 0.5, "fainter over the light map");
   rgiMap.setBase("imagery");
   assert.equal(paint("selection-fill", "fill-opacity"), 0);
   assert.equal(paint("selection-dim", "fill-opacity"), 0);
   assert.equal(paint("regions-outline-2", "line-color"), "#bdc1c6");
+  assert.equal(map.getSky()["atmosphere-blend"], 0.8);
 });
 
 test("the RGI layers draw above Liberty's lines and below its borders and labels", async () => {
