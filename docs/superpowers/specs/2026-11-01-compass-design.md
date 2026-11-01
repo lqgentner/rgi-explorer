@@ -69,10 +69,12 @@ shadow. Inside it, from left to right:
   red (`#d93025`, the page's red) and the south half light grey (`#bdc1c6`).
 - **Rotate right:** a curved arrow on the right, mirroring the left one.
 
-The capsule is three buttons side by side: 15 px, 24 px and 15 px wide, each
-the full 40 px tall. Hovering one greys its part of the capsule (`#f1f3f4`),
-as the other controls do. The arrows are drawn over the three buttons and
-don't catch the pointer.
+Outside a 20 px disc around the centre, each half of the capsule is its
+arrow's button. The disc is the needle's button and covers both halves'
+inner edges. It is smaller than the 28 px needle, so the arrows are easy to
+reach. Hovering a button greys it (`#f1f3f4`), as
+the other controls do: the disc, or the half of the capsule around it. The
+arrows are drawn over the buttons and don't catch the pointer.
 
 The arrows are near-black (`#202124`, the page's text color, like the other
 icons). Each one is a 2 px stroke with a round cap and a filled head:
@@ -109,7 +111,7 @@ The geometry, in the capsule's own 54 × 40 coordinates:
   so its red half always points to the map's north. In 3D it flattens with
   the tilt (`rotateX(pitch) rotateZ(−bearing)`). It doesn't grow, so it
   never reaches the arrows. It follows the map live, during a drag as well.
-- **Rotate left and Rotate right** ease the map 22.5° counter-clockwise or
+- **Rotate left and Rotate right** ease the map 45° counter-clockwise or
   clockwise. The pitch, the 3D mode and the centre stay as they are.
 - **A click on the needle** eases the map to bearing 0 and pitch 0 and leaves
   3D. Leaving 3D this way is the same as pressing the 3D button off: the 3D

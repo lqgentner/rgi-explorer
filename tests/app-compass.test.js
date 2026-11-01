@@ -22,12 +22,12 @@ const pressed = () => $("#controls .terrain-btn").getAttribute("aria-pressed");
 /* The map calls made since `mark`, so other listeners' calls don't matter. */
 const since = (mark) => map().calls.slice(mark);
 
-test("the compass leads the column, idle, and the arrows turn the map 22.5°", () => {
+test("the compass leads the column, idle, and the arrows turn the map 45°", () => {
   assert.deepEqual([...$("#controls").children].slice(0, 2).map((n) => n.className), ["compass", "terrain-btn"]);
   assert.equal($(".compass").hasAttribute("data-idle"), true);
   click($('.compass button[aria-label="Rotate left"]'));
-  assert.equal(map().getBearing(), 22.5);
-  assert.equal($(".compass-needle").style.transform, "rotateX(0deg) rotateZ(-22.5deg)");
+  assert.equal(map().getBearing(), 45);
+  assert.equal($(".compass-needle").style.transform, "rotateX(0deg) rotateZ(-45deg)");
   assert.equal($(".compass").hasAttribute("data-idle"), false);
   click($('.compass button[aria-label="Face north"]'));
   assert.equal(map().getBearing(), 0);

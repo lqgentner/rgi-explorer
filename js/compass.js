@@ -9,7 +9,7 @@
 import { h, svg } from "./ui.js";
 
 /* How far one click on an arrow turns the map, in degrees. */
-export const ROTATE_STEP = 22.5;
+export const ROTATE_STEP = 45;
 
 /* A bearing closer to 0 than this, in degrees, faces north. */
 const NORTH = 0.5;

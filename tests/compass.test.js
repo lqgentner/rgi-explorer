@@ -37,13 +37,13 @@ test("the compass is a labelled group of three buttons over the arrows", () => {
   assert.equal(button("Face north").querySelector(".needle-south").getAttribute("points"), "9.3,14 18.7,14 14,28");
 });
 
-test("the arrows turn 22.5° each way and the needle resets", () => {
+test("the arrows turn 45° each way and the needle resets", () => {
   const { calls, button } = compass();
-  assert.equal(ROTATE_STEP, 22.5);
+  assert.equal(ROTATE_STEP, 45);
   button("Rotate left").click();
   button("Rotate right").click();
   button("Face north").click();
-  assert.deepEqual(calls, [22.5, -22.5, "reset"]);
+  assert.deepEqual(calls, [45, -45, "reset"]);
 });
 
 test("the needle turns and tilts with the map, and the compass is idle only facing north in 2D", () => {
@@ -71,4 +71,16 @@ test("style.css hides the idle compass on the phone only, and shrinks the deskto
   assert.match(desktop, /\.terrain-btn\s*\{[^}]*width:\s*36px;[^}]*height:\s*36px;[^}]*border-radius:\s*11px/);
   assert.match(desktop, /\.zoom-btn\s*\{[^}]*width:\s*36px;[^}]*height:\s*36px/);
   assert.match(css, /@media \(min-width: 641px\) and \(max-width: 814px\)/);
+});
+
+test("style.css gives the needle a round 20 px target at the centre and the arrows a half each", () => {
+  const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
+  const desktop = css.slice(0, css.indexOf("@media (max-width: 640px) {"));
+  const rule = (selector) => desktop.match(new RegExp(`\\n${selector.replace(/[.]/g, "\\.")}\\s*\\{([^}]*)\\}`))?.[1] ?? "";
+  const north = rule(".compass-north");
+  for (const declaration of ["position: absolute", "left: 17px", "top: 10px", "width: 20px", "height: 20px", "border-radius: 50%"]) {
+    assert.ok(north.includes(declaration), `.compass-north has ${declaration}`);
+  }
+  assert.ok(rule(".compass-turn").includes("flex: 1"), "each arrow takes half the capsule");
+  assert.ok(rule(".compass-needle").includes("pointer-events: none"), "the 28 px needle doesn't widen the 20 px target");
 });
