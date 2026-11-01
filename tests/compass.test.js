@@ -84,3 +84,30 @@ test("style.css gives the needle a round 20 px target at the centre and the arro
   assert.ok(rule(".compass-turn").includes("flex: 1"), "each arrow takes half the capsule");
   assert.ok(rule(".compass-needle").includes("pointer-events: none"), "the 28 px needle doesn't widen the 20 px target");
 });
+
+/* style.css without its `@media (hover: hover)` blocks. */
+function withoutHoverBlocks(css) {
+  let out = "";
+  let at = 0;
+  for (;;) {
+    const start = css.indexOf("@media (hover: hover) {", at);
+    if (start === -1) return out + css.slice(at);
+    out += css.slice(at, start);
+    let depth = 0;
+    let i = css.indexOf("{", start);
+    for (; i < css.length; i += 1) {
+      if (css[i] === "{") depth += 1;
+      else if (css[i] === "}" && --depth === 0) break;
+    }
+    at = i + 1;
+  }
+}
+
+test("the map controls grey on hover only where a pointer can hover, so a tap leaves no grey behind", () => {
+  const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
+  const rest = withoutHoverBlocks(css);
+  for (const selector of [".icon-button:hover", ".zoom-btn:hover", ".terrain-btn:hover", ".compass button:hover"]) {
+    assert.ok(css.includes(selector), `style.css has ${selector}`);
+    assert.ok(!rest.includes(selector), `${selector} sits inside @media (hover: hover)`);
+  }
+});
