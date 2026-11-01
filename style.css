@@ -63,9 +63,15 @@ kbd {
   font-family: var(--mono);
 }
 
+/*
+ * Space, behind the transparent map canvas around the globe. It shows dark,
+ * not the white page, in any frame where js/sky.js finds no space to halo.
+ */
 #map {
+  --space-fill: radial-gradient(ellipse at center, #141a28, var(--space) 70%);
   position: fixed;
   inset: 0;
+  background: var(--space-fill);
 }
 
 /* js/map.js draws the Standard thumbnail on this hidden map, off screen but laid out. */
@@ -95,7 +101,7 @@ kbd {
       rgb(178 196 228 / 1%) 260%,
       transparent 300%
     ),
-    radial-gradient(ellipse at center, #141a28, var(--space) 70%);
+    var(--space-fill);
 }
 
 .icon {
