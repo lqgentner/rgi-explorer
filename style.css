@@ -1801,13 +1801,20 @@ dialog.usedata::backdrop {
     inset: -12px -20px -8px;
   }
 
+  /* The name keeps clear of the ✕, which sits as far from the right edge as the actions from the left. */
   #sheet-head .card-head {
     padding-top: 4px;
-    padding-right: 48px;
+    padding-right: 56px;
   }
 
+  /*
+   * Centred on the name's first line, which starts 20 px down the band (12 px
+   * of padding, the handle's 4 px and the head's 4 px) and is 22 px × 1.25
+   * tall; the button is 32 px.
+   */
   #sheet-head .card-close {
-    top: 12px;
+    top: calc(20px + (22px * 1.25 - 32px) / 2);
+    right: 16px;
   }
 
   /* The same space above the buttons, under the name or the area, as below them. */
