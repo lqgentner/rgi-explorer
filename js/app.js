@@ -6,6 +6,7 @@
 
 import { mountCard } from "./card.js";
 import { loadCatalog } from "./catalog.js";
+import { mountCompass } from "./compass.js";
 import { mountComplexCard } from "./complexcard.js";
 import { resolveCatalogUrl, TIMEOUT_MS } from "./config.js";
 import { mountLayers, mountTerrain, mountZoom } from "./layers.js";
@@ -60,6 +61,8 @@ function registerServiceWorker() {
 registerServiceWorker();
 
 const state = parseState(new URL(location.href));
+/* A tilt by hand past this many degrees turns 3D on; one that ends below it levels the map and turns 3D off. */
+const TILT_3D = 5;
 const hadView = state.view !== null;
 
 function save() {
@@ -283,14 +286,43 @@ function wire(catalog, rgiMap, regions) {
       save();
     },
   });
-  mountTerrain(el("controls"), {
-    on: state.terrain,
-    onChange(on) {
-      state.terrain = on;
-      rgiMap.setTerrain(on);
-      save();
-      status?.refresh();
+  /* First in #controls, so the desktop column and its Tab order start with it. */
+  const compass = mountCompass(el("controls"), {
+    onRotate: (degrees) => rgiMap.rotateBy(degrees),
+    onReset() {
+      if (state.terrain) threeD(false, true);
+      else rgiMap.faceNorth();
     },
+  });
+  const showCompass = () =>
+    compass.update({ bearing: map.getBearing(), pitch: map.getPitch(), terrain: state.terrain });
+  const terrain = mountTerrain(el("controls"), {
+    on: state.terrain,
+    onChange: (on) => threeD(on, true),
+  });
+  /*
+   * The one way the page switches 3D: the 3D button, the compass and a tilt by
+   * hand all come here, so the button, the notice, the address and the compass
+   * agree. `move` lets the camera tilt or level with it; a tilt by hand leaves
+   * the camera where the reader put it.
+   */
+  function threeD(on, move) {
+    state.terrain = on;
+    terrain.set(on);
+    rgiMap.setTerrain(on, { move });
+    save();
+    status?.refresh();
+    showCompass();
+  }
+  rgiMap.onCamera(showCompass);
+  showCompass();
+  rgiMap.onTilt((pitch) => {
+    if (pitch >= TILT_3D) {
+      if (!state.terrain) threeD(true, false);
+      return;
+    }
+    if (state.terrain) threeD(false, false);
+    if (pitch > 0) rgiMap.level();
   });
   mountZoom(el("controls"), rgiMap);
   status = mountStatus(el("status"), rgiMap, catalog, () => state);

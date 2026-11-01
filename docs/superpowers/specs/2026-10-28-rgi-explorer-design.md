@@ -177,7 +177,7 @@ elsewhere closes it.
   control and a press elsewhere closes it. A mouse that leaves keeps it open
   while keyboard focus is inside. Its accessible name starts with the visible
   "Layers" ("Layers: show Imagery map") and it reports whether it is
-  expanded. When the sidebar is open and the window is narrower than 810 px,
+  expanded. When the sidebar is open and the window is narrower than 815 px,
   the drawer would run under + / −, so it opens upwards as a column instead. Each toggle has a small static preview
   tile drawn from the layer's real data at a fixed place (the Caucasus and
   Middle East region and its two subregions, with finer dashes than the
@@ -188,7 +188,10 @@ elsewhere closes it.
   - RGI regions, on by default;
   - Centerlines, off by default;
   - Intersects, off by default.
-- **3D button**, then **+ / −**, at the bottom right.
+- **Compass**, then the **3D button** and **+ / −**, centred at the bottom
+  right (see `2026-11-01-compass-design.md`). The compass shows north, turns
+  the map with its arrows, and faces north out of 3D when its needle is
+  clicked. The buttons are 36 px with 11 px corners.
 - **Status line** over the map's bottom right corner, translucent and only
   as wide as its text. It holds a compact scale bar and the credits,
   custom-built because MapLibre's controls are too large. It never reaches
@@ -200,6 +203,8 @@ elsewhere closes it.
 - Round **layer** and **3D** buttons sit at the top right, using Lucide's
   `layers-2` icon for the layers. There is no scale bar and no + / −, since
   the phone is touch only.
+- A round **compass** sits under the 3D button while the map is turned or
+  in 3D. A tap faces north and leaves 3D.
 - The **layer button** opens a bottom pane like Google Maps' "Map type" pane.
   It has a header with ✕, a "Map type" row with Standard and Imagery tiles,
   and an "RGI layers" row with the three toggle tiles. A selected tile's
@@ -260,7 +265,9 @@ elsewhere closes it.
     tilts the camera;
   - a small notice in a map corner, closable with ✕, says the terrain is
     newer than the RGI outlines and may not match them;
-  - closing the notice is remembered for the session.
+  - closing the notice is remembered for the session;
+  - tilting the map by hand past 5° turns 3D on where the reader left the
+    camera, and tilting it back flat turns 3D off and keeps the bearing.
 
 ## Search
 
