@@ -31,9 +31,11 @@ test("the globe's outline at a pole is as large as at the Mercator edge", () => 
 
 /*
  * A pinhole camera as MapLibre's globe has: a point behind the camera
- * projects mirrored, through the far side of the screen.
+ * projects mirrored, through the far side of the screen. `nudge` moves the
+ * camera forward by that many pixels, as MapLibre's camera differs a little
+ * from the one globeDisc models.
  */
-function pinhole(map, width, height) {
+function pinhole(map, width, height, nudge = 0) {
   const fov = 0.6435011087932844;
   const { lng, lat } = map.getCenter();
   const radius = (512 * 2 ** map.getZoom()) / (2 * Math.PI) / Math.cos(rad(lat));
@@ -44,9 +46,10 @@ function pinhole(map, width, height) {
   const north = [-Math.sin(rad(lat)) * Math.cos(rad(lng)), -Math.sin(rad(lat)) * Math.sin(rad(lng)), Math.cos(rad(lat))];
   const right = [-Math.sin(rad(lng)), Math.cos(rad(lng)), 0];
   const pitch = rad(map.getPitch());
-  const camera = up.map((u, i) => u * (radius + focal * Math.cos(pitch)) - north[i] * focal * Math.sin(pitch));
-  const ahead = up.map((u, i) => u * radius - camera[i]);
+  const orbit = up.map((u, i) => u * (radius + focal * Math.cos(pitch)) - north[i] * focal * Math.sin(pitch));
+  const ahead = up.map((u, i) => u * radius - orbit[i]);
   const forward = ahead.map((v) => v / Math.hypot(...ahead));
+  const camera = orbit.map((c, i) => c + forward[i] * nudge);
   const down = [0, 1, 2].map((i) => forward[(i + 1) % 3] * right[(i + 2) % 3] - forward[(i + 2) % 3] * right[(i + 1) % 3]);
   map.project = ([lo, la]) => {
     const v = unit(lo, la).map((c, i) => c * radius - camera[i]);
@@ -64,4 +67,16 @@ test("the globe's outline stays on screen when the horizon runs out behind the c
   const at = (x) => disc.y - disc.ry * Math.sqrt(1 - ((x - disc.x) / disc.rx) ** 2);
   assert.ok(Math.abs(at(550) - 130) < 3, `top ${at(550)}: ${JSON.stringify(disc)}`);
   assert.ok(Math.abs(at(0) - 191) < 3, `side ${at(0)}: ${JSON.stringify(disc)}`);
+});
+
+test("a horizon sample on the camera's plane does not throw the outline off", () => {
+  const map = new FakeMap({ center: [7.3675, 50.4105], zoom: 4.56 });
+  map.pitch = 60;
+  /* A sample lies 0.2 px in front of the modelled camera, so behind this one. */
+  pinhole(map, 1100, 800, 1);
+  const disc = globeDisc(map, 1100, 800);
+  /* The limb crosses the middle column at y ≈ 203 and the sides at y ≈ 296. */
+  const at = (x) => disc.y - disc.ry * Math.sqrt(1 - ((x - disc.x) / disc.rx) ** 2);
+  assert.ok(Math.abs(at(550) - 203) < 3, `top ${at(550)}: ${JSON.stringify(disc)}`);
+  assert.ok(Math.abs(at(0) - 296) < 3, `side ${at(0)}: ${JSON.stringify(disc)}`);
 });

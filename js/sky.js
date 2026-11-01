@@ -57,8 +57,14 @@ export function globeDisc(map, width, height) {
   // Tangent beneath the camera; with right, it starts the samples at the outline's extremes.
   const across = cross(below, right);
 
-  // The camera looks at the map center; a sample behind it projects mirrored.
-  const forward = up.map((u, i) => u * radius - camera[i]);
+  /*
+   * The camera looks at the map center; a sample behind it projects mirrored.
+   * So may one just in front of it, as MapLibre's camera differs a little from
+   * this one. Samples that near the camera's plane land far off screen, so the
+   * outline skips them too.
+   */
+  // A unit vector: the camera orbits the center at `distance`.
+  const forward = up.map((u, i) => (u * radius - camera[i]) / distance);
   const points = [];
   for (let i = 0; i < LIMB_SAMPLES; i += 1) {
     const angle = (i / LIMB_SAMPLES) * 2 * Math.PI;
@@ -68,7 +74,7 @@ export function globeDisc(map, width, height) {
         (right[k] * Math.cos(angle) + across[k] * Math.sin(angle)) * Math.sin(horizon),
     );
     const depth = forward.reduce((sum, f, k) => sum + f * (sample[k] * radius - camera[k]), 0);
-    if (depth <= 0) continue;
+    if (depth < distance / 10) continue;
     const [x, y, z] = sample;
     points.push(map.project([deg(Math.atan2(y, x)), deg(Math.asin(z))]));
   }
