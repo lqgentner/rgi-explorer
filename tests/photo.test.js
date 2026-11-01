@@ -7,13 +7,14 @@ import { test } from "node:test";
 import { loadPage, load, settle } from "./helpers/browser.js";
 
 const { document, window } = await loadPage();
-const { sparqlQuery, pointInRings, pickFiles, commonsCredits, categoryFiles, esriCrop, findPhotos } =
+const { sparqlQuery, pointInRings, pickFiles, commonsCredits, categoryFiles, esriCrop, cropSourceUrl, imagerySource, findPhotos } =
   await load("js/photo.js");
-const { TIMEOUT_MS, SPARQL, COMMONS_API } = await load("js/config.js");
+const { TIMEOUT_MS, SPARQL, COMMONS_API, ESRI_IDENTIFY } = await load("js/config.js");
 const { mountCard } = await load("js/card.js");
 
 const fixture = (p) => JSON.parse(fs.readFileSync(new URL(`./fixtures/${p}`, import.meta.url), "utf8"));
 const WD = fixture("wikidata/aletsch.json");
+const IDENTIFY = fixture("esri/identify-aletsch.json");
 const COMMONS = fixture("commons/aletsch.json");
 const RINGS = fixture("aletsch-rings.json");
 const GLIMS = "G008032E46504N";
@@ -349,11 +350,72 @@ test("with no photos the card shows the Esri crop and its credit", async () => {
   await settle();
   const img = root.querySelector(".photo img");
   assert.equal(img.getAttribute("src"), esriCrop(BBOX, 816, 400));
-  assert.equal(root.querySelector(".photo-credit").textContent, "Esri, Maxar, Earthstar Geographics");
+  assert.equal(root.querySelector(".photo-credit").textContent, "Esri, Vantor, Earthstar Geographics");
   img.dispatchEvent(new window.Event("error"));
   assert.equal(root.querySelector(".photo img"), null);
   assert.ok(root.querySelector(".photo-placeholder"));
   assert.equal(root.querySelector(".photo-placeholder").style.background, "var(--line)");
+});
+
+test("the source lookup asks Esri about the glacier's centre at the crop's own extent and size", () => {
+  const url = new URL(cropSourceUrl(BBOX, 816, 400, 40));
+  assert.equal(`${url.origin}${url.pathname}`, ESRI_IDENTIFY);
+  const params = Object.fromEntries(url.searchParams);
+  assert.equal(params.mapExtent, new URL(esriCrop(BBOX, 816, 400, 40)).searchParams.get("bbox"));
+  assert.equal(params.imageDisplay, "816,400,96");
+  assert.equal(params.layers, "visible", "only the metadata layer drawn at the crop's scale answers");
+  assert.equal(params.sr, "3857");
+  assert.equal(params.geometryType, "esriGeometryPoint");
+  const [x, y] = params.geometry.split(",").map(Number);
+  assert.ok(Math.abs(x - 891600) < 1 && Math.abs(y - 5857675) < 1, params.geometry);
+  assert.equal(params.returnGeometry, "false");
+  assert.equal(params.f, "json");
+});
+
+test("the imagery source is the metadata's provider and capture date", () => {
+  assert.deepEqual(imagerySource(IDENTIFY), { provider: "©swisstopo, ©Planet", date: "20 Aug 2023" });
+  const coarse = { results: [{ attributes: { NICE_DESC: "Earthstar Geographics", SRC_DATE: "Null" } }] };
+  assert.deepEqual(imagerySource(coarse), { provider: "Earthstar Geographics", date: null });
+  assert.equal(imagerySource({ results: [{ attributes: { SRC_DATE: "20230820" } }] }), null);
+  assert.equal(imagerySource({ error: { code: 400 } }), null);
+  assert.equal(imagerySource(null), null);
+});
+
+test("the crop's credit names the imagery's provider and date once Esri answers", async () => {
+  const real = globalThis.fetch;
+  const urls = [];
+  globalThis.fetch = async (url) => {
+    urls.push(url);
+    return { ok: true, status: 200, json: async () => IDENTIFY };
+  };
+  try {
+    const { root, card } = setup();
+    await card.open(OPEN("A", { bbox: BBOX }));
+    await settle();
+    assert.equal(root.querySelector(".photo-credit").textContent, "Esri, ©swisstopo, ©Planet, imaged 20 Aug 2023");
+    assert.deepEqual(urls, [cropSourceUrl(BBOX, 816, 400)]);
+  } finally {
+    globalThis.fetch = real;
+  }
+});
+
+test("a late source for A's crop does not touch B's credit", async () => {
+  const real = globalThis.fetch;
+  const pending = [];
+  globalThis.fetch = (url) => new Promise((resolve) => pending.push({ url, resolve }));
+  try {
+    const { root, card } = setup();
+    await card.open(OPEN("A", { bbox: BBOX }));
+    await card.open(OPEN("B", { bbox: { xmin: 1, ymin: 2, xmax: 3, ymax: 4 } }));
+    await settle();
+    pending[1].resolve({ ok: false, status: 500, json: async () => ({}) });
+    pending[0].resolve({ ok: true, status: 200, json: async () => IDENTIFY });
+    await settle();
+    assert.equal(root.querySelector(".photo-credit").textContent, "Esri, Vantor, Earthstar Geographics");
+    assert.equal(root.querySelectorAll(".photo-credit").length, 1);
+  } finally {
+    globalThis.fetch = real;
+  }
 });
 
 test("the crop shows while the photo lookup runs, and photos replace it when they arrive", async () => {

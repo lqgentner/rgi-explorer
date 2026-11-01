@@ -7,6 +7,11 @@ export const ESRI_TILES =
   "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
 export const ESRI_EXPORT =
   "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export";
+/* The imagery's source and date at a point, for the card's crop. */
+export const ESRI_IDENTIFY =
+  "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/identify";
+/* Who contributed World Imagery where, for the credits; Esri's own SDKs read it. */
+export const ESRI_ATTRIBUTION = "https://static.arcgis.com/attribution/World_Imagery";
 export const TERRAIN_TILEJSON = "https://tiles.mapterhorn.com/tilejson.json";
 /* Which elevation sources Mapterhorn used in each tile, for the credits. */
 export const TERRAIN_COVERAGE = "https://download.mapterhorn.com/coverage-index.pmtiles";

@@ -78,7 +78,7 @@ These would make the project a failure even if everything technically works:
   host is listed explicitly: `data.source.coop`, `tiles.openfreemap.org`,
   `server.arcgisonline.com`, `tiles.mapterhorn.com`, `photon.komoot.io`,
   `query.wikidata.org`, `commons.wikimedia.org`, `upload.wikimedia.org`, and
-  `download.mapterhorn.com` for `connect-src` only.
+  `download.mapterhorn.com` and `static.arcgis.com` for `connect-src` only.
   A test checks the policy offline, as glace-viewer's `page-assets.test.js`
   does.
 - **The explorer depends only on the published catalog**, never on
@@ -396,8 +396,11 @@ adapted because an RGI glacier has no OSM tags.
 5. The author and license come from the Commons API (`imageinfo` with
    `extmetadata`).
 6. With no hit, or on any error or timeout, show an Esri World Imagery crop
-   framed on the glacier's bbox, with the line "Imagery Esri, Maxar,
-   Earthstar Geographics". On desktop
+   framed on the glacier's bbox, with the line "Esri, Vantor, Earthstar
+   Geographics". The page asks World Imagery's `identify` about the bbox's
+   centre at the crop's extent and size, so only the metadata layer drawn at
+   the crop's scale answers. Its provider and capture date then replace the
+   line: "Esri, ©swisstopo, ©Planet, imaged 20 Aug 2023". On desktop
    the search bar covers the photo's top, so the crop centres the glacier in
    the rows below it.
 
@@ -475,7 +478,16 @@ named for what it draws:
 - **Glaciers:** "RGI Consortium" and the year of the catalog's citation,
   linked to the catalog's DOI, whose landing page names the license;
 - **Basemap:** © OpenStreetMap contributors, OpenFreeMap, © OpenMapTiles;
-- **Imagery:** Esri, when imagery is shown;
+- **Imagery:** "Powered by Esri", linked to esri.com, when imagery is
+  shown, as Esri asks of interactive maps; then the contributors in view,
+  best score first. Esri's list of contributors
+  (`static.arcgis.com/attribution/World_Imagery`, which Esri's own SDKs
+  read) is fetched once; each move keeps the contributors whose coverage
+  meets the view at Esri's tile level, one deeper than MapLibre's zoom.
+  Until it arrives, past 15 contributors, or with none in view, the
+  service's own sources follow instead: "Vantor, Earthstar Geographics, and
+  the GIS User Community". The card's crop is a static image, for which Esri
+  accepts the word "Esri" alone;
 - **Terrain:** © Mapterhorn, when 3D is on, then the producers of the
   elevation sources in view, finest data first. After each move the page
   reads them from Mapterhorn's coverage index

@@ -3,7 +3,7 @@
  * credits into an info button and draws no scale bar.
  */
 
-import { TERRAIN_COVERAGE } from "./config.js";
+import { ESRI_ATTRIBUTION, TERRAIN_COVERAGE } from "./config.js";
 import { PHONE, h, icon } from "./ui.js";
 
 const EARTH_CIRCUMFERENCE = 40075016.686;
@@ -11,7 +11,9 @@ const TILE_SIZE = 512;
 const OSM = { text: "© OpenStreetMap contributors", href: "https://www.openstreetmap.org/copyright" };
 const OPENFREEMAP = { text: "OpenFreeMap", href: "https://openfreemap.org/" };
 const OPENMAPTILES = { text: "© OpenMapTiles", href: "https://www.openmaptiles.org/" };
-const ESRI = { text: "Esri, Maxar, Earthstar Geographics, and the GIS User Community" };
+/* Esri asks for "Powered by Esri" on interactive maps, then the data's sources: its copyrightText without "Esri". */
+const ESRI = { text: "Powered by Esri", href: "https://www.esri.com" };
+const ESRI_SOURCES = { text: "Vantor, Earthstar Geographics, and the GIS User Community" };
 const MAPTERHORN = { text: "© Mapterhorn", href: "https://mapterhorn.com/attribution" };
 const DOI = /^10\.\d{4,}\/\S+$/;
 const WEB = /^https?:\/\//;
@@ -23,6 +25,8 @@ const COVERAGE_ZOOMS = { min: 4, max: 12 };
 const MAX_COVERAGE_TILES = 16;
 /* Past this many sources in view, "© Mapterhorn" alone links to the full list, as Mapterhorn's own example does. */
 const MAX_TERRAIN_SOURCES = 15;
+/* Past this many contributors in view, Esri's fixed sources stand in. */
+const MAX_IMAGERY_CONTRIBUTORS = 15;
 
 /** Ground meters per screen pixel at a latitude in degrees (clamped to the map's) and a zoom level. */
 export function metersPerPixel(lat, zoom) {
@@ -76,6 +80,28 @@ export function terrainProducers(sources) {
     .map(({ producer_short: name, website }) => ({ text: `© ${name}`, href: WEB.test(website ?? "") ? website : null }));
 }
 
+/**
+ * The contributors in Esri's World Imagery list whose coverage meets a view's
+ * bounds at Esri's tile `level`, best score first, as credits. Null when there
+ * are none or too many to list. Each coverage bbox is
+ * [minLat, minLon, maxLat, maxLon].
+ */
+export function imageryContributors(contributors, { west, south, east, north }, level) {
+  const meets = ({ bbox: [minLat, minLon, maxLat, maxLon], zoomMin, zoomMax }) =>
+    level >= zoomMin &&
+    level <= zoomMax &&
+    minLat <= north &&
+    maxLat >= south &&
+    /* A view across the antimeridian runs past ±180°; its far side wraps around. */
+    [-360, 0, 360].some((shift) => minLon + shift <= east && maxLon + shift >= west);
+  const found = (contributors ?? []).flatMap(({ attribution, coverageAreas }) => {
+    const scores = (coverageAreas ?? []).filter(meets).map(({ score }) => score);
+    return attribution && scores.length ? [{ text: attribution, score: Math.max(...scores) }] : [];
+  });
+  if (!found.length || found.length > MAX_IMAGERY_CONTRIBUTORS) return null;
+  return found.sort((a, b) => b.score - a.score).map(({ text }) => ({ text }));
+}
+
 let coverage = null;
 
 /** The producers behind the terrain in view, or null when the index has no answer. */
@@ -101,16 +127,17 @@ function rgiCredit(citation) {
 
 /**
  * The credits for what the map shows, in reading order, as groups of
- * `{ label, items }`, each item `{ text, href? }`. `producers` credits the
- * elevation sources of the terrain in view after Mapterhorn.
+ * `{ label, items }`, each item `{ text, href? }`. `imagery` credits Esri's
+ * contributors in view after Esri, in place of its fixed sources; `producers`
+ * credits the elevation sources of the terrain in view after Mapterhorn.
  */
-export function credits({ base, terrain, catalog, producers = null }) {
+export function credits({ base, terrain, catalog, imagery = null, producers = null }) {
   const doi = DOI.test(catalog.doi ?? "") ? `https://doi.org/${catalog.doi}` : null;
   return [
     /* The DOI's landing page names the license. */
     { label: "Glaciers", items: [{ text: rgiCredit(catalog.citation), href: doi }] },
     { label: "Basemap", items: [OSM, OPENFREEMAP, OPENMAPTILES] },
-    base === "imagery" ? { label: "Imagery", items: [ESRI] } : null,
+    base === "imagery" ? { label: "Imagery", items: [ESRI, ...(imagery ?? [ESRI_SOURCES])] } : null,
     terrain ? { label: "Terrain", items: [MAPTERHORN, ...(producers ?? [])] } : null,
   ].filter(Boolean);
 }
@@ -123,7 +150,9 @@ export function credits({ base, terrain, catalog, producers = null }) {
  *
  * With terrain on, each move looks up the elevation sources in view. Until an
  * answer arrives, the credits keep the last one; a failed lookup leaves
- * "© Mapterhorn" alone.
+ * "© Mapterhorn" alone. On imagery, the credits name Esri's contributors in
+ * view, from Esri's list, read once; until it arrives, or when it fails, Esri's
+ * fixed sources stand, and the next move reads it again.
  */
 export function mountStatus(root, rgiMap, catalog, getState) {
   const list = h("span", { class: "credits" });
@@ -133,10 +162,21 @@ export function mountStatus(root, rgiMap, catalog, getState) {
 
   const item = ({ text, href }) =>
     href ? h("a", { class: "credit", href, target: "_blank", rel: "noopener" }, text) : h("span", { class: "credit" }, text);
+  const view = () => {
+    const bounds = rgiMap.map.getBounds();
+    return { west: bounds.getWest(), south: bounds.getSouth(), east: bounds.getEast(), north: bounds.getNorth() };
+  };
   let producers = null;
   let asked = 0;
+  let contributors = null;
+  let reading = false;
+  /* MapLibre draws Esri's 256 px tiles one level deeper than its own zoom. */
+  const imageryInView = () =>
+    contributors && getState().base === "imagery"
+      ? imageryContributors(contributors, view(), Math.round(rgiMap.map.getZoom()) + 1)
+      : null;
   const drawCredits = () => {
-    const groups = credits({ ...getState(), catalog, producers });
+    const groups = credits({ ...getState(), catalog, imagery: imageryInView(), producers });
     list.replaceChildren(
       ...groups.map(({ label, items }) =>
         h(
@@ -164,10 +204,7 @@ export function mountStatus(root, rgiMap, catalog, getState) {
       producers = null;
       return;
     }
-    const { map } = rgiMap;
-    const bounds = map.getBounds();
-    const view = { west: bounds.getWest(), south: bounds.getSouth(), east: bounds.getEast(), north: bounds.getNorth() };
-    lookUpProducers(view, map.getZoom())
+    lookUpProducers(view(), rgiMap.map.getZoom())
       .catch(() => null)
       .then((found) => {
         if (ask !== asked) return;
@@ -175,8 +212,29 @@ export function mountStatus(root, rgiMap, catalog, getState) {
         drawCredits();
       });
   };
+  /* On imagery, credit the contributors in view, reading Esri's list first if it has not arrived. */
+  const showImagery = () => {
+    if (getState().base !== "imagery") return;
+    if (contributors) {
+      drawCredits();
+      return;
+    }
+    if (reading) return;
+    reading = true;
+    fetch(ESRI_ATTRIBUTION)
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => {
+        contributors = Array.isArray(data?.contributors) ? data.contributors : null;
+      })
+      .catch(() => {})
+      .finally(() => {
+        reading = false;
+        drawCredits();
+      });
+  };
   lookUpTerrain();
   drawCredits();
+  showImagery();
 
   /*
    * One set of nodes for both layouts; style.css decides how they show. The
@@ -207,6 +265,7 @@ export function mountStatus(root, rgiMap, catalog, getState) {
   rgiMap.onMove(({ zoom, lat }) => {
     drawScale(lat, zoom);
     lookUpTerrain();
+    showImagery();
   });
   const publishHeight = () => {
     const height = root.getBoundingClientRect().height;
@@ -223,6 +282,7 @@ export function mountStatus(root, rgiMap, catalog, getState) {
     refresh() {
       lookUpTerrain();
       drawCredits();
+      showImagery();
       relayout();
     },
   };

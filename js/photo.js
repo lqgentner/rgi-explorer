@@ -4,7 +4,7 @@
  * or the DOM: the caller supplies the outline rings.
  */
 
-import { COMMONS_API, ESRI_EXPORT, SPARQL, TIMEOUT_MS } from "./config.js";
+import { COMMONS_API, ESRI_EXPORT, ESRI_IDENTIFY, SPARQL, TIMEOUT_MS } from "./config.js";
 
 const GLIMS_ID = /^G\d{6}E\d{5}[NS]$/;
 const GLACIER_CLASS = "wd:Q35666";
@@ -220,21 +220,63 @@ const MIN_SCALE = 1;
 const mercatorX = (lon) => (EARTH_RADIUS * lon * Math.PI) / 180;
 const mercatorY = (lat) => EARTH_RADIUS * Math.log(Math.tan(Math.PI / 4 + (Math.max(-MAX_LAT, Math.min(MAX_LAT, lat)) * Math.PI) / 360));
 
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
 /**
- * The Esri World Imagery export URL for a `width` by `height` image of `bbox`,
- * padded by 15% on each side. The first `top` rows stay clear: the bbox is
- * centred in the rows below them. The extent is in Web Mercator and has the
+ * The Web Mercator extent of a `width` by `height` crop of `bbox`, padded by
+ * 15% on each side, and the bbox's centre, both rounded. The first `top` rows
+ * stay clear: the bbox is centred in the rows below them. The extent has the
  * image's shape, so the server neither stretches nor re-centres it.
  */
-export function esriCrop(bbox, width, height, top = 0) {
+function cropFrame(bbox, width, height, top) {
   const [x0, x1] = [mercatorX(bbox.xmin), mercatorX(bbox.xmax)];
   const [y0, y1] = [mercatorY(bbox.ymin), mercatorY(bbox.ymax)];
   const rows = height - top;
   const scale = Math.max(((x1 - x0) * (1 + 2 * PAD)) / width, ((y1 - y0) * (1 + 2 * PAD)) / rows, MIN_SCALE);
-  const cx = (x0 + x1) / 2;
-  const ymax = (y0 + y1) / 2 + (top + rows / 2) * scale;
+  const [cx, cy] = [(x0 + x1) / 2, (y0 + y1) / 2];
+  const ymax = cy + (top + rows / 2) * scale;
   const extent = [cx - (width / 2) * scale, ymax - height * scale, cx + (width / 2) * scale, ymax].map((v) => Math.round(v));
+  return { extent, centre: [cx, cy].map((v) => Math.round(v)) };
+}
+
+/** The Esri World Imagery export URL for a `width` by `height` crop of `bbox`, framed as cropFrame says. */
+export function esriCrop(bbox, width, height, top = 0) {
+  const { extent } = cropFrame(bbox, width, height, top);
   return `${ESRI_EXPORT}?bbox=${extent.join(",")}&bboxSR=3857&imageSR=3857&size=${width},${height}&format=jpg&f=image`;
+}
+
+/**
+ * The Esri identify URL for the imagery under the centre of `bbox` in the crop
+ * esriCrop draws. Given the crop's extent and size, only the metadata layer
+ * drawn at the crop's scale answers.
+ */
+export function cropSourceUrl(bbox, width, height, top = 0) {
+  const { extent, centre } = cropFrame(bbox, width, height, top);
+  const params = new URLSearchParams({
+    geometry: centre.join(","),
+    geometryType: "esriGeometryPoint",
+    sr: "3857",
+    layers: "visible",
+    tolerance: "0",
+    mapExtent: extent.join(","),
+    imageDisplay: `${width},${height},96`,
+    returnGeometry: "false",
+    f: "json",
+  });
+  return `${ESRI_IDENTIFY}?${params}`;
+}
+
+/**
+ * The provider and capture date ("20 Aug 2023", or null) in an identify
+ * answer's metadata, or null when no result names a provider.
+ */
+export function imagerySource(data) {
+  const results = Array.isArray(data?.results) ? data.results : [];
+  const found = results.map((result) => result?.attributes ?? {}).find(({ NICE_DESC: name }) => name && name !== "Null");
+  if (!found) return null;
+  const [, year, month, day] = /^(\d{4})(\d{2})(\d{2})$/.exec(found.SRC_DATE ?? "") ?? [];
+  const date = MONTHS[month - 1] ? `${Number(day)} ${MONTHS[month - 1]} ${year}` : null;
+  return { provider: found.NICE_DESC, date };
 }
 
 /** An AbortSignal that fires on the caller's signal or after `timeoutMs`, and a cleanup. */
@@ -251,6 +293,18 @@ function withTimeout(outer, timeoutMs) {
       outer?.removeEventListener("abort", abort);
     },
   };
+}
+
+/** The imagery source of the crop esriCrop draws, or null on any error or timeout. */
+export async function findCropSource(bbox, width, height, top = 0, { fetch = globalThis.fetch, timeoutMs = TIMEOUT_MS } = {}) {
+  const guard = withTimeout(null, timeoutMs);
+  try {
+    return imagerySource(await getJson(cropSourceUrl(bbox, width, height, top), { fetch, signal: guard.signal }));
+  } catch {
+    return null;
+  } finally {
+    guard.done();
+  }
 }
 
 async function gather(glacier, rings, { fetch, signal }) {

@@ -3,7 +3,7 @@
 import { ATTRIBUTE_COLUMNS, DISPLAY, GROUP_TITLES, formatArea, missingAttributes, nonEmpty, overviewRows } from "./columns.js";
 import { renderHypsometry } from "./hypsometry.js";
 import { CARD_COLUMNS, readRow } from "./parquet.js";
-import { esriCrop } from "./photo.js";
+import { esriCrop, findCropSource } from "./photo.js";
 import { PHONE, h, icon, popover } from "./ui.js";
 
 const TABS = [
@@ -13,7 +13,7 @@ const TABS = [
 const SHOWN_LINKS = 3;
 /* The imagery crop's pixel size, and the rows at its top that something covers. */
 const CROP = { size: [816, 400], top: 0 };
-const IMAGERY_CREDIT = "Esri, Maxar, Earthstar Geographics";
+const IMAGERY_CREDIT = "Esri, Vantor, Earthstar Geographics";
 const isHttp = (url) => /^https?:\/\//i.test(url ?? "");
 const AREA_UNIT = DISPLAY.find((d) => d.column === "area_km2").unit;
 
@@ -40,9 +40,10 @@ export function infoButton(label, description) {
  * what it credits.
  */
 function photoCredit(...items) {
-  const parts = items.filter(Boolean).flatMap((item, i) => (i ? [", ", item] : [item]));
-  return h("div", { class: "photo-credit" }, ...parts);
+  return h("div", { class: "photo-credit" }, ...creditParts(items));
 }
+
+const creditParts = (items) => items.filter(Boolean).flatMap((item, i) => (i ? [", ", item] : [item]));
 
 /**
  * Marks `section` as the panel last opened in `root`, which holds the glacier
@@ -122,13 +123,19 @@ export const placeholder = () => h("div", { class: "photo-placeholder", style: {
 /**
  * The imagery crop of `bbox` and its credit, for the photo area `photo`. An
  * image already there for the same crop stays. `onError` hears a failed load.
+ * Once Esri names the imagery's provider and capture date, they replace the
+ * fixed credit; a credit no longer shown changes unseen.
  */
 export function imageryCrop(photo, bbox, { crop = CROP, alt, onError }) {
   const src = esriCrop(bbox, ...crop.size, crop.top);
   if (photo.querySelector("img.photo-crop")?.getAttribute("src") === src) return [...photo.childNodes];
   const image = h("img", { class: "photo-crop", src, alt, loading: "lazy" });
   image.addEventListener("error", onError);
-  return [image, photoCredit(IMAGERY_CREDIT)];
+  const credit = photoCredit(IMAGERY_CREDIT);
+  findCropSource(bbox, ...crop.size, crop.top).then((source) => {
+    if (source) credit.replaceChildren(...creditParts(["Esri", source.provider, source.date && `imaged ${source.date}`]));
+  });
+  return [image, credit];
 }
 
 /**

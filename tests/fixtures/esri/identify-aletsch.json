@@ -1,0 +1,87 @@
+{
+ "results": [
+  {
+   "layerId": 0,
+   "layerName": "World Imagery",
+   "displayFieldName": "SOURCE_INFO",
+   "value": "Switzerland2023",
+   "attributes": {
+    "SRC_DATE2": "8/20/2023",
+    "MinMapLevel": "12",
+    "MaxMapLevel": "19"
+   }
+  },
+  {
+   "layerId": 1,
+   "layerName": "Low Resolution 15m Imagery",
+   "displayFieldName": "SOURCE_INFO",
+   "value": "TerraColor NextGen",
+   "attributes": {
+    "SRC_DATE2": "Null",
+    "SRC_DATE": "Null",
+    "MinMapLevel": "0",
+    "MaxMapLevel": "11"
+   }
+  },
+  {
+   "layerId": 2,
+   "layerName": "High Resolution 60cm Imagery",
+   "displayFieldName": "SOURCE_INFO",
+   "value": "Switzerland2023",
+   "attributes": {
+    "SRC_DATE2": "8/20/2023",
+    "MinMapLevel": "12",
+    "MaxMapLevel": "19"
+   }
+  },
+  {
+   "layerId": 3,
+   "layerName": "High Resolution 30cm Imagery",
+   "displayFieldName": "SOURCE_INFO",
+   "value": "Switzerland2023",
+   "attributes": {
+    "SRC_DATE2": "8/20/2023",
+    "MinMapLevel": "12",
+    "MaxMapLevel": "19"
+   }
+  },
+  {
+   "layerId": 4,
+   "layerName": "Citations",
+   "displayFieldName": "SOURCE_INFO",
+   "value": "Switzerland2023",
+   "attributes": {}
+  },
+  {
+   "layerId": 4,
+   "layerName": "Citations",
+   "displayFieldName": "SOURCE_INFO",
+   "value": "Switzerland2023",
+   "attributes": {}
+  },
+  {
+   "layerId": 4,
+   "layerName": "Citations",
+   "displayFieldName": "SOURCE_INFO",
+   "value": "TerraColor NextGen",
+   "attributes": {}
+  },
+  {
+   "layerId": 14,
+   "layerName": "9.6m Resolution Metadata",
+   "displayFieldName": "NICE_NAME",
+   "value": "Switzerland2023",
+   "attributes": {
+    "SRC_DATE": "20230820",
+    "SRC_RES": "0.1",
+    "SRC_ACC": "0.15",
+    "SRC_DESC": "SWISSIMAGE 10 cm",
+    "MinMapLevel": "12",
+    "MaxMapLevel": "19",
+    "NICE_NAME": "Switzerland2023",
+    "SRC_DATE2": "8/20/2023",
+    "NICE_DESC": "©swisstopo, ©Planet"
+   }
+  }
+ ]
+}

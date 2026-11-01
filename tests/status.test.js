@@ -5,7 +5,19 @@ import test from "node:test";
 import { FakeMap, loadPage, load } from "./helpers/browser.js";
 
 const { document } = await loadPage();
-const { coverageTiles, credits, metersPerPixel, mountStatus, scaleBar, terrainProducers } = await load("js/status.js");
+const { coverageTiles, credits, imageryContributors, metersPerPixel, mountStatus, scaleBar, terrainProducers } =
+  await load("js/status.js");
+const { ESRI_ATTRIBUTION } = await load("js/config.js");
+
+/* Esri's contributor list: each bbox is [minLat, minLon, maxLat, maxLon]. */
+const area = (bbox, zoomMin = 12, zoomMax = 23, score = 100) => ({ bbox, zoomMin, zoomMax, score });
+const CONTRIBUTORS = [
+  { attribution: "Earthstar Geographics", coverageAreas: [area([-84.94, -179.66, 84.94, 179.66], 0, 13, 50)] },
+  { attribution: "©swisstopo, ©Planet", coverageAreas: [area([46.39, 7.36, 46.41, 7.4]), area([46.3, 7.8, 46.6, 8.2])] },
+  { attribution: "Vantor", coverageAreas: [area([40, 0, 50, 20], 14, 23, 80)] },
+  { attribution: "Land Tirol", coverageAreas: [area([46.75, 10.09, 47.6, 11.14])] },
+  { attribution: "Chukotka", coverageAreas: [area([64, -179.9, 70, -170])] },
+];
 
 /* Mapterhorn's coverage index: each tile asked for is recorded, and `answer` gives its sources. */
 const asked = [];
@@ -55,9 +67,83 @@ test("credits name what each source draws, Esri only on imagery and Mapterhorn o
   assert.deepEqual(texts(both), [
     "Glaciers: RGI Consortium 2023",
     BASEMAP,
-    "Imagery: Esri, Maxar, Earthstar Geographics, and the GIS User Community",
+    "Imagery: Powered by Esri, Vantor, Earthstar Geographics, and the GIS User Community",
     "Terrain: © Mapterhorn",
   ]);
+});
+
+test("the imagery credits list Esri's contributors in view after Esri", () => {
+  const imagery = [{ text: "©swisstopo, ©Planet" }];
+  const [, , group] = credits({ base: "imagery", terrain: false, catalog, imagery });
+  assert.deepEqual(group.items.map((c) => c.text), ["Powered by Esri", "©swisstopo, ©Planet"]);
+  /* Esri asks for "Powered by Esri" on interactive maps, with Esri linked to its site. */
+  assert.equal(group.items[0].href, "https://www.esri.com");
+  assert.equal(credits({ base: "standard", terrain: false, catalog, imagery }).length, 2);
+});
+
+test("the contributors in view are those whose areas meet the view at its zoom, best score first", () => {
+  const aletsch = { west: 7.9, south: 46.4, east: 8.1, north: 46.6 };
+  const names = (view, level) => imageryContributors(CONTRIBUTORS, view, level)?.map((c) => c.text) ?? null;
+  assert.deepEqual(names(aletsch, 12), ["©swisstopo, ©Planet", "Earthstar Geographics"]);
+  assert.deepEqual(names(aletsch, 15), ["©swisstopo, ©Planet", "Vantor"]);
+  assert.deepEqual(names({ west: -180, south: -85, east: 180, north: 85 }, 3), ["Earthstar Geographics"]);
+  /* A view across the antimeridian runs past 180°; its far side wraps around. */
+  assert.deepEqual(names({ west: 179, south: 65, east: 181, north: 66 }, 16), ["Chukotka"]);
+  assert.equal(names({ west: 0, south: -60, east: 1, north: -59 }, 16), null, "no contributor: the fixed sources stand");
+  const many = Array.from({ length: 16 }, (_, i) => ({ attribution: `C${i}`, coverageAreas: [area([46, 7, 47, 9])] }));
+  assert.equal(imageryContributors(many, aletsch, 15), null, "past 15 contributors, the fixed sources stand");
+  assert.equal(imageryContributors(undefined, aletsch, 15), null);
+});
+
+test("on imagery, each move credits Esri's contributors in view, read from Esri once", async () => {
+  const root = document.createElement("div");
+  const map = new FakeMap({ center: [8.03, 46.5], zoom: 11 });
+  const onMove = [];
+  const rgiMap = { map, onMove: (cb) => onMove.push(cb) };
+  const state = { base: "standard", terrain: false };
+  const urls = [];
+  globalThis.fetch = async (url) => {
+    urls.push(url);
+    return { ok: true, status: 200, json: async () => ({ contributors: CONTRIBUTORS }) };
+  };
+  const imageryText = () =>
+    [...root.querySelectorAll(".credit-group")].find((g) => g.textContent.startsWith("Imagery"))?.textContent;
+  const status = mountStatus(root, rgiMap, catalog, () => state);
+  await settle();
+  assert.deepEqual(urls, [], "no request without imagery");
+
+  state.base = "imagery";
+  status.refresh();
+  assert.equal(imageryText(), "ImageryPowered by Esri, Vantor, Earthstar Geographics, and the GIS User Community");
+  await settle();
+  /* MapLibre's zoom 11 draws Esri's 256 px tiles of level 12. */
+  assert.equal(imageryText(), "ImageryPowered by Esri, ©swisstopo, ©Planet, Earthstar Geographics");
+
+  map.zoom = 14;
+  onMove[0]({ zoom: 14, lat: 46.5, lon: 8.03 });
+  await settle();
+  assert.equal(imageryText(), "ImageryPowered by Esri, ©swisstopo, ©Planet, Vantor");
+  assert.deepEqual(urls, [ESRI_ATTRIBUTION]);
+});
+
+test("a failed read of Esri's contributors keeps the fixed sources and is tried again on the next move", async () => {
+  const root = document.createElement("div");
+  const map = new FakeMap({ center: [8.03, 46.5], zoom: 11 });
+  const onMove = [];
+  const rgiMap = { map, onMove: (cb) => onMove.push(cb) };
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls += 1;
+    if (calls === 1) throw new Error("offline");
+    return { ok: true, status: 200, json: async () => ({ contributors: CONTRIBUTORS }) };
+  };
+  mountStatus(root, rgiMap, catalog, () => ({ base: "imagery", terrain: false }));
+  await settle();
+  assert.match(root.textContent, /ImageryPowered by Esri, Vantor, Earthstar Geographics, and the GIS User Community/);
+  onMove[0]({ zoom: 11, lat: 46.5, lon: 8.03 });
+  await settle();
+  assert.equal(calls, 2);
+  assert.match(root.textContent, /ImageryPowered by Esri, ©swisstopo, ©Planet, Earthstar Geographics/);
 });
 
 test("the terrain credits list the producers in view after Mapterhorn", () => {
@@ -174,7 +260,7 @@ test("the status line draws the scale and links, and refresh updates the credits
 
   state = { base: "imagery", terrain: true };
   status.refresh();
-  assert.ok(root.textContent.includes("Esri, Maxar"));
+  assert.ok(root.textContent.includes("Powered by Esri, Vantor"));
   assert.ok(root.textContent.includes("Mapterhorn"));
 
   onMove[0]({ zoom: 6, lat: 46.48, lon: 8 });
