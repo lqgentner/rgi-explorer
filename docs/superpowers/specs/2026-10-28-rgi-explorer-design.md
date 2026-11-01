@@ -216,7 +216,7 @@ elsewhere closes it.
   square has a blue border drawn inside it, on the phone and the desktop.
 - **One bottom sheet** for the glacier card, with GLACE Viewer's behavior.
   - Compact height: the name, "Use this data" and the top of the photo.
-  - Middle height: the RGI ID, region and area join the name, and the photo
+  - Middle height: the RGI ID and region join the name, and the photo
     and the start of the tabs show.
   - Full height, up to the search bar's top: the photo and both tabs, which
     scroll.

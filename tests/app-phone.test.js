@@ -29,14 +29,14 @@ test("a pick mounts the card in the sheet: the header in the band, the photo and
   click(row);
   assert.notEqual(document.activeElement, input, "the pick puts the keyboard away");
 
-  await waitFor(() => $("#sheet .card-area"));
+  await waitFor(() => $("#sheet-band .card-title")?.textContent === "Grosser Aletsch Gletscher");
   assert.equal($("#sheet").hidden, false);
   assert.equal($("#card").hidden, true);
   assert.equal($("#card").children.length, 0, "the desktop sidebar stays empty");
   assert.equal($("#sheet-band .card-title").textContent, "Grosser Aletsch Gletscher");
   assert.equal($('#search button[aria-label="Close"]').hidden, false, "the search bar's Close shows as on desktop");
   assert.equal($("#sheet-band .card-subtitle").textContent, `Glacier · ${ALETSCH} · Central Europe`);
-  assert.equal($("#sheet-band .card-area").textContent, "81.8 km²");
+  assert.equal($("#sheet-band").textContent.includes("km²"), false, "the area is in the overview, not the band");
   assert.ok(button($("#sheet-band"), "Use this data"));
   assert.ok($("#sheet-body .photo"));
   assert.ok($("#sheet-body [role=tablist]"));

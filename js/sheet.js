@@ -1,8 +1,8 @@
 /*
  * The glacier card on phones: a sheet docked to the bottom at three heights.
  * Compact shows the band (the handle, the name and "Use this data") and the
- * top of the photo; middle adds the ID or region line and the area to the
- * band and shows the photo and the start of the tabs; full reaches the search
+ * top of the photo; middle adds the ID or region line to the band and shows
+ * the photo and the start of the tabs; full reaches the search
  * bar's top, and only there does the body scroll. A drag writes two
  * properties on the root: --sheet-visible, which style.css turns into the
  * sheet's transform, and --sheet-rise, 0 at compact and 1 from middle up,
@@ -84,12 +84,13 @@ function outerHeight(node) {
 
 /*
  * The band's height comes from the body's offset. The compact band leaves out
- * the lines that only the higher sheets show, whichever height it is at now.
+ * the ID or region line, which only the higher sheets show, whichever height
+ * the sheet is at now.
  */
 function measure() {
   const full = el("sheet").offsetHeight;
   const band = el("sheet-body").offsetTop;
-  const extra = [...el("sheet-band").querySelectorAll(".card-subtitle, .card-area")].reduce(
+  const extra = [...el("sheet-band").querySelectorAll(".card-subtitle")].reduce(
     (sum, node) => sum + outerHeight(node),
     0,
   );

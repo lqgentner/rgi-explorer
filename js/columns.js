@@ -63,9 +63,10 @@ export const DISPLAY = [
 const COMPLEX_DISPLAY = [
   { column: "o1region", label: "Region" },
   { column: "o2region", label: "Subregion" },
+  { column: "area_km2", label: "Area", unit: "km²", format: "km" },
+  { column: "glacier_ids", label: "Glaciers" },
   { column: "cenlat", label: "Central point", format: "coord", with: ["cenlon"] },
   { column: "utm_zone", label: "UTM zone" },
-  { column: "glacier_ids", label: "Glaciers" },
 ];
 
 /** Every scalar column the card shows or titles itself with, without duplicates. */

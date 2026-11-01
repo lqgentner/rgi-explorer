@@ -36,12 +36,10 @@ export function mountComplexCard(root, ctx) {
   function renderHead() {
     const code = regionCode();
     const region = (ctx.regions ?? []).find((r) => Number(r.level) === 1 && r.o1region === code)?.full_name;
-    const area = current.props?.area_km2;
     ctx.onTitle?.(current.id);
     head.replaceChildren(
       h("h2", { class: "card-title" }, current.id),
       h("p", { class: "card-subtitle" }, ["Complex", region].filter(Boolean).join(" · ")),
-      Number.isFinite(area) ? h("p", { class: "card-area" }, `${formatArea(area)} ${AREA_UNIT}`) : null,
     );
   }
 

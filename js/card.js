@@ -1,6 +1,6 @@
 /* The glacier card: photo area, header, actions and the Overview and Hypsometry tabs. */
 
-import { ATTRIBUTE_COLUMNS, DISPLAY, GROUP_TITLES, formatArea, missingAttributes, nonEmpty, overviewRows } from "./columns.js";
+import { ATTRIBUTE_COLUMNS, GROUP_TITLES, missingAttributes, nonEmpty, overviewRows } from "./columns.js";
 import { renderHypsometry } from "./hypsometry.js";
 import { CARD_COLUMNS, readRow } from "./parquet.js";
 import { esriCrop, findCropSource } from "./photo.js";
@@ -15,7 +15,6 @@ const SHOWN_LINKS = 3;
 const CROP = { size: [816, 400], top: 0 };
 const IMAGERY_CREDIT = "Esri, Vantor, Earthstar Geographics";
 const isHttp = (url) => /^https?:\/\//i.test(url ?? "");
-const AREA_UNIT = DISPLAY.find((d) => d.column === "area_km2").unit;
 
 /** The first-order region code inside an RGI glacier or complex ID, such as "11" in RGI2000-v7.0-G-11-02596. */
 export const regionOfId = (id) => /-[GC]-(\d{2})-/.exec(id ?? "")?.[1] ?? null;
@@ -214,12 +213,10 @@ export function mountCard(root, ctx) {
     const code = nonEmpty(props.o1region) ?? regionOfId(rgiId);
     const region = (ctx.regions ?? []).find((r) => Number(r.level) === 1 && r.o1region === code)?.full_name;
     const subtitle = ["Glacier", name ? rgiId : null, region].filter(Boolean).join(" · ");
-    const area = Number.isFinite(props.area_km2) ? `${formatArea(props.area_km2)} ${AREA_UNIT}` : null;
     ctx.onTitle?.(name ?? rgiId);
     head.replaceChildren(
       h("h2", { class: "card-title" }, name ?? rgiId),
       subtitle ? h("p", { class: "card-subtitle" }, subtitle) : null,
-      area ? h("p", { class: "card-area" }, area) : null,
     );
   }
 

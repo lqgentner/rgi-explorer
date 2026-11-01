@@ -156,15 +156,16 @@ const COMPLEX = {
   utm_zone: 32, area_km2: 83.28, glacier_ids: ["RGI2000-v7.0-G-11-00003", "RGI2000-v7.0-G-11-02596"],
 };
 
-test("a complex shows its region, point, UTM zone and glacier count", () => {
+test("a complex shows its region, area, glacier count, point and UTM zone", () => {
   const rows = complexRows(COMPLEX, catalog.complexColumns, regions);
   assert.deepEqual(rows.map((r) => [r.label, r.value]), [
     ["Region", "11 · Central Europe"],
     ["Subregion", "11-01 · Alps"],
+    ["Area", "83.3 km²"],
+    ["Glaciers", "2"],
     ["Central point", "46.4800° N, 7.9700° E"],
     ["UTM zone", "32"],
-    ["Glaciers", "2"],
   ]);
-  assert.match(rows.at(-1).description, /rgi_id of every glacier/);
+  assert.match(rows.find((r) => r.label === "Glaciers").description, /rgi_id of every glacier/);
   assert.deepEqual(complexRows({ rgi_id: COMPLEX.rgi_id }, catalog.complexColumns, regions), []);
 });

@@ -392,7 +392,6 @@ test("on the phone, with a band, the header and actions sit in the band and the 
   const { root, card, calls } = setup({ band, sheet });
   await card.open({ rgiId: IDS[0], props: OVERVIEW_PROPS });
   assert.equal(text(band, ".card-title"), "Grosser Aletsch Gletscher");
-  assert.equal(text(band, ".card-area"), "81.8 km²");
   assert.ok([...band.querySelectorAll("button")].some((b) => b.textContent === "Use this data"));
   assert.ok(band.querySelector(".card-close"));
   assert.equal(sheet.querySelector(".card-title"), null);
@@ -434,11 +433,9 @@ test("a change of layout moves an open card between the sidebar and the sheet", 
   assert.equal(band.querySelector(".card-close"), null, "the search bar's Close closes the card on desktop");
 });
 
-test("the header names the area when it is known, and nothing when it is not", async () => {
+test("the header leaves the area to the overview", async () => {
   const { root, card } = setup();
   await card.open({ rgiId: IDS[0], props: OVERVIEW_PROPS });
-  assert.equal(text(root, ".card-area"), "81.8 km²");
-  const bare = setup({ parquet: { handle, rowOf: async () => null } });
-  await bare.card.open({ rgiId: IDS[4], props: {} });
-  assert.equal(bare.root.querySelector(".card-area"), null);
+  assert.equal(root.querySelector(".card-head").textContent.includes("km²"), false);
+  assert.ok([...root.querySelectorAll(".key-tile")].some((tile) => tile.textContent.includes("81.8 km²")));
 });

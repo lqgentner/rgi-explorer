@@ -1459,13 +1459,6 @@ table.members .num {
   color: inherit;
 }
 
-/* The card's area line shows only on the phone, in the sheet above its compact height. */
-.card-area {
-  display: none;
-  margin: 2px 0 0;
-  font-weight: 600;
-}
-
 /* Short confirmations such as "Link copied". */
 .notice {
   position: fixed;
@@ -1681,10 +1674,6 @@ dialog.usedata::backdrop {
     display: none;
   }
 
-  .card-area {
-    display: block;
-  }
-
   /*
    * A sheet docked to the bottom, compact, middle or full; js/sheet.js moves it
    * between them through --sheet-visible, the px it shows. At full height it
@@ -1730,8 +1719,7 @@ dialog.usedata::backdrop {
   }
 
   /* The compact band keeps to the name and the actions. */
-  #sheet[data-level="compact"] .card-subtitle,
-  #sheet[data-level="compact"] .card-area {
+  #sheet[data-level="compact"] .card-subtitle {
     display: none;
   }
 
@@ -1801,10 +1789,16 @@ dialog.usedata::backdrop {
     inset: -12px -20px -8px;
   }
 
-  /* The name keeps clear of the ✕, which sits as far from the right edge as the actions from the left. */
+  /*
+   * The name keeps clear of the ✕, which sits as far from the right edge as
+   * the actions from the left; the line below runs on under the ✕.
+   */
   #sheet-head .card-head {
     padding-top: 4px;
-    padding-right: 56px;
+  }
+
+  #sheet-head .card-title {
+    padding-right: 40px;
   }
 
   /*

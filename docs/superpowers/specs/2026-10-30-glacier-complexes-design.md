@@ -107,11 +107,11 @@ bottom sheet on the phone, with the same widths, motion and close behaviour.
   this data, close.
 - **Attributes.** One list with no tabs, labelled as the glacier card labels
   its rows:
-  - area, in km²;
   - first-order region and second-order region, each with its code and name;
+  - area, in km²;
+  - the number of glaciers in the complex;
   - the representative point (`cenlon`, `cenlat`);
-  - the UTM zone;
-  - the number of glaciers in the complex.
+  - the UTM zone.
 - **Glaciers.** A table of the member glaciers with name, RGI ID and area,
   largest first. A glacier without a name shows an empty name cell. The table
   scrolls inside its own box when it is long, so a complex of 893 glaciers
