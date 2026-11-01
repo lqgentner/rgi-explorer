@@ -50,6 +50,15 @@ function localReferences() {
 const libraries = () => localReferences().filter((ref) => ref.startsWith("node_modules/"));
 const packageName = (ref) => /^node_modules\/((?:@[^/]+\/)?[^/]+)\//.exec(ref)[1];
 
+/*
+ * The sidebar slides in and out on the desktop when its hidden attribute
+ * changes. It starts hidden in the markup, so the first paint doesn't draw it
+ * open and slide it away once the scripts have run.
+ */
+test("the sidebar card starts hidden in the markup", () => {
+  assert.equal(page().getElementById("card").hidden, true);
+});
+
 test("every file the page references is in the repository", () => {
   const refs = localReferences();
   // A guard on the guard: a selector that matched nothing would pass silently.

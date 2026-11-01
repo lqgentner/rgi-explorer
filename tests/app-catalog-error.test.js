@@ -20,4 +20,5 @@ test("a missing catalog says so in the notice region and logs one error", async 
   assert.equal(document.querySelector("#notice").getAttribute("aria-live"), "polite");
   assert.equal(errors.length, 1);
   assert.equal(document.querySelector("#search input"), null);
+  assert.equal(document.querySelector("#card").hidden, true, "no empty sidebar stays open");
 });
