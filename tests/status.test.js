@@ -195,7 +195,7 @@ test("with terrain on, each move credits the elevation sources in view, and only
   const rgiMap = { map, onMove: (cb) => onMove.push(cb) };
   const state = { base: "standard", terrain: false };
   const terrainText = () =>
-    [...root.querySelectorAll(".credit-group")].find((g) => g.textContent.startsWith("Terrain"))?.textContent;
+    [...root.querySelectorAll(".credit-group")].find((g) => g.textContent.startsWith("Terrain"))?.textContent.replaceAll("\u00a0", " ");
   asked.length = 0;
   const status = mountStatus(root, rgiMap, catalog, () => state);
   await settle();
@@ -208,7 +208,7 @@ test("with terrain on, each move credits the elevation sources in view, and only
   await settle();
   assert.equal(terrainText(), "Terrain© Mapterhorn, © swisstopo, © Copernicus");
   assert.ok(asked.length > 0 && asked.every(({ url, z }) => url === "https://download.mapterhorn.com/coverage-index.pmtiles" && z === 11));
-  assert.equal(root.querySelector('a[href="https://swisstopo.example/"]').textContent, "© swisstopo");
+  assert.equal(root.querySelector('a[href="https://swisstopo.example/"]').textContent, "©\u00a0swisstopo");
 
   /* A slow answer for the first view arrives after the one for the second. */
   let release;
@@ -251,7 +251,7 @@ test("the status line draws the scale and links, and refresh updates the credits
   assert.equal(root.querySelector(".scale-bar").style.width, "76px");
   assert.ok(!root.textContent.includes("Esri"));
   assert.deepEqual([...root.querySelectorAll(".credit-label")].map((l) => l.textContent), ["Glaciers", "Basemap"]);
-  const osm = [...root.querySelectorAll("a")].find((a) => a.textContent.startsWith("© OpenStreetMap"));
+  const osm = [...root.querySelectorAll("a")].find((a) => a.textContent.startsWith("©\u00a0OpenStreetMap"));
   assert.equal(osm.href, "https://www.openstreetmap.org/copyright");
   const rgi = [...root.querySelectorAll("a")].find((a) => a.textContent === "RGI Consortium 2023");
   assert.equal(rgi.href, "https://doi.org/10.5067/f6jmovy5navz");
@@ -319,4 +319,13 @@ test("no space separates the credit groups, so the credits wrap inside a group, 
   assert.equal(list.childNodes.length, list.children.length, "no text nodes between the groups");
   const box = root.querySelector(".credits-box");
   assert.deepEqual([...root.children], [root.querySelector(".scale"), box], "the scale, then the credits column");
+});
+
+test("a copyright sign stays on the line of the name it belongs to", () => {
+  const root = document.createElement("div");
+  const map = new FakeMap({ center: [8, 46.48], zoom: 11 });
+  mountStatus(root, { map, onMove() {} }, catalog, () => ({ base: "standard", terrain: false }));
+  const signs = [...root.querySelectorAll(".credit")].map((c) => c.textContent).filter((t) => t.includes("©"));
+  assert.ok(signs.length >= 2);
+  for (const text of signs) assert.match(text, /©\u00a0/);
 });

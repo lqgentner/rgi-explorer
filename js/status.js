@@ -160,8 +160,11 @@ export function mountStatus(root, rgiMap, catalog, getState) {
   const scaleLine = h("span", { class: "scale-bar" });
   const scale = h("span", { class: "scale", "aria-hidden": "true" }, scaleLabel, scaleLine);
 
-  const item = ({ text, href }) =>
-    href ? h("a", { class: "credit", href, target: "_blank", rel: "noopener" }, text) : h("span", { class: "credit" }, text);
+  /* A no-break space keeps "©" on the line of the name it belongs to. */
+  const item = ({ text: raw, href }) => {
+    const text = raw.replaceAll("© ", "© ");
+    return href ? h("a", { class: "credit", href, target: "_blank", rel: "noopener" }, text) : h("span", { class: "credit" }, text);
+  };
   const view = () => {
     const bounds = rgiMap.map.getBounds();
     return { west: bounds.getWest(), south: bounds.getSouth(), east: bounds.getEast(), north: bounds.getNorth() };
