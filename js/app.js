@@ -429,9 +429,13 @@ function wire(catalog, rgiMap, regions) {
   let camera = 0;
 
   /* A drag, pinch or wheel move is a camera request too, so a pending fit is dropped. */
+  /* The reader's own move also closes the welcome: they are exploring without the tour. */
   map.on("movestart", (event) => {
-    if (event?.originalEvent) camera += 1;
+    if (!event?.originalEvent) return;
+    camera += 1;
+    welcome.dismiss();
   });
+  el("search").addEventListener("focusin", () => welcome.dismiss());
 
   const padding = () => {
     if (PHONE.matches) return { top: PHONE_TOP, right: GAP, bottom: (popupPadding()?.bottom ?? 0) + GAP, left: GAP };
@@ -683,6 +687,7 @@ function wire(catalog, rgiMap, regions) {
   }
 
   map.on("click", (event) => {
+    welcome.dismiss();
     const props = rgiMap.glacierAt(event.point);
     if (props?.rgi_id) openGlacier({ rgiId: props.rgi_id, props }, IF_NEEDED);
     else if (shown) closeGlacier();
