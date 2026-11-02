@@ -35,13 +35,6 @@ test("the popover goes right of a tall panel, inside the viewport", () => {
   assert.ok(at.top >= 8 && at.top + BOX.height <= VIEWPORT.height - 8);
 });
 
-test("left-bottom puts the popover left of a column of controls, level with its foot", () => {
-  const at = placeNear(rect(980, 400, 1016, 760), BOX, VIEWPORT, ["left-bottom"]);
-  assert.equal(at.side, "left-bottom");
-  assert.equal(at.top, 760 - 120);
-  assert.equal(at.left, 980 - 12 - 280);
-});
-
 test("with no side that fits, the first side is used and clamped inside the margin", () => {
   const at = placeNear(rect(0, 0, 1024, 768), BOX, VIEWPORT, ["below", "above"]);
   assert.equal(at.side, "below");
@@ -244,37 +237,26 @@ test("3D turning on finishes step 4 with the last card", () => {
   assert.deepEqual(calls.ends, [{ byTarget: false }]);
 });
 
-test("on the desktop 3D and the last card sit left of the controls, level with the lowest", () => {
-  window.innerWidth = 1280;
-  window.innerHeight = 800;
-  const column = rect(1220, 400, 1264, 780);
-  targets.controls.getBoundingClientRect = () => column;
-  targets.done.getBoundingClientRect = () => column;
+test("on the desktop 3D and the last card dock beside the controls, placed by style.css", () => {
   toTerrain();
   assert.equal(title(), "3D");
-  const step4 = { side: popup().dataset.side, top: popup().style.top, left: popup().style.left };
-  assert.deepEqual(step4, { side: "left-bottom", top: `${780 - popup().getBoundingClientRect().height}px`, left: `${1220 - 12 - popup().getBoundingClientRect().width}px` });
-  assert.deepEqual(ringed(), ["terrain"], "the ring stays on the 3D button");
+  assert.equal(popup().dataset.dock, "controls");
+  assert.equal(popup().style.top, "", "no inline place: the dock follows the controls as they move");
+  assert.equal(popup().style.left, "");
+  assert.deepEqual(ringed(), ["terrain"]);
   terrain = true;
   tour.refresh();
   assert.equal(title(), "You're all set.");
-  assert.deepEqual({ side: popup().dataset.side, top: popup().style.top, left: popup().style.left }, step4);
+  assert.equal(popup().dataset.dock, "controls");
+  assert.equal(popup().style.top, "");
+  page.setPhone(true);
+  assert.equal(popup().dataset.dock, undefined, "the phone puts it at the top");
+  page.setPhone(false);
+  assert.equal(popup().dataset.dock, "controls");
+  const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
+  assert.match(css, /@media \(min-width: 641px\) \{\s*\.tour\[data-dock="controls"\] \{\s*top: auto;\s*left: auto;\s*bottom: calc\(var\(--status-h, 0px\) \+ 16px\);\s*right: calc\(16px \+ 54px \+ 12px\);\s*\}/,
+    "its bottom on the same line as the controls', left of the compass's 54 px and the 12 px gap");
 });
-
-test("reposition follows controls that moved without changing size, and keeps the focus on Done", () => {
-  window.innerWidth = 1280;
-  window.innerHeight = 800;
-  targets.done.getBoundingClientRect = () => rect(1220, 400, 1264, 780);
-  terrain = true;
-  toTerrain();
-  assert.equal(title(), "You're all set.");
-  button("Done").focus();
-  targets.done.getBoundingClientRect = () => rect(1220, 384, 1264, 764);
-  tour.reposition();
-  assert.equal(popup().style.top, `${764 - popup().getBoundingClientRect().height}px`);
-  assert.equal(document.activeElement, button("Done"));
-});
-
 test("with 3D already on, Skip on step 3 goes straight to the last card", () => {
   terrain = true;
   toTerrain();
@@ -391,7 +373,7 @@ test("on the phone search, 3D and the last card sit at the top; the card steps d
   tour.cover("useData", false);
   assert.equal(popup().dataset.dock, undefined, "3D: at the top again");
   page.setPhone(false);
-  assert.equal(popup().dataset.dock, undefined, "the desktop places by script");
+  assert.equal(popup().dataset.dock, "controls", "the desktop docks 3D beside its controls");
   const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
   assert.match(css, /@media \(max-width: 640px\) \{\s*\.tour \{\s*top: calc\(12px \+ var\(--search-h\) \+ 12px\);\s*left: 12px;\s*right: 64px;\s*width: auto;/);
   assert.match(css, /\.tour\[data-dock="button"\] \{[^}]*translate: 0 max\(calc\(12px \+ var\(--search-h\) \+ 12px\), calc\(100dvh - var\(--sheet-visible, 160px\) - 12px - 100%\)\);/,
@@ -416,35 +398,6 @@ test("the text runs to the card's padding; only the heading keeps clear of the X
     assert.match(css, new RegExp(`\\.${selector} p \\{[^}]*padding: 0 8px;`), `.${selector} text inset 8 px more than the buttons`);
   }
   assert.match(css, /\.welcome \.btn \{[^}]*margin: 8px 0 0 auto;/, "Take the tour sits on the right");
-});
-
-test("the last card follows its anchor as it changes size", () => {
-  const observed = [];
-  window.ResizeObserver = class {
-    constructor(callback) {
-      this.callback = callback;
-      observed.push(this);
-    }
-    observe(node) {
-      this.node = node;
-    }
-    disconnect() {
-      this.node = null;
-    }
-  };
-  try {
-    terrain = true;
-    toTerrain();
-    assert.equal(title(), "You're all set.");
-    const watcher = observed.find((o) => o.node === targets.done);
-    assert.ok(watcher, "the last card watches its anchor");
-    targets.done.getBoundingClientRect = () => rect(1220, 300, 1264, 700);
-    watcher.callback([]);
-    assert.equal(popup().style.top, `${700 - popup().getBoundingClientRect().height}px`, "level with the anchor's new foot");
-    assert.deepEqual(ringed(), [], "watched, not ringed");
-  } finally {
-    delete window.ResizeObserver;
-  }
 });
 
 test("the ring on a focused search input survives the search's own focus style", () => {

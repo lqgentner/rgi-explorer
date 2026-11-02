@@ -1232,6 +1232,20 @@ body:has(#search.fullscreen) .welcome {
 }
 
 /*
+ * On the desktop 3D and the last card dock beside the map's controls: their
+ * bottom stands on the same line as the controls', which a taller status line
+ * lifts, and they keep the compass's 54 px and a 12 px gap clear of them.
+ */
+@media (min-width: 641px) {
+  .tour[data-dock="controls"] {
+    top: auto;
+    left: auto;
+    bottom: calc(var(--status-h, 0px) + 16px);
+    right: calc(16px + 54px + 12px);
+  }
+}
+
+/*
  * On the desktop the card's photo and sticky tabs are positioned, so they
  * paint over its outline. The ring is a frame above them instead, fixed to the
  * sidebar while the card scrolls: the open card has no translate, so fixed

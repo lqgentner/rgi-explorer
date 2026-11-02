@@ -208,7 +208,8 @@ These replace the matching points above.
   catalog without the sample glacier leaves the X and the reader's own pick.
 - **3D and the last card on the desktop** sit left of the round buttons at
   the bottom right, their bottoms level with the lowest button's, so an open
-  card or panel never covers the last card.
+  card or panel never covers the last card. style.css docks them from the
+  same line the buttons stand on, so they move with the buttons.
 - **The welcome on the phone** sits at the top under the search bar too, as
   on the desktop, clear of the round buttons.
 - **"Close to continue the tour":** the message has no X of its own; it
