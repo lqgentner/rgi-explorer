@@ -4,7 +4,7 @@
  */
 
 import { formatInt } from "./columns.js";
-import { externalLink, h, icon } from "./ui.js";
+import { PHONE, externalLink, h, icon } from "./ui.js";
 
 const KEY = "rgi-explorer:welcome";
 const USER_GUIDE = "https://rgidata.org/user_guide/";
@@ -73,4 +73,23 @@ export function mountWelcome(root, { title, autoShow, onTour }) {
   });
   if (autoShow && !readSeen()) api.show();
   return api;
+}
+
+/**
+ * The help button: last in the desktop's controls; on the phone first in the
+ * status line, before the credits, so it rides up with them over the sheet.
+ * It moves when the page crosses the breakpoint.
+ *
+ * @returns {{button: HTMLButtonElement}}
+ */
+export function mountHelp({ desktop, phone }, { onHelp }) {
+  const button = h("button", { type: "button", class: "help-btn", "aria-label": "Help" }, icon("circle-question-mark"));
+  button.addEventListener("click", () => onHelp());
+  const place = () => {
+    if (PHONE.matches) phone.prepend(button);
+    else desktop.append(button);
+  };
+  place();
+  PHONE.addEventListener("change", place);
+  return { button };
 }

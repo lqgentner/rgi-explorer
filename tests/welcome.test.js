@@ -7,7 +7,7 @@ import { loadPage, load } from "./helpers/browser.js";
 
 const page = await loadPage();
 const { window, document } = page;
-const { mountWelcome, welcomeTitle } = await load("js/welcome.js");
+const { mountHelp, mountWelcome, welcomeTitle } = await load("js/welcome.js");
 
 const KEY = "rgi-explorer:welcome";
 const TITLE = "Explore the 274,531 glaciers of RGI 7.0";
@@ -92,4 +92,25 @@ test("show() brings the welcome back after it was seen", () => {
 test("a catalog without a count gives a heading without a number", () => {
   const { api } = welcome({ title: welcomeTitle(null, "7.0") });
   assert.equal(api.node.querySelector("h2").textContent, "Explore the glaciers of RGI 7.0");
+});
+
+test("the help button ends the desktop controls, calls onHelp, and moves beside the credits on the phone", () => {
+  const desktop = document.createElement("div");
+  desktop.append(document.createElement("button"));
+  const phone = document.createElement("div");
+  phone.append(Object.assign(document.createElement("div"), { className: "credits-box" }));
+  let helped = 0;
+  const { button: help } = mountHelp({ desktop, phone }, { onHelp: () => (helped += 1) });
+  assert.equal(help.getAttribute("aria-label"), "Help");
+  assert.equal(help.type, "button");
+  assert.ok(help.classList.contains("help-btn"));
+  assert.ok(help.querySelector("use")?.getAttribute("href").endsWith("#circle-question-mark"));
+  assert.equal(desktop.lastElementChild, help);
+  help.click();
+  assert.equal(helped, 1);
+
+  page.setPhone(true);
+  assert.equal(phone.firstElementChild, help, "on the phone it sits before the credits");
+  page.setPhone(false);
+  assert.equal(desktop.lastElementChild, help, "back across the breakpoint it ends the controls again");
 });
