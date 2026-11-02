@@ -350,6 +350,55 @@ test("select(null) hides the selection and clears the pin", async () => {
   assert.deepEqual(map.getSource("pin").data.features, []);
 });
 
+/*
+ * The fake's canvas is 1024 x 768 px and puts [lng, lat] at x = lng, y = lat;
+ * its unproject turns a screen point back into the same place.
+ */
+test("inView: a point on the canvas is in view, one off it or under the padding is not", async () => {
+  const { rgiMap } = await build();
+  assert.equal(rgiMap.inView([500, 300]), true);
+  assert.equal(rgiMap.inView([0, 0]), true, "the canvas edge counts as in view");
+  assert.equal(rgiMap.inView([1100, 300]), false);
+  assert.equal(rgiMap.inView([500, -5]), false);
+  assert.equal(rgiMap.inView([500, 800]), false);
+
+  const card = { top: 24, right: 24, bottom: 24, left: 432 };
+  assert.equal(rgiMap.inView([400, 300], card), false, "under the card");
+  assert.equal(rgiMap.inView([500, 300], card), true);
+  assert.equal(rgiMap.inView([1010, 300], card), false, "in the right margin");
+  assert.equal(rgiMap.inView([500, 750], card), false, "in the bottom margin");
+  assert.equal(rgiMap.inView([500, 10], 24), false, "a number pads every side");
+  assert.equal(rgiMap.inView([500, 30], 24), true);
+});
+
+test("inView: a point on the far side of the globe is not in view", async () => {
+  const { rgiMap, map } = await build();
+  /* MapLibre projects a far-side point onto the near side's disc; unproject finds the near-side place there. */
+  map.unproject = ([x, y]) => ({ lng: x - 180, lat: -y });
+  assert.equal(rgiMap.inView([500, 30]), false);
+  /* A place a pixel off, as the terrain's depth may give back, still counts. */
+  const px = 360 / (512 * 2 ** map.getZoom());
+  map.unproject = ([x, y]) => ({ lng: x + px, lat: y });
+  assert.equal(rgiMap.inView([500, 30]), true);
+  map.unproject = ([x, y]) => ({ lng: x + 360, lat: y });
+  assert.equal(rgiMap.inView([500, 30]), true, "a whole turn of longitude is the same place");
+});
+
+test("centerOn eases the point to the middle of the canvas less the padding, and keeps the camera", async () => {
+  const { rgiMap, map } = await build();
+  const zoom = map.getZoom();
+  map.calls.length = 0;
+  rgiMap.centerOn([8.02, 46.4], { top: 24, right: 24, bottom: 24, left: 432 });
+  assert.deepEqual(map.calls, ['easeTo {"center":[8.02,46.4],"offset":[204,0]}']);
+  assert.equal(map.getZoom(), zoom);
+  map.calls.length = 0;
+  rgiMap.centerOn([8.02, 46.4], { top: 72, right: 24, bottom: 324, left: 24 });
+  assert.deepEqual(map.calls, ['easeTo {"center":[8.02,46.4],"offset":[0,-126]}'], "above a phone's sheet");
+  map.calls.length = 0;
+  rgiMap.centerOn([8.02, 46.4]);
+  assert.deepEqual(map.calls, ['easeTo {"center":[8.02,46.4],"offset":[0,0]}']);
+});
+
 test("a complex is selected like a glacier: dimmed map, lifted complex, red outline, member outlines kept", async () => {
   const { rgiMap, map } = await build();
   const id = "RGI2000-v7.0-C-11-01323";

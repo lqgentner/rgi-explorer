@@ -63,6 +63,15 @@ test("fitBounds and jumpTo are recorded and fire moveend", () => {
   assert.equal(map.lastFit.options.padding, 10);
 });
 
+test("the canvas is 1024 x 768 px and unproject undoes project", () => {
+  const map = new FakeMap();
+  const canvas = map.getCanvas();
+  assert.deepEqual([canvas.clientWidth, canvas.clientHeight], [1024, 768]);
+  const { x, y } = map.project([8.02, 46.4]);
+  assert.deepEqual(map.unproject([x, y]), { lng: 8.02, lat: 46.4 });
+  assert.deepEqual(map.unproject({ x, y }), { lng: 8.02, lat: 46.4 });
+});
+
 test("a style with a duplicate layer or a missing source throws at construction", () => {
   const sources = { a: source };
   assert.throws(

@@ -288,6 +288,19 @@ function buildStyle(liberty, rgi, state) {
 
 const clampLat = (lat) => Math.max(-MAX_LAT, Math.min(MAX_LAT, lat));
 
+/** MapLibre's padding, a number for every side or some of the sides, as four numbers. */
+function sides(padding = 0) {
+  if (typeof padding === "number") return { top: padding, right: padding, bottom: padding, left: padding };
+  const { top = 0, right = 0, bottom = 0, left = 0 } = padding ?? {};
+  return { top, right, bottom, left };
+}
+
+/*
+ * How many screen pixels apart a place and the place unproject finds at its
+ * screen point may be and still count as one: the terrain's depth is coarse.
+ */
+const SAME_PLACE_PX = 4;
+
 /**
  * The Standard map's picture of a view: a hidden map of OpenFreeMap's Liberty
  * as it comes, its own glaciers included, but without its symbol layers: no
@@ -551,6 +564,36 @@ export async function createMap(container, catalog, state) {
     /** Level the camera and keep its bearing. */
     level() {
       map.easeTo({ pitch: 0 });
+    },
+
+    /**
+     * Whether `lonLat` shows on the canvas less `padding`, the edges that the
+     * panels cover (MapLibre's padding: a number or `{ top, right, bottom, left }`).
+     * On the globe a place on the far side projects onto the near side's disc,
+     * so the place must also come back from its screen point: unproject finds
+     * the near-side place there.
+     */
+    inView([lng, lat], padding) {
+      const { top, right, bottom, left } = sides(padding);
+      const canvas = map.getCanvas();
+      const { x, y } = map.project([lng, lat]);
+      if (!(x >= left && x <= canvas.clientWidth - right && y >= top && y <= canvas.clientHeight - bottom)) return false;
+      const back = map.unproject([x, y]);
+      /* Degrees per pixel along a parallel, and along a meridian in Mercator: both shrink with its cosine. */
+      const cos = Math.abs(Math.cos((lat * Math.PI) / 180));
+      const perPx = (360 / (512 * 2 ** map.getZoom())) * cos;
+      const dLng = ((((back.lng - lng) % 360) + 540) % 360) - 180;
+      return Math.hypot(dLng * cos, back.lat - lat) <= SAME_PLACE_PX * perPx;
+    },
+
+    /**
+     * Ease the map so `lonLat` lands in the middle of the canvas less `padding`,
+     * at the same zoom, bearing and pitch. MapLibre's own `padding` would stay
+     * on the map after the move, so the point is placed by an offset instead.
+     */
+    centerOn(lonLat, padding) {
+      const { top, right, bottom, left } = sides(padding);
+      map.easeTo({ center: lonLat, offset: [(left - right) / 2, (top - bottom) / 2] });
     },
 
     fitBbox({ xmin, ymin, xmax, ymax }, padding, center, options = {}) {

@@ -430,6 +430,15 @@ function wire(catalog, rgiMap, regions) {
     else if (shownComplex) fitComplexLater(shownComplex);
   }
 
+  /* Pin the terminus, and bring it to the middle of the open map if it is off screen or under a panel. */
+  function pinTerminus(lonLat) {
+    rgiMap.pin(lonLat);
+    const room = padding();
+    if (rgiMap.inView(lonLat, room)) return;
+    camera += 1;
+    rgiMap.centerOn(lonLat, room);
+  }
+
   async function share() {
     try {
       await globalThis.navigator.clipboard.writeText(location.href);
@@ -466,7 +475,7 @@ function wire(catalog, rgiMap, regions) {
       useData.open({ kind: "glacier", rgiId: glacier.rgiId, o1region: glacier.props?.o1region });
     },
     onAction(action) {
-      if (action.type === "pin") rgiMap.pin(action.lonlat);
+      if (action.type === "pin") pinTerminus(action.lonlat);
       else if (action.type === "complex") openComplex(action.id, true);
     },
   });

@@ -147,6 +147,12 @@ export class FakeMap {
     return { x: lng, y: lat };
   }
 
+  /** The place at a screen point, the inverse of project(). */
+  unproject(point) {
+    const [x, y] = Array.isArray(point) ? point : [point.x, point.y];
+    return { lng: x, lat: y };
+  }
+
   /**
    * The features a test put in `sourceFeatures` for a source and source layer.
    * Only an `["==", ["get", key], value]` filter is understood.
@@ -319,9 +325,11 @@ export class FakeMap {
     for (const fn of [...(this.handlers[event] ?? [])]) fn(payload);
   }
 
-  /** The canvas; `toDataURL` names the view it would show. */
+  /** The canvas, 1024 x 768 CSS px as getBounds() has it; `toDataURL` names the view it would show. */
   getCanvas() {
     return {
+      clientWidth: 1024,
+      clientHeight: 768,
       toDataURL: (type) => `data:${type};view=${this.zoom}/${this.center.lng}/${this.center.lat}`,
     };
   }
