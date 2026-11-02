@@ -283,9 +283,7 @@ elsewhere closes it.
   - the 3D button loads Mapterhorn terrain
     (`https://tiles.mapterhorn.com/tilejson.json`, terrarium, 512 px) and
     tilts the camera;
-  - a small notice in a map corner, closable with ✕, says the terrain is
-    newer than the RGI outlines and may not match them;
-  - closing the notice is remembered for the session;
+  - no notice about the terrain's age: the owner removed it (2026-11-02);
   - tilting the map by hand past 5° turns 3D on where the reader left the
     camera, and tilting it back flat turns 3D off and keeps the bearing.
 

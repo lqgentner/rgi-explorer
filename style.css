@@ -701,26 +701,6 @@ button:focus-visible {
   fill: #bdc1c6;
 }
 
-.terrain-notice {
-  position: absolute;
-  right: 100%;
-  bottom: 0;
-  width: 280px;
-  margin-right: 8px;
-  display: flex;
-  gap: 4px;
-  align-items: flex-start;
-  padding: 8px 4px 8px 12px;
-  border-radius: 8px;
-  background: var(--surface);
-  box-shadow: var(--shadow);
-  font-size: 12px;
-}
-
-.terrain-notice p {
-  margin: 6px 0 0;
-}
-
 /* Layers pane, phone */
 
 /* Behind the open pane: it darkens the page and takes the taps meant for it. */
@@ -926,13 +906,6 @@ button:focus-visible {
     opacity: 0;
     scale: 0.6;
     visibility: hidden;
-  }
-
-  .terrain-notice {
-    right: 52px;
-    top: 0;
-    bottom: auto;
-    width: 240px;
   }
 
   .zoom-control {

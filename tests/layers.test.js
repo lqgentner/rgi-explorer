@@ -174,7 +174,6 @@ test("the zoom buttons zoom the map", () => {
   assert.ok(root.querySelector('button[aria-label="Zoom in"] use').getAttribute("href").endsWith("#plus"));
 });
 
-const NOTICE = "The terrain is newer than the RGI outlines, so their edges may not match.";
 
 function terrain(start = false) {
   const root = document.createElement("div");
@@ -209,41 +208,12 @@ test("the 3D button looks the same in 2D and 3D: no pressed style", () => {
   assert.doesNotMatch(CSS, /\.terrain-btn\[aria-pressed/);
 });
 
-test("the terrain notice shows once per session and survives a throwing sessionStorage", () => {
-  window.sessionStorage.clear();
-  let { root, button } = terrain();
-  assert.equal(root.querySelector(".terrain-notice"), null);
-  button.click();
-  assert.equal(root.querySelector(".terrain-notice").textContent.includes(NOTICE), true);
-  button.click();
-  button.click();
-  assert.equal(root.querySelector(".terrain-notice"), null, "turning 3D off and on does not show it again");
-  window.sessionStorage.clear();
-  ({ root, button } = terrain());
-  button.click();
-  root.querySelector('button[aria-label="Dismiss"]').click();
-  assert.equal(root.querySelector(".terrain-notice"), null);
-  assert.equal(window.sessionStorage.getItem("rgi-explorer.terrain-notice"), "dismissed");
-
-  ({ root, button } = terrain());
+test("3D shows no notice about the terrain's age", () => {
+  const { root, button } = terrain();
   button.click();
   assert.equal(root.querySelector(".terrain-notice"), null);
-
-  window.sessionStorage.clear();
-  Object.defineProperty(window, "sessionStorage", {
-    configurable: true,
-    get() {
-      throw new Error("blocked");
-    },
-  });
-  ({ root, button } = terrain());
-  button.click();
-  assert.ok(root.querySelector(".terrain-notice"));
-  root.querySelector('button[aria-label="Dismiss"]').click();
-  assert.equal(root.querySelector(".terrain-notice"), null);
-  button.click();
-  button.click();
-  assert.equal(root.querySelector(".terrain-notice"), null);
+  assert.equal(root.querySelectorAll("button").length, 1, "the 3D button alone");
+  assert.doesNotMatch(CSS, /\.terrain-notice/);
 });
 
 test("a tap opens the closed control, and only a tap on the open one swaps the base map", () => {

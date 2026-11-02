@@ -325,7 +325,7 @@ function wire(catalog, rgiMap, regions) {
   });
   /*
    * The one way the page switches 3D: the 3D button, the compass and a tilt by
-   * hand all come here, so the button, the notice, the address and the compass
+   * hand all come here, so the button, the address and the compass
    * agree. `move` lets the camera tilt or level with it; a tilt by hand leaves
    * the camera where the reader put it.
    */

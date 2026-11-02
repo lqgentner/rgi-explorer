@@ -35,14 +35,14 @@ test("the compass leads the column, idle, and the arrows turn the map 45°", () 
   assert.equal(params().get("3d"), null, "facing north in 2D stays in 2D");
 });
 
-test("a tilt by hand past 5° turns 3D on where the reader left the camera, with the notice", async () => {
+test("a tilt by hand past 5° turns 3D on where the reader left the camera", async () => {
   const mark = map().calls.length;
   map().gesture({ bearing: 40, pitch: 30 });
   await settle();
   assert.equal(params().get("3d"), "1");
   assert.equal(map().getTerrain().source, "terrain");
   assert.equal(switchesTo(), "2D");
-  assert.ok($(".terrain-notice"), "the notice shows the first time");
+  assert.equal($(".terrain-notice"), null, "3D shows no notice");
   assert.equal(map().getPitch(), 30, "no ease to 60°");
   assert.ok(!since(mark).some((c) => c.startsWith("easeTo")));
 });
@@ -92,7 +92,6 @@ test("the compass leaves 3D the way the 3D button does", async () => {
   assert.equal($(".compass").hasAttribute("data-idle"), true);
 });
 
-/* Last, because mountTerrain shows the notice once per page and the tilt test above expects it. */
 test("the page's own camera moves never switch 3D", () => {
   click($("#controls .terrain-btn"));
   assert.equal(map().getPitch(), 60);

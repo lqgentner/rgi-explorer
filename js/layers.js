@@ -1,6 +1,6 @@
 /*
- * The map's controls: the base map and RGI layer switcher, the 3D button with
- * its notice, and the zoom buttons. Each draws once for both layouts and
+ * The map's controls: the base map and RGI layer switcher, the 3D button and
+ * the zoom buttons. Each draws once for both layouts and
  * follows PHONE as it changes; style.css shows the layout's own parts.
  */
 
@@ -27,8 +27,6 @@ const THUMB_PX = 192;
 /* How long the map rests before the base map pictures follow it. */
 const PREVIEW_DELAY_MS = 500;
 
-const NOTICE_KEY = "rgi-explorer.terrain-notice";
-const NOTICE_TEXT = "The terrain is newer than the RGI outlines, so their edges may not match.";
 
 /* The land behind the previews, near Liberty's own. */
 const PREVIEW_LAND = "#eceff1";
@@ -363,61 +361,23 @@ export function mountLayers(root, { base, layers, onBase, onToggle, map = null, 
   };
 }
 
-/** Read a session value, or null when storage is unavailable. */
-function readSession(key) {
-  try {
-    return window.sessionStorage.getItem(key);
-  } catch {
-    return null;
-  }
-}
-
-function writeSession(key, value) {
-  try {
-    window.sessionStorage.setItem(key, value);
-  } catch {
-    /* The notice stays dismissed for this page only. */
-  }
-}
-
 /**
  * Draw the 3D button. It is an action that names the mode it switches to,
- * "3D" in 2D and "2D" in 3D, so it has no pressed state. A notice about the
- * terrain's age shows the first time 3D turns on, until the reader dismisses
- * it for the session.
+ * "3D" in 2D and "2D" in 3D, so it has no pressed state.
  *
  * @returns {{set(on: boolean): void}}
  */
 export function mountTerrain(root, { on, onChange }) {
   let state = false;
-  let shown = false;
-  let notice = null;
 
   const button = h("button", { type: "button", class: "terrain-btn" });
   root.append(button);
 
-  const hideNotice = () => {
-    notice?.remove();
-    notice = null;
-  };
-  const showNotice = () => {
-    if (shown || readSession(NOTICE_KEY) === "dismissed") return;
-    shown = true;
-    const dismiss = h("button", { type: "button", class: "icon-button", "aria-label": "Dismiss" }, icon("x"));
-    dismiss.addEventListener("click", () => {
-      hideNotice();
-      writeSession(NOTICE_KEY, "dismissed");
-    });
-    notice = h("div", { class: "terrain-notice", role: "status" }, h("p", {}, NOTICE_TEXT), dismiss);
-    root.append(notice);
-  };
   const apply = (next) => {
     state = next;
     const target = next ? "2D" : "3D";
     button.textContent = target;
     button.setAttribute("aria-label", `Switch to ${target}`);
-    if (next) showNotice();
-    else hideNotice();
   };
   button.addEventListener("click", () => {
     apply(!state);
