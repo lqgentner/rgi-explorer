@@ -1431,11 +1431,13 @@ table.members .num {
   cursor: pointer;
 }
 
-.row-value a {
+.row-value a,
+.info-popover a {
   color: var(--accent);
 }
 
-.row-value a.external .icon {
+.row-value a.external .icon,
+.info-popover a.external .icon {
   width: 0.9em;
   height: 0.9em;
   margin-left: 0.2em;
@@ -1448,6 +1450,29 @@ table.members .num {
 
 .show-more {
   margin-top: 4px;
+}
+
+.info-popover p {
+  margin: 0;
+}
+
+.info-popover p + p {
+  margin-top: 6px;
+}
+
+/* The caption above the chart says what it shows; its info button keeps beside the text. */
+.hypso-caption {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  margin: 4px 0 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.hypso-caption .info {
+  flex: none;
+  margin-left: 0;
 }
 
 .hypsometry {

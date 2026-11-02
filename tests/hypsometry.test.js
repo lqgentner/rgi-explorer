@@ -100,3 +100,45 @@ test("median and mean outside the bands are clamped to the plot", () => {
   assert.ok(Number(el.querySelector("line.median").getAttribute("y1")) >= top - 0.01);
   assert.ok(Number(el.querySelector("line.mean").getAttribute("y1")) <= 308.01);
 });
+
+test("the axes are labelled: elevation on the left, area in percent below", () => {
+  const svg = draw().querySelector("svg");
+  const texts = [...svg.querySelectorAll("text")];
+  const elevation = texts.find((t) => t.textContent === "Elevation (m)");
+  assert.match(elevation.getAttribute("transform"), /rotate\(-90/);
+  const [, , vbWidth, vbHeight] = svg.getAttribute("viewBox").split(" ").map(Number);
+  assert.ok(Number(elevation.getAttribute("y")) > 0, "the rotated label stays inside the left edge");
+  const area = texts.find((t) => t.textContent === "Area (%)");
+  assert.ok(area);
+  const bottom = Math.max(...[...svg.querySelectorAll("rect")].map((r) => Number(r.getAttribute("y")) + Number(r.getAttribute("height"))));
+  assert.ok(Number(area.getAttribute("y")) > bottom && Number(area.getAttribute("y")) <= vbHeight);
+  assert.ok(vbWidth >= 360);
+});
+
+test("the area ticks are percent on the bars' scale", () => {
+  const el = draw();
+  const ticks = [...el.querySelectorAll(".x-axis text.tick")];
+  assert.deepEqual(ticks.map((t) => t.textContent), ["0", "1", "2", "3", "4", "5"]);
+  const left = Number(el.querySelector("rect").getAttribute("x"));
+  const widest = [...el.querySelectorAll("rect")].reduce((a, r) => Math.max(a, Number(r.getAttribute("width"))), 0);
+  /* The widest band holds 50 ‰, 5 %: its bar ends at the 5 % tick. */
+  assert.ok(Math.abs(Number(ticks.at(-1).getAttribute("x")) - (left + widest)) < 0.01);
+  assert.ok(Math.abs(Number(ticks[0].getAttribute("x")) - left) < 0.01);
+});
+
+test("area ticks fit a band of any width", () => {
+  const cases = [
+    [[1000], ["0", "20", "40", "60", "80", "100"]],
+    [[500, 500], ["0", "10", "20", "30", "40", "50"]],
+    [[180, 820], ["0", "20", "40", "60", "80"]],
+    [Array.from({ length: 200 }, () => 5), ["0", "0.1", "0.2", "0.3", "0.4", "0.5"]],
+  ];
+  for (const [permille, expected] of cases) {
+    const el = draw({ hypso_z0_m: 1000, hypso_permille: permille });
+    assert.deepEqual([...el.querySelectorAll(".x-axis text.tick")].map((t) => t.textContent), expected, String(permille.length));
+  }
+});
+
+test("the summary names the band size and the largest band", () => {
+  assert.match(draw().querySelector("svg").getAttribute("aria-label"), /50 m elevation band.*largest band 5% at 3,425 m/);
+});

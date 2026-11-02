@@ -1,6 +1,7 @@
 /* The glacier card: photo area, header, actions and the Overview and Hypsometry tabs. */
 
 import { ATTRIBUTE_COLUMNS, GROUP_TITLES, missingAttributes, nonEmpty, overviewRows } from "./columns.js";
+import { HYPSO_BAND_M } from "./config.js";
 import { renderHypsometry } from "./hypsometry.js";
 import { CARD_COLUMNS, readRow } from "./parquet.js";
 import { commonsThumb, esriCrop, findCropSource } from "./photo.js";
@@ -13,6 +14,7 @@ const TABS = [
   { id: "hypsometry", label: "Hypsometry" },
 ];
 const SHOWN_LINKS = 3;
+const USER_GUIDE = "https://rgidata.org/user_guide/products/glacier_product.html#product-files";
 /* The imagery crop's pixel size, and the rows at its top that something covers. */
 const CROP = { size: [816, 400], top: 0 };
 const IMAGERY_CREDIT = "Esri, Vantor, Earthstar Geographics";
@@ -31,11 +33,17 @@ function button(label, className, onClick, glyph) {
   return node;
 }
 
-export function infoButton(label, description) {
-  if (!description) return [null, null];
+/** An info button about `label` and the popover it toggles, holding `content`; none without content. */
+export function infoButton(label, ...content) {
+  const children = content.filter(Boolean);
+  if (!children.length) return [null, null];
   const button = h("button", { type: "button", class: "info", "aria-label": `About ${label}` }, icon("circle-question-mark"));
-  return [button, popover(button, "info-popover", description)];
+  return [button, popover(button, "info-popover", ...children)];
 }
+
+/* A link out of the explorer: the icon says it opens a new tab. */
+const externalLink = (href, text) =>
+  h("a", { class: "external", href, target: "_blank", rel: "noopener noreferrer", title: "Opens in a new tab" }, text, icon("external-link"));
 
 /**
  * A photo's credit: one line of text along the photo's bottom left, set like
@@ -297,11 +305,7 @@ export function mountCard(root, ctx) {
 
   function renderValue(row) {
     if (row.list) return renderLinks(row);
-    if (row.link) {
-      /* The icon says the link leaves the explorer for a new tab. */
-      const attrs = { class: "external", href: row.link, target: "_blank", rel: "noopener noreferrer", title: "Opens in a new tab" };
-      return h("a", attrs, row.value, icon("external-link"));
-    }
+    if (row.link) return externalLink(row.link, row.value);
     if (row.action) {
       const node = h("button", { type: "button", class: "link" }, row.value);
       node.addEventListener("click", () => ctx.onAction?.(row.action));
@@ -367,11 +371,26 @@ export function mountCard(root, ctx) {
     panels.overview.replaceChildren(...nodes);
   }
 
+  /**
+   * What the chart shows, and an info button with the catalog's description of
+   * hypso_permille and the user guide's link; without a description, the link alone.
+   */
+  function hypsoCaption() {
+    const description = ctx.catalog.columns.get("hypso_permille")?.description;
+    const [info, popover] = infoButton("Hypsometry",
+      description ? h("p", {}, description) : null,
+      h("p", {}, externalLink(USER_GUIDE, "RGI 7.0 user guide")));
+    return h("div", { class: "hypso-caption" },
+      `Share of the glacier's area in each ${HYPSO_BAND_M} m elevation band.`, info, popover);
+  }
+
   function renderHypso() {
     const { props, hypsoState } = current;
     const usable = Array.isArray(props.hypso_permille) && props.hypso_permille.length > 0 && Number.isFinite(props.hypso_z0_m);
-    if (usable) renderHypsometry(panels.hypsometry, props);
-    else panels.hypsometry.replaceChildren(h("p", { class: "muted" }, hypsoState === "done" ? "No hypsometry data." : "Loading…"));
+    if (usable) {
+      renderHypsometry(panels.hypsometry, props);
+      panels.hypsometry.prepend(hypsoCaption());
+    } else panels.hypsometry.replaceChildren(h("p", { class: "muted" }, hypsoState === "done" ? "No hypsometry data." : "Loading…"));
   }
 
   function render() {
