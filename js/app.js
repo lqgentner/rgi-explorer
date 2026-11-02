@@ -140,6 +140,19 @@ function glacierFile(url, regionNames) {
         });
       return indexing;
     },
+    /**
+     * The row of an RGI ID from its row group alone: the file is sorted by ID,
+     * so the ID statistics name one group and only its IDs are read. Null when
+     * the file does not hold it; rejects when the file cannot be read.
+     */
+    async find(rgiId) {
+      const handle = await file.open();
+      const group = groupOfKey(handle, "rgi_id", rgiId);
+      if (group === -1) return null;
+      const { rgi_id: ids } = await readColumns(handle, ["rgi_id"], group);
+      const at = ids.indexOf(rgiId);
+      return at === -1 ? null : handle.groups[group].start + at;
+    },
     /** The row of an RGI ID, or null when the index does not hold it or cannot be read. */
     async rowOf(rgiId) {
       try {
@@ -385,12 +398,15 @@ function wire(catalog, rgiMap, regions) {
       /* On the desktop Use this data heads the scrolling card, which step 2 may have scrolled away. */
       if (step === "data" && !PHONE.matches) el("card").scrollTop = 0;
     },
-    /* True once the sample glacier opens; false when this catalog has none, or the index fails. */
+    /*
+     * True once the sample glacier opens; false when this catalog has none, or
+     * the file fails. Its row comes from one row group, not the search index,
+     * which would first read the IDs and names of every glacier.
+     */
     onTakeMe() {
-      return glaciers.index().then(
-        (index) => {
-          const row = index.byId.get(SAMPLE_GLACIER);
-          if (row === undefined) {
+      return glaciers.find(SAMPLE_GLACIER).then(
+        (row) => {
+          if (row === null) {
             console.warn("tour: no sample glacier", SAMPLE_GLACIER);
             return false;
           }
@@ -398,7 +414,7 @@ function wire(catalog, rgiMap, regions) {
           return true;
         },
         (error) => {
-          console.warn("glacier index:", error.message);
+          console.warn("sample glacier:", error.message);
           return false;
         },
       );

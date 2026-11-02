@@ -174,3 +174,11 @@ test("the credits ride on the sheet's edge, fade as it rises and hide once it re
   assert.match(phone, /#sheet:not\(\[data-level="compact"\]\):not\(\.dragging\)\) #status \{\s*visibility: hidden;/);
   assert.match(phone, /body:has\(#sheet\.dragging\) #status \{\s*transition: none;/);
 });
+
+test("the sheet's close button sits concentric in its corner, its disc centred on the name", () => {
+  const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
+  assert.match(css, /--sheet-x-inset: 17px;/, "the inset that centres the 32 px disc on the name's first line");
+  assert.match(css, /#sheet \{[^}]*border-radius: calc\(var\(--radius\) \+ var\(--sheet-x-inset\)\) calc\(var\(--radius\) \+ var\(--sheet-x-inset\)\) 0 0;/,
+    "the corner is the disc's radius plus its inset");
+  assert.match(css, /#sheet-head \.card-close \{\s*top: var\(--sheet-x-inset\);\s*right: var\(--sheet-x-inset\);/);
+});
