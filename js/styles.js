@@ -131,7 +131,7 @@ export function rgiStyle(pmtilesUrl) {
         maxzoom: 6,
         filter: ["==", ["get", "level"], 1],
         layout: {
-          "text-field": ["get", "full_name"],
+          "text-field": ["concat", ["get", "o1region"], "\n", ["get", "full_name"]],
           "text-font": ["Noto Sans Bold"],
           "text-size": 12,
           "text-transform": "uppercase",

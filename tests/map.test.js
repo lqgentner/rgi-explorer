@@ -219,6 +219,12 @@ test("a toggle shows exactly the layers with its source layer", async () => {
   assert.equal(map.layout("glaciers-fill").visibility, undefined);
 });
 
+test("each region label names its code above the region's name", async () => {
+  const { map } = await build();
+  assert.deepEqual(map.getLayer("region-labels-1").layout["text-field"], ["concat", ["get", "o1region"], "\n", ["get", "full_name"]]);
+  assert.deepEqual(map.getLayer("region-labels-2").layout["text-field"], ["concat", ["get", "o2region"], "\n", ["get", "full_name"]]);
+});
+
 test("a selection draws its own centerlines again above its lift, with their toggle", async () => {
   const { rgiMap, map } = await build();
   assert.deepEqual(map.getLayer("selection-centerlines").paint, map.getLayer("centerlines").paint);

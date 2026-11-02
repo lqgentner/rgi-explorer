@@ -253,7 +253,8 @@ elsewhere closes it.
   stands out on snow, and the region outlines turn light. Regions are dashed outlines without a fill, drawn from
   `region-boundaries`, which holds each border once. Glacier labels and
   region labels come from the archive, in Noto Sans, the only fonts Liberty's
-  glyph server holds.
+  glyph server holds. A region label puts the region's code (`o1region` or
+  `o2region`) above its name, as the catalog's regions style does.
 - A toggle whose layer has no data at the current zoom (centerlines below 8,
   intersects below 10) stays usable. In the phone's pane it shows "visible
   from zoom N".
