@@ -1103,6 +1103,46 @@ button:focus-visible {
 }
 
 /*
+ * The tour is a manual popover, in the top layer: undo the browser's popover
+ * box, which centres it with a border; place() sets top and left.
+ */
+.tour[popover] {
+  inset: auto;
+  margin: 0;
+  border: 0;
+  color: inherit;
+  overflow: visible;
+}
+
+/* "Close to continue the tour", over Use this data or the viewer. */
+.tour.covering {
+  top: 12px;
+  left: 50%;
+  width: auto;
+  max-width: calc(100% - 24px);
+  translate: -50% 0;
+}
+
+.tour.covering p {
+  margin: 0;
+  padding: 6px 0;
+  font-weight: 600;
+}
+
+.inline-icon {
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.15em;
+}
+
+@media (max-width: 640px) {
+  .tour.covering {
+    top: auto;
+    bottom: calc(var(--status-h, 0px) + 20px);
+  }
+}
+
+/*
  * The phone's full-screen search and layers pane cover the page and make it
  * inert; the tour and the welcome hide under them, out of reach of Tab and
  * screen readers too.

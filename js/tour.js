@@ -1,8 +1,9 @@
 /*
- * The guided tour: four steps, each a small popover beside one control with a
- * ring around it. Nothing else on the page is blocked, so the reader can use
- * the control while its step is open. The glacier steps need a card; without
- * one, step 2 waits for the reader to click a glacier, or to ask for one.
+ * The guided tour: five steps, each a small popover beside one control with a
+ * ring around it, that move on when the reader does what the step asks. While
+ * Use this data or the photo viewer covers the page, the tour only asks the
+ * reader to close it, and picks up again when they do. Nothing else on the
+ * page is blocked.
  */
 
 import { PHONE, h, icon } from "./ui.js";
@@ -12,25 +13,52 @@ const GAP = 12;
 const MARGIN = 8;
 
 const PANEL_SIDES = ["right", "above", "below"];
-const STEPS = [
-  { title: "Search", text: "Find a glacier by name or RGI ID, or jump to a place.", anchor: "search", sides: ["below"] },
-  {
-    title: "The glacier card",
-    text: "Click a glacier to see its area, elevations and hypsometry. The ? next to a value explains it.",
-    anchor: "panel",
-    sides: PANEL_SIDES,
-    needsPanel: true,
+const COUNTED = 4;
+/* `[?]` in a text is the info buttons' icon. */
+const STEPS = {
+  find: {
+    n: 1,
+    title: "Find a glacier",
+    text: "To start, click a glacier on the map or search for one.",
+    anchor: "search",
+    sides: ["below"],
+    skipTo: "terrain",
   },
-  {
+  card: { n: 2, anchor: "panel", sides: PANEL_SIDES, skipTo: "data", needsPanel: true },
+  data: {
+    n: 3,
     title: "Use this data",
-    text: "This map reads the cloud-native RGI catalog directly, with no download. Use this data shows how to read it in Python or QGIS.",
+    text: "This map reads the cloud-native RGI catalog directly, with no download. Open Use this data to read it in Python or QGIS.",
     anchor: "useData",
     sides: PANEL_SIDES,
+    skipTo: "terrain",
     needsPanel: true,
-    endsOnClick: true,
   },
-  { title: "3D", text: "See the terrain in 3D.", anchor: "terrain", sides: ["left", "below"] },
-];
+  terrain: { n: 4, title: "3D", text: "Switch to 3D to see the terrain.", anchor: "terrain", sides: ["left", "below"], skipTo: "done" },
+  done: { title: "You're all set.", text: "Have fun exploring the glaciers on your own." },
+};
+/* Step 2 names what is open, and on the phone first asks to raise the sheet. */
+const CARD = {
+  glacier: { title: "The glacier card", what: "its area, elevations and hypsometry" },
+  complex: { title: "The complex panel", what: "its area and its glaciers" },
+};
+const COVER_TEXT = "Close to continue the tour";
+
+function cardText(kind) {
+  const { what } = CARD[kind];
+  const lead = PHONE.matches ? `Swipe up to see ${what}.` : `${what[0].toUpperCase()}${what.slice(1)}.`;
+  return `${lead} Tap a [?] to see what a value means.`;
+}
+
+/** A step's text as nodes, with each `[?]` drawn as the info icon. */
+function textNodes(text) {
+  return text.split("[?]").flatMap((part, i) => {
+    if (!i) return [part];
+    const glyph = icon("circle-question-mark");
+    glyph.classList.add("inline-icon");
+    return [glyph, part];
+  });
+}
 
 const clamp = (value, low, high) => Math.max(low, Math.min(value, high));
 
@@ -54,29 +82,34 @@ export function placeNear(target, box, viewport, sides) {
   const side = sides.find((s) => inside(at[s])) ?? sides[0];
   return { top: clamp(at[side].top, MARGIN, maxTop), left: clamp(at[side].left, MARGIN, maxLeft), side };
 }
-
 /**
  * Mount the tour on `root`. `anchor(name)` finds a step's control in the
- * current layout; `panelOpen()` says whether a glacier card or complex panel
- * is open; `onTakeMe()` opens the sample glacier and may return a promise of
- * false when there is none, which removes the offer; `onEnd({byTarget})` hears
- * the tour end, `byTarget` when the reader clicked Use this data.
+ * current layout; `panel()` says what is open: null, "glacier" or "complex";
+ * `terrainOn()` whether 3D is on; `onTakeMe()` opens the sample glacier and
+ * may return a promise of false when there is none, which removes the offer;
+ * `onEnd({byTarget})` hears the tour end.
  *
- * @returns {{start(): void, end(): void, refresh(): void, readonly running: boolean}}
+ * The app tells the tour what changed: `refresh()` after a panel opens or
+ * closes, 3D turns on or off, or the layout changes; `interacted()` after the
+ * reader used the card; `cover(by, open)` when Use this data ("useData") or
+ * the viewer ("viewer") opens or closes.
+ *
+ * @returns {{start(): void, end(): void, refresh(): void, interacted(): void, cover(by: string, open: boolean): void, readonly running: boolean}}
  */
-export function mountTour(root, { anchor, panelOpen, onTakeMe, onEnd }) {
-  let step = 0;
+export function mountTour(root, { anchor, panel, terrainOn, onTakeMe, onEnd }) {
+  let step = "find";
   let node = null;
   let ringed = null;
-  /* Aborts the listeners of the whole tour, and of the step on show. */
+  /* Aborts the listeners of the whole tour. */
   let running = null;
-  let showing = null;
   /* The ringed control grows and shrinks, as the search does with its results; the popover follows. */
   let watcher = null;
   /* "Take me to a glacier": offered, working, or gone for this tour when there is no glacier. */
   let takeMe = "offered";
-
-  const waiting = () => STEPS[step].needsPanel && step === 1 && !panelOpen();
+  /* Whether the reader used the card on step 2. */
+  let used = false;
+  /* What covers the page now: null, "useData" or "viewer". */
+  let covered = null;
 
   function ring(target) {
     if (ringed === target) return;
@@ -92,53 +125,98 @@ export function mountTour(root, { anchor, panelOpen, onTakeMe, onEnd }) {
   }
 
   function place() {
-    if (!node || !ringed) return;
-    const at = placeNear(
-      ringed.getBoundingClientRect(),
+    if (!node || covered) return;
+    const at = step === "done" ? anchor("done") : ringed;
+    if (!at) return;
+    const sides = step === "done" ? [PHONE.matches ? "above" : "below"] : STEPS[step].sides;
+    const spot = placeNear(
+      at.getBoundingClientRect(),
       node.getBoundingClientRect(),
       { width: window.innerWidth, height: window.innerHeight },
-      waiting() ? STEPS[0].sides : STEPS[step].sides,
+      sides,
     );
-    node.dataset.side = at.side;
-    node.style.top = `${at.top}px`;
-    node.style.left = `${at.left}px`;
+    node.dataset.side = spot.side;
+    node.style.top = `${spot.top}px`;
+    node.style.left = `${spot.left}px`;
+  }
+
+  /* Move on while a step's condition already holds, and back when its panel is gone. */
+  function settle() {
+    for (;;) {
+      const kind = panel();
+      if (step === "find" && kind) {
+        step = "card";
+        used = false;
+      } else if (STEPS[step].needsPanel && !kind) step = "find";
+      else if (step === "terrain" && terrainOn()) step = "done";
+      else return;
+    }
+  }
+
+  /* At most one filled button per step: its main action. */
+  const outline = (label, onClick, extra = {}) => {
+    const btn = h("button", { type: "button", class: "btn", ...extra }, label);
+    btn.addEventListener("click", onClick);
+    return btn;
+  };
+  const filled = (label, onClick) => {
+    const btn = h("button", { type: "button", class: "btn primary" }, label);
+    btn.addEventListener("click", onClick);
+    return btn;
+  };
+
+  function buttons() {
+    if (step === "done") return [filled("Done", () => end())];
+    const skip = () => go(STEPS[step].skipTo);
+    if (step === "card" && used) return [filled("Next", () => go("data"))];
+    if (step === "find" && takeMe !== "gone") {
+      const busy = takeMe === "working";
+      return [outline(busy ? "Opening…" : "Take me to a glacier", takeMeThere, { disabled: busy }), outline("Skip", skip)];
+    }
+    return [outline("Skip", skip)];
   }
 
   function show({ focus = false } = {}) {
-    if (step === 2 && !panelOpen()) step = 1;
-    const { title, text, anchor: name, endsOnClick } = STEPS[step];
-    const wait = waiting();
-    showing?.abort();
-    showing = new window.AbortController();
-
-    const target = anchor(wait ? "search" : name);
-    ring(target);
-    if (endsOnClick && target) target.addEventListener("click", () => end({ byTarget: true }), { signal: showing.signal });
-
-    const back = h("button", { type: "button", class: "btn", hidden: step === 0 }, "Back");
-    back.addEventListener("click", () => go(step - 1));
-    const last = step === STEPS.length - 1;
-    const busy = wait && takeMe === "working";
-    const forward = wait && takeMe === "gone"
-      ? null
-      : h("button", { type: "button", class: "btn primary", disabled: busy },
-        wait ? (busy ? "Opening…" : "Take me to a glacier") : last ? "Done" : "Next");
-    forward?.addEventListener("click", () => {
-      if (wait) takeMeThere();
-      else if (last) end();
-      else go(step + 1);
-    });
+    if (!node) return;
     const close = h("button", { type: "button", class: "icon-button tour-close", "aria-label": "End tour" }, icon("x"));
     close.addEventListener("click", () => end());
-
+    node.classList.toggle("covering", Boolean(covered));
+    if (covered) {
+      ring(null);
+      node.style.top = "";
+      node.style.left = "";
+      node.replaceChildren(h("p", { id: "tour-title" }, COVER_TEXT), close);
+      raise();
+      return;
+    }
+    settle();
+    const kind = panel();
+    const { n, anchor: name } = STEPS[step];
+    const title = step === "card" ? CARD[kind].title : STEPS[step].title;
+    const text = step === "card" ? cardText(kind) : STEPS[step].text;
+    ring(name ? anchor(name) : null);
     node.replaceChildren(
       h("h2", { id: "tour-title" }, title),
-      h("p", {}, text),
-      h("div", { class: "tour-actions" }, h("span", { class: "tour-count" }, `${step + 1} of ${STEPS.length}`), back, forward),
+      h("p", {}, ...textNodes(text)),
+      h("div", { class: "tour-actions" }, n ? h("span", { class: "tour-count" }, `${n} of ${COUNTED}`) : null, ...buttons()),
       close,
     );
     place();
     if (focus) node.focus();
+  }
+
+  /*
+   * Over a modal dialog the message must sit in the top layer too: shown as a
+   * manual popover after the dialog opened, it draws above it.
+   */
+  function raise() {
+    if (typeof node.showPopover !== "function") return;
+    if (node.matches(":popover-open")) node.hidePopover();
+    node.showPopover();
+  }
+
+  function lower() {
+    if (typeof node?.hidePopover === "function" && node.matches(":popover-open")) node.hidePopover();
   }
 
   /* The sample glacier can take a while: the glacier index loads first. */
@@ -158,11 +236,12 @@ export function mountTour(root, { anchor, panelOpen, onTakeMe, onEnd }) {
     });
   }
 
-  /* A crossing of the breakpoint swaps the layout's controls. */
+  /* A crossing of the breakpoint swaps the layout's controls and step 2's text. */
   const reanchor = () => show();
 
   function go(next) {
     step = next;
+    if (next === "card") used = false;
     show({ focus: true });
   }
 
@@ -170,19 +249,23 @@ export function mountTour(root, { anchor, panelOpen, onTakeMe, onEnd }) {
     if (!node) return;
     running.abort();
     PHONE.removeEventListener("change", reanchor);
-    showing?.abort();
     ring(null);
+    lower();
     node.remove();
     node = null;
+    covered = null;
     onEnd({ byTarget });
   }
 
   return {
     start() {
       if (node) end();
-      step = 0;
+      step = "find";
       takeMe = "offered";
+      used = false;
+      covered = null;
       node = h("div", { class: "tour", role: "dialog", "aria-modal": "false", "aria-labelledby": "tour-title", tabIndex: -1 });
+      if ("popover" in node) node.popover = "manual";
       root.append(node);
       running = new window.AbortController();
       const { signal } = running;
@@ -200,12 +283,30 @@ export function mountTour(root, { anchor, panelOpen, onTakeMe, onEnd }) {
       window.addEventListener("resize", place, { signal });
       document.addEventListener("transitionend", place, { signal });
       PHONE.addEventListener("change", reanchor);
+      /* Outside the top layer the popover draws by its z-index, as before. */
+      if (typeof node.showPopover === "function") node.showPopover();
       show({ focus: true });
     },
     end: () => end(),
-    /** Re-read whether a panel is open and re-anchor the step. */
+    /** Re-read what is open, 3D and the layout, move on if a step is done, and re-anchor. */
     refresh() {
-      if (node) show();
+      show();
+    },
+    /** The reader used the card: on step 2, Skip becomes Next. */
+    interacted() {
+      if (!node || step !== "card" || used) return;
+      used = true;
+      show();
+    },
+    /** Use this data or the viewer opened (`open`) or closed. */
+    cover(by, open) {
+      if (!node) return;
+      if (open) covered = by;
+      else if (covered === by) {
+        covered = null;
+        if (by === "useData" && step === "data") step = panel() ? "terrain" : "find";
+      } else return;
+      show();
     },
     get running() {
       return node !== null;
