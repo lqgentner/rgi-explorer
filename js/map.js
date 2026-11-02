@@ -1,6 +1,15 @@
 /* The map: base maps, the RGI layers, the selection and the terminus pin. */
 
-import { ESRI_TILES, GLYPHS, LIBERTY_STYLE, startView, TERRAIN_TILEJSON, TIMEOUT_MS } from "./config.js";
+import {
+  ESRI_TILES,
+  GLYPHS,
+  LIBERTY_STYLE,
+  MIN_PICK_PX,
+  MIN_VISIBLE_FRACTION,
+  startView,
+  TERRAIN_TILEJSON,
+  TIMEOUT_MS,
+} from "./config.js";
 import { BASE_PAINT, rgiStyle, TOGGLES } from "./styles.js";
 import { PREVIEW_SPAN } from "./viewpreview.js";
 
@@ -300,6 +309,8 @@ function sides(padding = 0) {
  * screen point may be and still count as one: the terrain's depth is coarse.
  */
 const SAME_PLACE_PX = 4;
+/* A bbox is drawn on screen as the box around this many points along each side, corners included. */
+const BBOX_SAMPLES = 5;
 
 /**
  * The Standard map's picture of a view: a hidden map of OpenFreeMap's Liberty
@@ -445,6 +456,21 @@ export async function createMap(container, catalog, state) {
     if (!map.isMoving()) turnTo = null;
   });
 
+  /*
+   * Whether `lonLat`, drawn at the screen `point`, is on the near side of the
+   * globe. A place on the far side projects onto the near side's disc, so the
+   * place must also come back from its screen point: unproject finds the
+   * near-side place there.
+   */
+  const nearSide = ([lng, lat], { x, y }) => {
+    const back = map.unproject([x, y]);
+    /* Degrees per pixel along a parallel, and along a meridian in Mercator: both shrink with its cosine. */
+    const cos = Math.abs(Math.cos((lat * Math.PI) / 180));
+    const perPx = (360 / (512 * 2 ** map.getZoom())) * cos;
+    const dLng = ((((back.lng - lng) % 360) + 540) % 360) - 180;
+    return Math.hypot(dLng * cos, back.lat - lat) <= SAME_PLACE_PX * perPx;
+  };
+
   const api = {
     map,
 
@@ -568,22 +594,67 @@ export async function createMap(container, catalog, state) {
 
     /**
      * Whether `lonLat` shows on the canvas less `padding`, the edges that the
-     * panels cover (MapLibre's padding: a number or `{ top, right, bottom, left }`).
-     * On the globe a place on the far side projects onto the near side's disc,
-     * so the place must also come back from its screen point: unproject finds
-     * the near-side place there.
+     * panels cover (MapLibre's padding: a number or `{ top, right, bottom, left }`),
+     * on the near side of the globe.
      */
-    inView([lng, lat], padding) {
+    inView(lonLat, padding) {
       const { top, right, bottom, left } = sides(padding);
       const canvas = map.getCanvas();
-      const { x, y } = map.project([lng, lat]);
+      const point = map.project(lonLat);
+      const { x, y } = point;
       if (!(x >= left && x <= canvas.clientWidth - right && y >= top && y <= canvas.clientHeight - bottom)) return false;
-      const back = map.unproject([x, y]);
-      /* Degrees per pixel along a parallel, and along a meridian in Mercator: both shrink with its cosine. */
-      const cos = Math.abs(Math.cos((lat * Math.PI) / 180));
-      const perPx = (360 / (512 * 2 ** map.getZoom())) * cos;
-      const dLng = ((((back.lng - lng) % 360) + 540) % 360) - 180;
-      return Math.hypot(dLng * cos, back.lat - lat) <= SAME_PLACE_PX * perPx;
+      return nearSide(lonLat, point);
+    },
+
+    /**
+     * How well `bbox` shows on the canvas less `padding` (as for inView), or
+     * null where it shows nowhere: 360° or more wide, or with a part on the
+     * globe's far side or where MapLibre cannot draw it. On screen the bbox is
+     * the box around its projected edges. `fraction` is the share of that box
+     * in the open map, `sizePx` its larger side in CSS pixels, and `fits`
+     * whether it fits in the open map at all. A bbox across the antimeridian
+     * runs on past 180°; it is measured at its copy next to the view's centre.
+     */
+    bboxVisibility({ xmin, ymin, xmax, ymax }, padding) {
+      const east = xmax < xmin ? xmax + 360 : xmax;
+      if (east - xmin >= 360) return null;
+      const turn = Math.round((map.getCenter().lng - (xmin + east) / 2) / 360) * 360;
+      const drawn = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
+      const step = BBOX_SAMPLES - 1;
+      for (let i = 0; i <= step; i += 1) {
+        for (let j = 0; j <= step; j += 1) {
+          const place = [xmin + turn + ((east - xmin) * i) / step, clampLat(ymin + ((ymax - ymin) * j) / step)];
+          const point = map.project(place);
+          if (!Number.isFinite(point.x) || !Number.isFinite(point.y) || !nearSide(place, point)) return null;
+          drawn.x0 = Math.min(drawn.x0, point.x);
+          drawn.y0 = Math.min(drawn.y0, point.y);
+          drawn.x1 = Math.max(drawn.x1, point.x);
+          drawn.y1 = Math.max(drawn.y1, point.y);
+        }
+      }
+      const { top, right, bottom, left } = sides(padding);
+      const canvas = map.getCanvas();
+      const open = { x0: left, y0: top, x1: canvas.clientWidth - right, y1: canvas.clientHeight - bottom };
+      /* The share of the span a0..a1 inside b0..b1; a span of no length is in or out. */
+      const share = (a0, a1, b0, b1) =>
+        a1 > a0 ? Math.max(0, Math.min(a1, b1) - Math.max(a0, b0)) / (a1 - a0) : Number(a0 >= b0 && a0 <= b1);
+      const [width, height] = [drawn.x1 - drawn.x0, drawn.y1 - drawn.y0];
+      return {
+        fraction: share(drawn.x0, drawn.x1, open.x0, open.x1) * share(drawn.y0, drawn.y1, open.y0, open.y1),
+        sizePx: Math.max(width, height),
+        fits: width <= open.x1 - open.x0 && height <= open.y1 - open.y0,
+      };
+    },
+
+    /**
+     * Whether a picked glacier's or complex's `bbox` needs a fit to be seen
+     * well on the canvas less `padding`: when less than MIN_VISIBLE_FRACTION
+     * of it shows, when it is under MIN_PICK_PX across, too small to make out,
+     * or when it is larger than the open map, which a fit zooms out to show.
+     */
+    needsFit(bbox, padding) {
+      const seen = api.bboxVisibility(bbox, padding);
+      return seen === null || seen.fraction < MIN_VISIBLE_FRACTION || seen.sizePx < MIN_PICK_PX || !seen.fits;
     },
 
     /**

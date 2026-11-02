@@ -181,16 +181,24 @@ test("Zoom to fits the glacier again", async () => {
 
 test("clicking a glacier opens the card and writes ?glacier=", async () => {
   const before = fits();
-  map.rendered = [{
-    layer: { id: "glaciers-fill" },
-    properties: { rgi_id: MORTERATSCH, display_name: "Morteratsch", o1region: "11", area_km2: 0.5 },
-  }];
-  map.fire("click", { point: { x: 200, y: 200 } });
-  assert.equal($("#card .card-title").textContent, "Morteratsch");
-  assert.equal(params().get("glacier"), MORTERATSCH);
-  assert.deepEqual(map.getLayer("selection-outline").filter, ["==", ["get", "rgi_id"], MORTERATSCH]);
-  await settle();
-  assert.equal(fits(), before, "a click does not move the map");
+  /* Morteratsch's bbox, 8.1 to 8.11° E and 46.1 to 46.11° N, drawn 100 px square right of the card. */
+  map.screen = { origin: [8.1 - 0.06, 46.1 - 0.03], scale: 10000 };
+  try {
+    map.rendered = [{
+      layer: { id: "glaciers-fill" },
+      properties: { rgi_id: MORTERATSCH, display_name: "Morteratsch", o1region: "11", area_km2: 0.5 },
+    }];
+    map.fire("click", { point: { x: 200, y: 200 } });
+    assert.equal($("#card .card-title").textContent, "Morteratsch");
+    assert.equal(params().get("glacier"), MORTERATSCH);
+    assert.deepEqual(map.getLayer("selection-outline").filter, ["==", ["get", "rgi_id"], MORTERATSCH]);
+    /* The photo lookup waits for the camera's decision. */
+    await waitFor(() => log.some(({ url }) => url.startsWith("https://query.wikidata.org/") && url.includes("G001000E46000N")), 1000);
+    await settle();
+    assert.equal(fits(), before, "a click on a glacier well in view does not move the map");
+  } finally {
+    map.screen = { origin: [0, 0], scale: 1 };
+  }
 });
 
 test("a click on a settled map looks up photos at once, not after the idle cap", async () => {

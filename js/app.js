@@ -33,6 +33,14 @@ const PLACE_ZOOM = 12;
 const FIT_MARGIN = 0.5;
 const FIT_MAX_ZOOM = 15;
 /*
+ * How a glacier or complex that opens moves the map: ALWAYS fits it, as a
+ * shared link without a view does; IF_NEEDED fits it only when it is not
+ * already well in view (see needsFit in map.js), as a pick on the map, in a
+ * panel or in search does. A falsy fit leaves the map alone.
+ */
+const ALWAYS = "always";
+const IF_NEEDED = "if-needed";
+/*
  * The imagery crop at twice the photo's CSS size. On desktop the search bar
  * covers the photo's top 72px, so the glacier sits in the rows below.
  */
@@ -371,12 +379,17 @@ function wire(catalog, rgiMap, regions) {
     rgiMap.fitBbox(wide, padding(), undefined, { maxZoom: FIT_MAX_ZOOM });
   };
 
-  /** Fit the glacier's bbox once its read returns, unless another camera request came first. */
-  function fitGlacierLater(glacier) {
+  /** Fit `bbox` as `fit` asks, ALWAYS or IF_NEEDED, clear of the panels open now. */
+  const fitAs = (bbox, fit) => {
+    if (fit === ALWAYS || rgiMap.needsFit(bbox, padding())) fitAround(bbox);
+  };
+
+  /** Fit the glacier's bbox as `fit` asks once its read returns, unless another camera request came first. */
+  function fitGlacierLater(glacier, fit) {
     const mine = ++camera;
     return glaciers.factsOf(glacier).then(
       (facts) => {
-        if (mine === camera && shown === glacier && isBbox(facts.bbox)) fitAround(facts.bbox);
+        if (mine === camera && shown === glacier && isBbox(facts.bbox)) fitAs(facts.bbox, fit);
       },
       () => {},
     );
@@ -426,8 +439,8 @@ function wire(catalog, rgiMap, regions) {
     if (isBbox(bbox)) {
       camera += 1;
       fitAround(bbox);
-    } else if (shown) fitGlacierLater(shown);
-    else if (shownComplex) fitComplexLater(shownComplex);
+    } else if (shown) fitGlacierLater(shown, ALWAYS);
+    else if (shownComplex) fitComplexLater(shownComplex, ALWAYS);
   }
 
   /* Pin the terminus, and bring it to the middle of the open map if it is off screen or under a panel. */
@@ -476,7 +489,7 @@ function wire(catalog, rgiMap, regions) {
     },
     onAction(action) {
       if (action.type === "pin") pinTerminus(action.lonlat);
-      else if (action.type === "complex") openComplex(action.id, true);
+      else if (action.type === "complex") openComplex(action.id, IF_NEEDED);
     },
   });
 
@@ -497,24 +510,24 @@ function wire(catalog, rgiMap, regions) {
       if (PHONE.matches) setSheetLevel("full");
       useData.open(target);
     },
-    onOpenGlacier: (rgiId) => openGlacier({ rgiId }, true),
+    onOpenGlacier: (rgiId) => openGlacier({ rgiId }, IF_NEEDED),
     onTitle(title) {
       if (shownComplex) search.setText(title);
     },
   });
 
-  /** Fit the whole complex once its read returns, unless another camera request came first. */
-  function fitComplexLater(complexId) {
+  /** Fit the whole complex as `fit` asks once its read returns, unless another camera request came first. */
+  function fitComplexLater(complexId, fit) {
     const mine = ++camera;
     complexes.read(complexId).then(
       (props) => {
-        if (mine === camera && shownComplex === complexId && isBbox(props?.bbox)) fitAround(props.bbox);
+        if (mine === camera && shownComplex === complexId && isBbox(props?.bbox)) fitAs(props.bbox, fit);
       },
       () => {},
     );
   }
 
-  /** Open a complex's panel in place of any glacier card and select it; with `fit`, fit the map to it. */
+  /** Open a complex's panel in place of any glacier card and select it; `fit`, ALWAYS or IF_NEEDED, fits the map to it. */
   function openComplex(complexId, fit) {
     if (shown) {
       shown = null;
@@ -536,7 +549,7 @@ function wire(catalog, rgiMap, regions) {
     );
     showCard(true);
     search.setClosable(closeComplex);
-    if (fit) fitComplexLater(complexId);
+    if (fit) fitComplexLater(complexId, fit);
     complexCard.open(complexId);
     if (PHONE.matches) setSheetLevel("compact");
   }
@@ -553,7 +566,7 @@ function wire(catalog, rgiMap, regions) {
     showCard(false);
   }
 
-  /** Open a glacier's card and select it; with `fit`, fit the map to its bbox. */
+  /** Open a glacier's card and select it; `fit`, ALWAYS or IF_NEEDED, fits the map to its bbox. */
   function openGlacier(glacier, fit) {
     /* A page holds one of the two, also while a shared complex is still being read. */
     state.complex = null;
@@ -570,14 +583,14 @@ function wire(catalog, rgiMap, regions) {
     rgiMap.select(glacier.rgiId);
     showCard(true);
     search.setClosable(closeGlacier);
-    fitting = fit ? fitGlacierLater(glacier) : null;
+    fitting = fit ? fitGlacierLater(glacier, fit) : null;
     card.open(glacier);
     if (PHONE.matches) setSheetLevel("compact");
   }
 
   map.on("click", (event) => {
     const props = rgiMap.glacierAt(event.point);
-    if (props?.rgi_id) openGlacier({ rgiId: props.rgi_id, props }, false);
+    if (props?.rgi_id) openGlacier({ rgiId: props.rgi_id, props }, IF_NEEDED);
     else if (shown) closeGlacier();
     else if (shownComplex) closeComplex();
   });
@@ -585,9 +598,9 @@ function wire(catalog, rgiMap, regions) {
   const search = mountSearch(el("search"), {
     onPick(hit) {
       if (hit.kind === "glacier") {
-        openGlacier({ rgiId: hit.rgiId, row: hit.row }, true);
+        openGlacier({ rgiId: hit.rgiId, row: hit.row }, IF_NEEDED);
       } else if (hit.kind === "complex") {
-        openComplex(hit.complexId, true);
+        openComplex(hit.complexId, IF_NEEDED);
       } else if (hit.kind === "region" && isBbox(hit.bbox)) {
         camera += 1;
         fitTo(hit.bbox);
@@ -616,7 +629,8 @@ function wire(catalog, rgiMap, regions) {
           save();
           return;
         }
-        openGlacier({ rgiId, row }, !hadView);
+        /* The sender's view stays; without one the glacier is fitted, wherever the opening view is. */
+        openGlacier({ rgiId, row }, !hadView && ALWAYS);
       },
       (error) => console.warn("glacier index:", error.message),
     );
@@ -633,7 +647,7 @@ function wire(catalog, rgiMap, regions) {
           save();
           return;
         }
-        openComplex(complexId, !hadView);
+        openComplex(complexId, !hadView && ALWAYS);
       },
       (error) => console.warn("complex:", error.message),
     );

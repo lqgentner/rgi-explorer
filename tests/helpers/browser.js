@@ -49,6 +49,12 @@ export class FakeMap {
     /* What loaded() and isMoving() answer; a test sets them to stage a busy map. */
     this.tilesLoaded = true;
     this.moving = false;
+    /*
+     * How project() lays the lon/lat plane on the screen: `scale` pixels per
+     * degree from `origin`, the place at screen [0, 0]. A test sets it to stage
+     * a view; the default puts [lng, lat] at x = lng, y = lat.
+     */
+    this.screen = { origin: [0, 0], scale: 1 };
     this.center = { lng: options.center?.[0] ?? 0, lat: options.center?.[1] ?? 0 };
     this.zoom = options.zoom ?? 0;
     this.pitch = 0;
@@ -142,15 +148,17 @@ export class FakeMap {
     });
   }
 
-  /** Screen pixels of a [lng, lat]. The fake's screen is the lon/lat plane, one pixel per degree. */
+  /** Screen pixels of a [lng, lat]. The fake's screen is the lon/lat plane, laid out by `screen`. */
   project([lng, lat]) {
-    return { x: lng, y: lat };
+    const { origin: [lng0, lat0], scale } = this.screen;
+    return { x: (lng - lng0) * scale, y: (lat - lat0) * scale };
   }
 
   /** The place at a screen point, the inverse of project(). */
   unproject(point) {
     const [x, y] = Array.isArray(point) ? point : [point.x, point.y];
-    return { lng: x, lat: y };
+    const { origin: [lng0, lat0], scale } = this.screen;
+    return { lng: lng0 + x / scale, lat: lat0 + y / scale };
   }
 
   /**

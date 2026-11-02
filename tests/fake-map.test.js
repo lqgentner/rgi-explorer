@@ -72,6 +72,18 @@ test("the canvas is 1024 x 768 px and unproject undoes project", () => {
   assert.deepEqual(map.unproject({ x, y }), { lng: 8.02, lat: 46.4 });
 });
 
+test("a staged screen draws the lon/lat plane at its scale from its origin", () => {
+  const map = new FakeMap();
+  assert.deepEqual(map.project([8.02, 46.4]), { x: 8.02, y: 46.4 }, "by default one pixel per degree from [0, 0]");
+  map.screen = { origin: [8, 46], scale: 1000 };
+  assert.deepEqual(map.project([8.5, 46.25]), { x: 500, y: 250 });
+  assert.deepEqual(map.unproject([500, 250]), { lng: 8.5, lat: 46.25 });
+  map.rendered = [{ layer: { id: "dots" }, geometry: { type: "Point", coordinates: [8.5, 46.25] }, properties: {} }];
+  map.addSource("s", source);
+  map.addLayer({ id: "dots", type: "circle", source: "s" });
+  assert.equal(map.queryRenderedFeatures([500, 250], { layers: ["dots"] }).length, 1, "rendered dots follow the screen");
+});
+
 test("a style with a duplicate layer or a missing source throws at construction", () => {
   const sources = { a: source };
   assert.throws(

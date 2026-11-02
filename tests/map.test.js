@@ -384,6 +384,72 @@ test("inView: a point on the far side of the globe is not in view", async () => 
   assert.equal(rgiMap.inView([500, 30]), true, "a whole turn of longitude is the same place");
 });
 
+/* The canvas less the desktop card, as the page pads it. */
+const CARD = { top: 24, right: 24, bottom: 24, left: 432 };
+/*
+ * The bbox tests stage a screen of 8 px per degree, with latitude -50° at the
+ * top, so their bboxes are given in screen pixels and stay off the poles.
+ */
+const SCREEN = { origin: [0, -50], scale: 8 };
+const box = (x0, y0, x1, y1) => ({ xmin: x0 / 8, ymin: y0 / 8 - 50, xmax: x1 / 8, ymax: y1 / 8 - 50 });
+const placeAt = ([x, y]) => ({ lng: x / 8, lat: y / 8 - 50 });
+async function staged() {
+  const built = await build();
+  built.map.screen = SCREEN;
+  built.map.jumpTo({ center: [64, 0], zoom: 2 });
+  return built;
+}
+
+test("bboxVisibility: the share of a bbox in view, its size on screen and whether it fits", async () => {
+  const { rgiMap } = await staged();
+  assert.deepEqual(rgiMap.bboxVisibility(box(500, 300, 600, 350), CARD), { fraction: 1, sizePx: 100, fits: true });
+  assert.deepEqual(rgiMap.bboxVisibility(box(382, 300, 482, 340), CARD), { fraction: 0.5, sizePx: 100, fits: true }, "half under the card");
+  assert.deepEqual(rgiMap.bboxVisibility(box(1100, 300, 1200, 400)), { fraction: 0, sizePx: 100, fits: true }, "off the canvas");
+  assert.deepEqual(rgiMap.bboxVisibility(box(400, 300, 1100, 310), CARD), { fraction: 568 / 700, sizePx: 700, fits: false }, "wider than the room");
+  assert.deepEqual(rgiMap.bboxVisibility(box(500, 24, 510, 744), CARD), { fraction: 1, sizePx: 720, fits: true }, "as tall as the room");
+  assert.deepEqual(rgiMap.bboxVisibility(box(500, 300, 500, 300)), { fraction: 1, sizePx: 0, fits: true }, "a point in view");
+  assert.deepEqual(rgiMap.bboxVisibility(box(500, 0, 600, 50), 24), { fraction: 0.52, sizePx: 100, fits: true }, "a number pads every side");
+});
+
+test("bboxVisibility: a bbox across the antimeridian runs on past 180°, and one a turn away comes round", async () => {
+  const { rgiMap, map } = await staged();
+  map.screen = { origin: [100, -50], scale: 8 };
+  map.jumpTo({ center: [180, 0], zoom: 2 });
+  /* 170° E to 170° W: 560 to 720 px. */
+  const across = { xmin: 170, ymin: -10, xmax: -170, ymax: -5 };
+  assert.deepEqual(rgiMap.bboxVisibility(across), { fraction: 1, sizePx: 160, fits: true });
+  map.jumpTo({ center: [-175, 0], zoom: 2 });
+  map.screen = { origin: [-260, -50], scale: 8 };
+  assert.deepEqual(rgiMap.bboxVisibility(across), { fraction: 1, sizePx: 160, fits: true }, "the copy next to the view's centre");
+});
+
+test("bboxVisibility: a bbox 360° wide or with a part on the far side of the globe shows nowhere", async () => {
+  const { rgiMap, map } = await staged();
+  assert.equal(rgiMap.bboxVisibility({ xmin: -180, ymin: 10, xmax: 180, ymax: 40 }), null);
+  /* Only the bbox's west edge comes back as another place: it is over the horizon. */
+  map.unproject = ([x, y]) => (x < 505 ? { lng: x / 8 - 180, lat: y / 8 - 50 } : placeAt([x, y]));
+  assert.equal(rgiMap.bboxVisibility(box(500, 300, 600, 350)), null);
+  map.unproject = placeAt;
+  assert.deepEqual(rgiMap.bboxVisibility(box(500, 300, 600, 350)).fraction, 1);
+  map.project = () => ({ x: Number.NaN, y: Number.NaN });
+  assert.equal(rgiMap.bboxVisibility(box(500, 300, 600, 350)), null, "a place MapLibre cannot draw");
+});
+
+test("needsFit: a bbox needs a fit unless 80% of it shows, 24 px across or more, and it fits", async () => {
+  const { rgiMap, map } = await staged();
+  assert.equal(rgiMap.needsFit(box(500, 300, 600, 350), CARD), false, "well in view");
+  assert.equal(rgiMap.needsFit(box(412, 300, 512, 350), CARD), false, "80% in view");
+  assert.equal(rgiMap.needsFit(box(411, 300, 511, 350), CARD), true, "79% in view");
+  assert.equal(rgiMap.needsFit(box(382, 300, 482, 340), CARD), true, "half under the card");
+  assert.equal(rgiMap.needsFit(box(500, 300, 524, 310), CARD), false, "24 px across");
+  assert.equal(rgiMap.needsFit(box(500, 300, 523, 310), CARD), true, "too small to make out");
+  assert.equal(rgiMap.needsFit(box(440, 24, 1000, 744), CARD), false, "as large as the room");
+  assert.equal(rgiMap.needsFit(box(440, 24, 1000, 745), CARD), true, "larger than the room");
+  assert.equal(rgiMap.needsFit({ xmin: -180, ymin: 10, xmax: 180, ymax: 40 }, CARD), true, "the whole world");
+  map.unproject = ([x, y]) => ({ lng: x / 8 - 180, lat: 50 - y / 8 });
+  assert.equal(rgiMap.needsFit(box(500, 300, 600, 350), CARD), true, "on the far side");
+});
+
 test("centerOn eases the point to the middle of the canvas less the padding, and keeps the camera", async () => {
   const { rgiMap, map } = await build();
   const zoom = map.getZoom();

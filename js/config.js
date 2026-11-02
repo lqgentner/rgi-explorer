@@ -24,6 +24,13 @@ export const HYPSO_BAND_M = 50;
 /** How long a third-party request may take before the page falls back. */
 export const TIMEOUT_MS = 4000;
 export const DEFAULT_VIEW = { zoom: 2, lat: 30, lon: 10 };
+/*
+ * A picked glacier or complex moves the map only when less than this share of
+ * its bbox shows in the open map, when the bbox is under MIN_PICK_PX across on
+ * screen, or when it is larger than the open map.
+ */
+export const MIN_VISIBLE_FRACTION = 0.8;
+export const MIN_PICK_PX = 24;
 
 /* A rough latitude for each time zone area; South American zones share "America/". */
 const AREA_LAT = {

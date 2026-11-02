@@ -268,6 +268,11 @@ elsewhere closes it.
   - fits the view to the glacier's bbox, padded so the sidebar or sheet
     doesn't cover it, with half the glacier's size free on every side and
     no closer than zoom 15, so the map around it shows for orientation.
+    A pick on the map, in a panel or in search fits only when the glacier
+    isn't already well in view: when less than 80% of its bbox shows in the
+    map the panels leave open, when the bbox is under 24 px across, or when
+    it is larger than that open map. A shared link without a view always fits;
+    "Zoom to" always fits.
   - keeps the map's bearing and tilt, so a turn the reader made stays.
 - **Clicking the map** selects the glacier under the pointer. Only glaciers
   are selectable: a complex opens from search or from a glacier's card.
