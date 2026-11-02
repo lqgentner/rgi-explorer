@@ -87,7 +87,9 @@ export function placeNear(target, box, viewport, sides) {
  * current layout; `panel()` says what is open: null, "glacier" or "complex";
  * `terrainOn()` whether 3D is on; `onTakeMe()` opens the sample glacier and
  * may return a promise of false when there is none, which removes the offer;
- * `onEnd({byTarget})` hears the tour end.
+ * `onStep(step)` hears each step the tour enters ("find", "card", "data",
+ * "terrain", "done"), so the app can reveal its control; `onEnd({byTarget})`
+ * hears the tour end.
  *
  * The app tells the tour what changed: `refresh()` after a panel opens or
  * closes, 3D turns on or off, or the layout changes; `interacted()` after the
@@ -96,7 +98,7 @@ export function placeNear(target, box, viewport, sides) {
  *
  * @returns {{start(): void, end(): void, refresh(): void, interacted(): void, cover(by: string, open: boolean): void, readonly running: boolean}}
  */
-export function mountTour(root, { anchor, panel, terrainOn, onTakeMe, onEnd }) {
+export function mountTour(root, { anchor, panel, terrainOn, onTakeMe, onStep, onEnd }) {
   let step = "find";
   let node = null;
   let ringed = null;
@@ -110,6 +112,8 @@ export function mountTour(root, { anchor, panel, terrainOn, onTakeMe, onEnd }) {
   let used = false;
   /* What covers the page now: null, "useData" or "viewer". */
   let covered = null;
+  /* The step the app last heard of. */
+  let told = null;
 
   function ring(target) {
     if (ringed === target) return;
@@ -190,6 +194,10 @@ export function mountTour(root, { anchor, panel, terrainOn, onTakeMe, onEnd }) {
       return;
     }
     settle();
+    if (step !== told) {
+      told = step;
+      onStep?.(step);
+    }
     const kind = panel();
     const { n, anchor: name } = STEPS[step];
     const title = step === "card" ? CARD[kind].title : STEPS[step].title;
@@ -264,6 +272,7 @@ export function mountTour(root, { anchor, panel, terrainOn, onTakeMe, onEnd }) {
       takeMe = "offered";
       used = false;
       covered = null;
+      told = null;
       node = h("div", { class: "tour", role: "dialog", "aria-modal": "false", "aria-labelledby": "tour-title", tabIndex: -1 });
       if ("popover" in node) node.popover = "manual";
       root.append(node);

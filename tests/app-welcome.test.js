@@ -53,34 +53,71 @@ test("help with a card open closes the card and shows the welcome", async () => 
   assert.equal(document.activeElement, help());
 });
 
-test("the tour waits for a glacier, takes the reader to Upsala and ends on Use this data", async () => {
+const title = () => document.getElementById($(".tour").getAttribute("aria-labelledby")).textContent;
+const usedataOpen = () => $("dialog.usedata").open || $("dialog.usedata").hasAttribute("open");
+
+test("the tour moves on as the reader acts: a glacier, the card, Use this data, 3D", async () => {
   click(button($(".welcome"), "Take the tour"));
+  assert.equal(title(), "Find a glacier");
   assert.deepEqual(ringed(), [$("#search")]);
-  click(button($(".tour"), "Next"));
-  assert.ok($(".tour").textContent.includes("2 of 4"));
   click(button($(".tour"), "Take me to a glacier"));
   await waitFor(() => location.search.includes(`glacier=${UPSALA}`));
-  await waitFor(() => ringed()[0] === $("#card"));
-  assert.ok(button($(".tour"), "Next"));
+  await waitFor(() => title() === "The glacier card");
+  assert.ok($(".tour").textContent.includes("2 of 4"));
+  assert.deepEqual(ringed(), [$("#card")]);
+  assert.ok(button($(".tour"), "Skip"));
 
+  click($("#card-tab-hypsometry"));
+  assert.equal(button($(".tour"), "Skip"), undefined);
   click(button($(".tour"), "Next"));
+  assert.equal(title(), "Use this data");
   const [useData] = ringed();
   assert.equal(useData.dataset.tour, "use-data");
   assert.equal(useData.closest("[hidden]"), null, "the ring is on the card's own, visible button");
+
   click(useData);
+  assert.ok(usedataOpen());
+  assert.ok($(".tour").classList.contains("covering"));
+  assert.ok($(".tour").textContent.includes("Close to continue the tour"));
+  click($('dialog.usedata button[aria-label="Close"]'));
+  assert.equal(title(), "3D");
+  assert.deepEqual(ringed(), [$(".terrain-btn")]);
+
+  click($(".terrain-btn"));
+  assert.equal(title(), "You're all set.");
+  click(button($(".tour"), "Done"));
   assert.equal($(".tour"), null);
-  assert.deepEqual(ringed(), []);
-  assert.ok($("dialog.usedata").open || $("dialog.usedata").hasAttribute("open"));
-  assert.notEqual(document.activeElement, help(), "the data dialog keeps the focus");
+  assert.equal(document.activeElement, help());
+});
+
+test("a keyboard switch to Hypsometry counts as using the card", async () => {
+  click($(".terrain-btn"));
+  click(help());
+  click(button($(".welcome"), "Take the tour"));
+  click(button($(".tour"), "Take me to a glacier"));
+  await waitFor(() => $(".tour") && title() === "The glacier card");
+  const overview = $("#card-tab-overview");
+  click(overview);
+  assert.ok(button($(".tour"), "Skip"), "a switch back to Overview is not the switch the step asks for");
+  overview.focus();
+  overview.dispatchEvent(new window.KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+  assert.ok(button($(".tour"), "Next"));
+});
+
+test("Use this data closed by a tap on empty map goes back to step 1", async () => {
+  click(button($(".tour"), "Next"));
+  assert.equal(title(), "Use this data");
+  click(ringed()[0]);
+  assert.ok($(".tour").classList.contains("covering"));
+  page.map.fire("click", { point: { x: 900, y: 400 } });
+  assert.equal(document.body.classList.contains("card-open"), false);
+  assert.ok(!usedataOpen());
+  assert.equal(title(), "Find a glacier");
 });
 
 test("help during the tour ends it, closes the card and shows the welcome", async () => {
-  $("dialog.usedata").removeAttribute("open");
-  click(help());
-  click(button($(".welcome"), "Take the tour"));
-  click(button($(".tour"), "Next"));
   click(button($(".tour"), "Take me to a glacier"));
-  await waitFor(() => ringed()[0] === $("#card"));
+  await waitFor(() => title() === "The glacier card");
   click(help());
   assert.equal($(".tour"), null);
   assert.deepEqual(ringed(), []);

@@ -274,16 +274,21 @@ export function mountCard(root, ctx) {
     }
     if (focus) tabs[id].focus();
   }
+  /* The reader's own switch to Hypsometry, by click or key, counts as using the card for the tour. */
+  const pick = (id, focus) => {
+    if (id === "hypsometry" && state.tab !== id) ctx.onInteract?.();
+    selectTab(id, focus);
+  };
   tablist.addEventListener("click", (event) => {
     const tab = TABS.find((t) => tabs[t.id].contains(event.target));
-    if (tab) selectTab(tab.id);
+    if (tab) pick(tab.id);
   });
   tablist.addEventListener("keydown", (event) => {
     const at = TABS.findIndex((t) => t.id === state.tab);
     const next = { ArrowRight: at + 1, ArrowLeft: at - 1, Home: 0, End: TABS.length - 1 }[event.key];
     if (next === undefined) return;
     event.preventDefault();
-    selectTab(TABS[(next + TABS.length) % TABS.length].id, true);
+    pick(TABS[(next + TABS.length) % TABS.length].id, true);
   });
 
   const glacierNow = () => ({ rgiId: current.rgiId, row: current.row, props: current.props });

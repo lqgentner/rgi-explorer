@@ -27,13 +27,39 @@ test("on the phone the help button sits in the status line before the credits", 
   assert.ok(help.compareDocumentPosition($("#status .credits-box")) & window.Node.DOCUMENT_POSITION_FOLLOWING);
 });
 
-test("the tour's card step points at the sheet, and at the sidebar card across the breakpoint", async () => {
-  click(button($(".welcome"), "Take the tour"));
-  click(button($(".tour"), "Next"));
-  click(button($(".tour"), "Take me to a glacier"));
-  await waitFor(() => ringed()[0] === $("#sheet"));
+const title = () => document.getElementById($(".tour").getAttribute("aria-labelledby")).textContent;
+const text = () => $(".tour p").textContent;
 
+test("on the phone the card step asks to swipe up, raising the sheet counts, and the breakpoint swaps it", async () => {
+  click(button($(".welcome"), "Take the tour"));
+  click(button($(".tour"), "Take me to a glacier"));
+  await waitFor(() => $(".tour") && title() === "The glacier card");
+  assert.deepEqual(ringed(), [$("#sheet")]);
+  assert.ok(text().startsWith("Swipe up to see its area, elevations and hypsometry."));
+  assert.ok(button($(".tour"), "Skip"));
+
+  click($("#sheet-handle"));
+  await waitFor(() => button($(".tour"), "Next"));
+
+  assert.notEqual($("#sheet").dataset.level, "compact");
+  click(button($(".tour"), "Next"));
+  click(button($(".tour"), "Skip"));
+  assert.equal(title(), "3D");
+  assert.equal($("#sheet").dataset.level, "compact", "the sheet lowers so the 3D button shows");
   page.setPhone(false);
+  assert.equal(title(), "3D");
+});
+
+test("across the breakpoint the card step swaps its text and ring", async () => {
+  click($(".help-btn"));
+  click(button($(".welcome"), "Take the tour"));
+  click(button($(".tour"), "Take me to a glacier"));
+  await waitFor(() => $(".tour") && title() === "The glacier card");
   assert.deepEqual(ringed(), [$("#card")]);
+  assert.ok(text().startsWith("Its area, elevations and hypsometry."));
   assert.equal($(".help-btn").parentElement, $("#controls"));
+  page.setPhone(true);
+  assert.deepEqual(ringed(), [$("#sheet")]);
+  assert.ok(text().startsWith("Swipe up to see"));
+  assert.equal($(".help-btn").parentElement, $("#status"));
 });

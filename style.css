@@ -1091,7 +1091,8 @@ button:focus-visible {
 .tour {
   position: fixed;
   z-index: 7;
-  width: 280px;
+  width: 300px;
+  max-width: calc(100vw - 16px);
   padding: 12px 44px 12px 12px;
   border-radius: var(--card-radius);
   background: var(--surface);
@@ -1118,7 +1119,7 @@ button:focus-visible {
 .tour.covering {
   top: 12px;
   left: 50%;
-  width: auto;
+  width: max-content;
   max-width: calc(100% - 24px);
   translate: -50% 0;
 }
@@ -1162,14 +1163,19 @@ body:has(#search.fullscreen) .welcome {
   margin: 0 0 10px;
 }
 
+/* The buttons run under the X, to 12 px from the edge, so their corners are concentric with the card's. */
 .tour-actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
+  justify-content: flex-end;
   gap: 8px;
+  margin-right: -32px;
 }
 
 .tour-count {
   margin-right: auto;
+  white-space: nowrap;
   color: var(--muted);
   font-size: 12px;
 }

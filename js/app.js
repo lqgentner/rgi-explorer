@@ -21,6 +21,7 @@ import { mountStatus } from "./status.js";
 import { mountTour } from "./tour.js";
 import { el, PHONE, scrollbarWidth } from "./ui.js";
 import { mountUseData } from "./usedata.js";
+import { onViewerToggle } from "./viewer.js";
 import { mountHelp, mountWelcome, welcomeTitle } from "./welcome.js";
 
 const CARD_WIDTH = 408;
@@ -331,6 +332,7 @@ function wire(catalog, rgiMap, regions) {
   function threeD(on, move) {
     state.terrain = on;
     terrain.set(on);
+    tour.refresh();
     rgiMap.setTerrain(on, { move });
     save();
     status?.refresh();
@@ -367,10 +369,17 @@ function wire(catalog, rgiMap, regions) {
     panel: () => (PHONE.matches ? el("sheet") : el("card")),
     useData: () => visible(PHONE.matches ? '#sheet [data-tour="use-data"]' : '#card [data-tour="use-data"]'),
     terrain: () => document.querySelector(".terrain-btn"),
+    /* The last card sits under the search on the desktop, above the status line on the phone. */
+    done: () => (PHONE.matches ? el("status") : el("search")),
   };
   const tour = mountTour(document.body, {
     anchor: (name) => ANCHORS[name](),
-    panelOpen: () => Boolean(shown || shownComplex),
+    panel: () => (shown ? "glacier" : shownComplex ? "complex" : null),
+    terrainOn: () => state.terrain,
+    /* On the phone a raised sheet covers the 3D button; the 3D step lowers it. */
+    onStep(step) {
+      if (step === "terrain" && PHONE.matches && (shown || shownComplex)) setSheetLevel("compact");
+    },
     /* True once the sample glacier opens; false when this catalog has none, or the index fails. */
     onTakeMe() {
       return glaciers.index().then(
@@ -464,7 +473,28 @@ function wire(catalog, rgiMap, regions) {
     return findPhotos({ rgiId: glacier.rgiId, props }, ringsOf(map, glacier.rgiId), { signal });
   }
 
-  const useData = mountUseData(document.body, { catalog, sheet: el("sheet") });
+  const useData = mountUseData(document.body, {
+    catalog,
+    sheet: el("sheet"),
+    onToggle: (open) => tour.cover("useData", open),
+  });
+  onViewerToggle((open) => tour.cover("viewer", open));
+
+  /*
+   * What counts as using the card for the tour's card step: a scroll of the
+   * card or the sheet, an info button or a member glacier, raising the
+   * phone's sheet, and (from card.js) a switch to Hypsometry.
+   */
+  const used = () => tour.interacted();
+  for (const scroller of [el("card"), el("sheet-body")]) scroller.addEventListener("scroll", used, { capture: true, passive: true });
+  for (const panelRoot of [el("card"), el("sheet")]) {
+    panelRoot.addEventListener("click", (event) => {
+      if (event.target.closest?.("button.info, table.members tr")) used();
+    });
+  }
+  new window.MutationObserver(() => {
+    if (el("sheet").dataset.level && el("sheet").dataset.level !== "compact") used();
+  }).observe(el("sheet"), { attributes: true, attributeFilter: ["data-level"] });
 
   /* The desktop sidebar holds the panels, the phone's sheet its band and body; see cardFrame. */
   const cardRoot = el("card");
@@ -545,6 +575,7 @@ function wire(catalog, rgiMap, regions) {
       if (PHONE.matches) setSheetLevel("full");
       useData.open({ kind: "glacier", rgiId: glacier.rgiId, o1region: glacier.props?.o1region });
     },
+    onInteract: used,
     onAction(action) {
       if (action.type === "pin") pinTerminus(action.lonlat);
       else if (action.type === "complex") openComplex(action.id, IF_NEEDED);

@@ -56,7 +56,7 @@ beforeEach(() => {
   document.body.replaceChildren();
   panelKind = null;
   terrain = false;
-  calls = { takeMe: 0, ends: [] };
+  calls = { takeMe: 0, ends: [], steps: [] };
   const target = (name) => document.body.appendChild(Object.assign(document.createElement("div"), { id: name }));
   targets = {
     search: target("search"),
@@ -75,6 +75,7 @@ beforeEach(() => {
       return calls.takeMeResult;
     },
     onEnd: (how) => calls.ends.push(how),
+    onStep: (step) => calls.steps.push(step),
   });
 });
 
@@ -315,4 +316,14 @@ test("Take me to a glacier shows it is busy, and goes away when there is no glac
 test("the tour and the welcome hide under the phone's full-screen search and layers pane", () => {
   const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
   assert.match(css, /body:has\(#search\.fullscreen\) \.tour,\s*body:has\(\.layers-pane:not\(\[hidden\]\)\) \.tour,\s*body:has\(#search\.fullscreen\) \.welcome \{\s*visibility: hidden;/);
+});
+
+test("the app hears each step the tour enters, once, so it can reveal the step's control", () => {
+  tour.start();
+  panelKind = "glacier";
+  tour.refresh();
+  tour.refresh();
+  button("Skip").click();
+  button("Skip").click();
+  assert.deepEqual(calls.steps, ["find", "card", "data", "terrain"]);
 });
