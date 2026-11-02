@@ -232,6 +232,23 @@ test("3D turning on finishes step 4 with the last card", () => {
   assert.deepEqual(calls.ends, [{ byTarget: false }]);
 });
 
+test("on the desktop the last card takes the 3D step's place, left of the 3D button", () => {
+  window.innerWidth = 1280;
+  window.innerHeight = 800;
+  const button3d = rect(1228, 640, 1268, 680);
+  targets.terrain.getBoundingClientRect = () => button3d;
+  targets.done.getBoundingClientRect = () => button3d;
+  tour.start();
+  button("Skip").click();
+  assert.equal(title(), "3D");
+  const step4 = { side: popup().dataset.side, top: popup().style.top, left: popup().style.left };
+  assert.equal(step4.side, "left");
+  terrain = true;
+  tour.refresh();
+  assert.equal(title(), "You're all set.");
+  assert.deepEqual({ side: popup().dataset.side, top: popup().style.top, left: popup().style.left }, step4);
+});
+
 test("with 3D already on, Skip on step 1 goes straight to the last card", () => {
   terrain = true;
   tour.start();

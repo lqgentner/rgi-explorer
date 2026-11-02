@@ -37,7 +37,8 @@ const STEPS = {
     needsPanel: true,
   },
   terrain: { n: 4, title: "3D", text: "Switch to 3D to see the terrain.", anchor: "terrain", sides: ["left", "below"], skipTo: "done" },
-  done: { title: "You're all set.", text: "Have fun exploring the glaciers on your own." },
+  /* On the desktop the last card takes the 3D step's place; the app anchors it to the 3D button. */
+  done: { title: "You're all set.", text: "Have fun exploring the glaciers on your own.", sides: ["left", "below"] },
 };
 /* Step 2 names what is open, and on the phone first asks to raise the sheet. */
 const CARD = {
@@ -156,12 +157,11 @@ export function mountTour(root, { anchor, panel, terrainOn, onTakeMe, onStep, on
     }
     delete node.dataset.dock;
     if (!at) return;
-    const sides = step === "done" ? [PHONE.matches ? "above" : "below"] : STEPS[step].sides;
     const spot = placeNear(
       at.getBoundingClientRect(),
       node.getBoundingClientRect(),
       { width: window.innerWidth, height: window.innerHeight },
-      sides,
+      STEPS[step].sides,
     );
     node.dataset.side = spot.side;
     node.style.top = `${spot.top}px`;

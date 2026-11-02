@@ -203,6 +203,8 @@ These replace the matching points above.
   the owner preferred: they ride on its edge above the credits, moved by the
   same CSS variable as the sheet, so a swipe carries them in one motion, and
   a sheet raised high leaves them under the search bar.
+- **The last card on the desktop** takes the 3D step's place, beside the
+  round buttons at the bottom right, so an open card or panel never covers it.
 - **The welcome on the phone** sits at the top under the search bar too, as
   on the desktop, clear of the round buttons.
 - **"Close to continue the tour":** the message has no X of its own; it

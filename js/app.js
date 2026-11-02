@@ -385,7 +385,7 @@ function wire(catalog, rgiMap, regions) {
     useData: () => visible(PHONE.matches ? '#sheet [data-tour="use-data"]' : '#card [data-tour="use-data"]'),
     terrain: () => document.querySelector(".terrain-btn"),
     /* The last card sits under the search on the desktop, above the status line on the phone. */
-    done: () => (PHONE.matches ? el("status") : el("search")),
+    done: () => (PHONE.matches ? el("status") : document.querySelector(".terrain-btn")),
     /* While Use this data or the viewer covers the tour, the ring points at the close button that continues it. */
     useDataClose: () => visible(".usedata-close"),
     viewerClose: () => document.querySelector(".viewer-close"),
