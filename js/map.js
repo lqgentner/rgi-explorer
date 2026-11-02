@@ -44,6 +44,8 @@ const sky = (base) => ({
 /* The background on imagery, where the imagery has not loaded yet. */
 const IMAGERY_BACKGROUND = "#3c4043";
 const MAX_LAT = 85.05;
+/* A fit that would fly longer than this, in ms, jumps there: a far flight is a long wait. */
+const FLY_MAX_MS = 2000;
 const POINTS = ["in", ["geometry-type"], ["literal", ["Point", "MultiPoint"]]];
 /* The camera tilt in 3D, in degrees from straight down. */
 const TERRAIN_PITCH = 60;
@@ -677,8 +679,11 @@ export async function createMap(container, catalog, state) {
           [xmin, clampLat(ymin)],
           [xmax, clampLat(ymax)],
         ],
-        /* MapLibre's fit faces north unless told otherwise; it keeps the reader's turn instead. */
-        { padding, bearing: map.getBearing(), ...options },
+        /*
+         * MapLibre's fit faces north unless told otherwise; it keeps the
+         * reader's turn instead. A flight longer than FLY_MAX_MS jumps.
+         */
+        { padding, bearing: map.getBearing(), maxDuration: FLY_MAX_MS, ...options },
       );
     },
 
