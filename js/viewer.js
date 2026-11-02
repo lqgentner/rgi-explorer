@@ -13,6 +13,7 @@ import { PHONE, h, icon } from "./ui.js";
  * @typedef {object} ViewerItem
  * @property {string} alt
  * @property {string} [thumb]  shown until the large file arrives
+ * @property {number} [ratio]  width / height, when known before anything loads: a placeholder of that shape shows meanwhile
  * @property {() => Promise<string | null> | string | null} large
  * @property {() => Node} credit
  */
@@ -231,11 +232,18 @@ export function openViewer(items, index, { onClose, returnFocus } = {}) {
   if (isOpen()) hide();
   const slides = items.map((item) => {
     const img = h("img", { class: "viewer-image", alt: item.alt });
-    /* The picture's shape, so style.css draws any file in it, the thumbnail too, as large as fits: nothing jumps when the large one comes. */
+    const stage = h("div", { class: "viewer-stage" }, img);
+    /*
+     * The picture's shape, so style.css draws any file in it, the thumbnail
+     * too, as large as fits: nothing jumps when the large one comes. A shape
+     * known beforehand also draws a placeholder until the picture loads.
+     */
+    const shape = (ratio) => stage.style.setProperty("--ar", String(ratio));
+    if (item.ratio) shape(item.ratio);
     img.addEventListener("load", () => {
-      if (img.naturalWidth && img.naturalHeight) img.style.setProperty("--ar", String(img.naturalWidth / img.naturalHeight));
+      if (img.naturalWidth && img.naturalHeight) shape(img.naturalWidth / img.naturalHeight);
     });
-    const figure = h("figure", { class: "viewer-slide" }, h("div", { class: "viewer-stage" }, img));
+    const figure = h("figure", { class: "viewer-slide" }, stage);
     return { figure, img };
   });
   for (const layer of backdrops) {

@@ -97,7 +97,9 @@ change.
 
 If the crop fails and there are photos, the crop's tile is dropped and the
 photos stand alone. If the crop fails and there are no photos, the plain
-placeholder block shows, as today. *(My call.)*
+placeholder block shows, as today. *(My call.)* The placeholder and every
+tile while its image loads are a mid grey (`--image-placeholder`, #9aa0a6),
+darker than the card's light greys, so a loading image is not a pale flash.
 
 The strip is a native horizontal scroller (`overflow-x: auto`,
 `scroll-snap-type: x mandatory`) with one element per image. Images after the
@@ -258,7 +260,9 @@ Revised on 2026-11-02 after a look at the first build (mockups:
   photos it sits among) with `top: 0`, since nothing covers it there. Phone
   and desktop get the same image. The strip's crop is framed differently (on
   the desktop it keeps its top rows clear for the search bar), so it does not
-  stand in; the viewer shows a plain dark area until the export loads.
+  stand in. Its shape is known, so until the export loads the viewer shows a
+  solid dark-grey placeholder (#3c4043) of exactly the image's size, on its
+  own slide and while swiping to it.
   Framing to the screen was tried first and gave tall, narrow crops on
   phones. Asking for more detail, such as twice the screen's pixels, costs
   more bytes and can tip World Imagery into a finer level: around

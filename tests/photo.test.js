@@ -382,7 +382,7 @@ test("with no photos the card shows the Esri crop and its credit", async () => {
   img.dispatchEvent(new window.Event("error"));
   assert.equal(root.querySelector(".photo img"), null);
   assert.ok(root.querySelector(".photo-placeholder"));
-  assert.equal(root.querySelector(".photo-placeholder").style.background, "var(--line)");
+  assert.equal(root.querySelector(".photo-placeholder").style.background, "var(--image-placeholder)", "the same grey as while an image loads");
 });
 
 test("the source lookup asks Esri about the glacier's centre at the crop's own extent and size", () => {
@@ -531,4 +531,15 @@ test("the crop image is kept when the card re-renders with the same bbox", async
   } finally {
     globalThis.hyparquet = real;
   }
+});
+
+test("an image loads over a mid grey, darker than the card's light greys", () => {
+  const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
+  const hex = /--image-placeholder:\s*#([0-9a-f]{6})/.exec(css)?.[1];
+  assert.ok(hex, "a token");
+  const lum = parseInt(hex.slice(0, 2), 16) * 0.2126 + parseInt(hex.slice(2, 4), 16) * 0.7152 + parseInt(hex.slice(4, 6), 16) * 0.0722;
+  assert.ok(lum < 0xc0, `#${hex} is darker than the old #e8eaed`);
+  const rule = (sel) => [...css.matchAll(new RegExp(`(^|\\n)${sel}\\s*{([^}]*)}`, "g"))].map((m) => m[2]).join("\n");
+  assert.match(rule("\\.strip-tile"), /background:\s*var\(--image-placeholder\)/);
+  assert.match(rule("\\.card \\.photo"), /background:\s*var\(--image-placeholder\)/);
 });

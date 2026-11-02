@@ -132,7 +132,7 @@ export function cardFrame(root, ctx, { label, className, body, onUseData, onZoom
 }
 
 /** A plain block in place of an imagery crop that failed. */
-export const placeholder = () => h("div", { class: "photo-placeholder", style: { background: "var(--line)" } });
+export const placeholder = () => h("div", { class: "photo-placeholder", style: { background: "var(--image-placeholder)" } });
 
 /**
  * The credit of an Esri crop of `bbox` at `size` with `top` rows covered.
@@ -187,6 +187,7 @@ const VIEWER_CROP = [1200, 800];
 /** The viewer item of the imagery crop of `bbox`: framed on its own, nothing covering it. */
 export const imageryViewerItem = (bbox, alt) => ({
   alt,
+  ratio: VIEWER_CROP[0] / VIEWER_CROP[1],
   large: () => esriCrop(bbox, ...VIEWER_CROP, 0),
   credit: () => imageryCredit(bbox, VIEWER_CROP, 0),
 });

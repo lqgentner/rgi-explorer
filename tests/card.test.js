@@ -613,5 +613,6 @@ test("the imagery's viewer item is the glacier at 3:2, the same on every screen"
   const { esriCrop } = await load("js/photo.js");
   const item = imageryViewerItem(BBOX, "Satellite imagery of the glacier");
   assert.equal(item.large(), esriCrop(BBOX, 1200, 800, 0));
+  assert.equal(item.ratio, 1.5, "known before it loads, for the viewer's placeholder");
   await onPhone(() => assert.equal(item.large(), esriCrop(BBOX, 1200, 800, 0)));
 });

@@ -243,7 +243,8 @@ test("on the desktop the stand-in is drawn at the large file's size: the image t
   Object.defineProperty(img, "naturalWidth", { configurable: true, get: () => 640 });
   Object.defineProperty(img, "naturalHeight", { configurable: true, get: () => 427 });
   img.dispatchEvent(new window.Event("load"));
-  assert.ok(Math.abs(Number(img.style.getPropertyValue("--ar")) - 640 / 427) < 1e-6);
+  const stage = current().querySelector(".viewer-stage");
+  assert.ok(Math.abs(Number(stage.style.getPropertyValue("--ar")) - 640 / 427) < 1e-6);
   const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
   const rule = (sel) => [...css.matchAll(new RegExp(`(^|\\n)\\s*${sel}\\s*{([^}]*)}`, "g"))].map((m) => m[2]).join("\n");
   assert.match(rule("\\.viewer-stage"), /container-type:\s*size/);
@@ -357,4 +358,22 @@ test("closing hands focus to returnFocus(index) without scrolling, after onClose
   assert.deepEqual(order, ["close 1", "focus"]);
   assert.deepEqual(options, [{ preventScroll: true }]);
   assert.equal(document.activeElement, target);
+});
+
+test("an image of known shape has a placeholder of that shape at once, so a swipe to it never shows an empty slide", () => {
+  const { list } = items(["https://big/0.jpg", "https://big/1.jpg", "https://big/2.jpg"]);
+  list[0].ratio = 1.5;
+  openViewer(list, 2, {});
+  const stages = [...dialog().querySelectorAll(".viewer-stage")];
+  assert.equal(stages[0].style.getPropertyValue("--ar"), "1.5", "set before the slide loads, two slides away");
+  assert.equal(stages[1].style.getPropertyValue("--ar"), "", "a photo's shape comes from its picture");
+  const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
+  const before = /(^|\n)\.viewer-stage::before\s*{([^}]*)}/.exec(css)?.[2] ?? "";
+  assert.match(before, /aspect-ratio:\s*var\(--ar\)/);
+  assert.match(before, /width:\s*min\(100cqw,\s*100cqh \* var\(--ar\)\)/, "the image's own size, so the image covers it exactly");
+  assert.match(before, /background:/);
+  assert.match(css, /\.viewer-image\s*{[^}]*grid-area:\s*1 \/ 1/);
+  const phone = [...css.matchAll(/@media \(max-width: 640px\)\s*{([\s\S]*?)\n}/g)].map((m) => m[1]).join("\n");
+  assert.doesNotMatch(phone, /\.viewer-image\s*{[^}]*width:\s*100%/, "the phone sizes its image as the desktop does, so the placeholder matches it");
+  closeIfOpen();
 });
