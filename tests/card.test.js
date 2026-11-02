@@ -307,6 +307,17 @@ test("the card column rises above the status line and the search above the card"
   assert.match(css, /#card\s*{[^}]*width:\s*var\(--card-w\)/);
 });
 
+test("the buttons take the outer radius, the tiles and table the tile radius, and the ⓘ sits concentric", () => {
+  const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
+  const rule = (sel) => new RegExp(`(^|\\n)${sel}\\s*{([^}]*)}`).exec(css)?.[2] ?? "";
+  assert.match(css, /--radius:\s*16px/);
+  assert.match(css, /--tile-radius:\s*12px/);
+  assert.match(rule("\\.btn"), /border-radius:\s*var\(--radius\)/);
+  for (const sel of ["\\.key-tile", "\\.members-scroll"]) assert.match(rule(sel), /border-radius:\s*var\(--tile-radius\)/, sel);
+  const info = rule("\\.key-tile \\.info");
+  for (const side of ["right", "bottom"]) assert.match(info, new RegExp(`${side}:\\s*calc\\(var\\(--tile-radius\\) - 1px - 7px\\)`), side);
+});
+
 test("the search and the layer control sit outside the card container", () => {
   const page = new window.DOMParser().parseFromString(
     fs.readFileSync(new URL("../index.html", import.meta.url), "utf8"), "text/html");

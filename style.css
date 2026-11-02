@@ -12,6 +12,9 @@
   --photo-glass: rgb(255 255 255 / 45%);
   --space: #10141c;
   --card-w: 408px;
+  /* Corners: round on the outside (buttons, the phone's images), smaller on boxes of text. */
+  --radius: 16px;
+  --tile-radius: 12px;
   --slide: 250ms ease-out;
   --font: "Noto Sans", system-ui, sans-serif;
   --mono: "Noto Sans Mono", ui-monospace, monospace;
@@ -1088,7 +1091,7 @@ button:focus-visible {
   padding: 6px 14px;
   white-space: nowrap;
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: var(--radius);
   background: var(--surface);
   color: var(--accent);
   font-weight: 600;
@@ -1153,7 +1156,7 @@ button:focus-visible {
   max-height: 320px;
   overflow-y: auto;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--tile-radius);
 }
 
 /*
@@ -1225,7 +1228,7 @@ table.members .num {
   position: relative;
   padding: 8px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--tile-radius);
 }
 
 .key-tile .row-label {
@@ -1234,8 +1237,9 @@ table.members .num {
 
 .key-tile .info {
   position: absolute;
-  right: 6px;
-  bottom: 6px;
+  /* Concentric with the corner: its centre sits on the inner curve's centre (radius less the 1px border), less half the 14px icon. */
+  right: calc(var(--tile-radius) - 1px - 7px);
+  bottom: calc(var(--tile-radius) - 1px - 7px);
 }
 
 .key-value {
