@@ -92,8 +92,14 @@ const toCard = () => {
   panelKind = panelKind ?? "glacier";
   tour.refresh();
 };
+/* Step 1 has no Skip, so the way to 3D is through a glacier and past the card steps. */
+const toTerrain = () => {
+  toCard();
+  button("Skip").click();
+  button("Skip").click();
+};
 
-test("step 1 asks for a glacier and offers two outline choices", () => {
+test("step 1 asks for a glacier and offers to take the reader to one", () => {
   tour.start();
   assert.equal(tour.running, true);
   const node = popup();
@@ -102,10 +108,9 @@ test("step 1 asks for a glacier and offers two outline choices", () => {
   assert.equal(title(), "Find a glacier");
   assert.equal(text(), "To start, click a glacier on the map or search for one.");
   assert.ok(node.textContent.includes("1 of 4"));
-  for (const label of ["Take me to a glacier", "Skip"]) {
-    assert.ok(button(label), label);
-    assert.ok(!button(label).classList.contains("primary"), `${label} is an outline button`);
-  }
+  assert.ok(button("Take me to a glacier"));
+  assert.ok(!button("Take me to a glacier").classList.contains("primary"), "an outline button");
+  assert.equal(button("Skip"), undefined, "no Skip: it would skip the card steps too");
   assert.equal(button("Next"), undefined);
   assert.equal(button("Back"), undefined);
   assert.ok(node.querySelector('button[aria-label="End tour"]'));
@@ -217,8 +222,7 @@ test("the viewer covers a step and returns to it, keeping step 2's interaction",
 });
 
 test("3D turning on finishes step 4 with the last card", () => {
-  tour.start();
-  button("Skip").click();
+  toTerrain();
   assert.equal(title(), "3D");
   terrain = true;
   tour.refresh();
@@ -238,8 +242,7 @@ test("on the desktop the last card takes the 3D step's place, left of the 3D but
   const button3d = rect(1228, 640, 1268, 680);
   targets.terrain.getBoundingClientRect = () => button3d;
   targets.done.getBoundingClientRect = () => button3d;
-  tour.start();
-  button("Skip").click();
+  toTerrain();
   assert.equal(title(), "3D");
   const step4 = { side: popup().dataset.side, top: popup().style.top, left: popup().style.left };
   assert.equal(step4.side, "left");
@@ -249,17 +252,10 @@ test("on the desktop the last card takes the 3D step's place, left of the 3D but
   assert.deepEqual({ side: popup().dataset.side, top: popup().style.top, left: popup().style.left }, step4);
 });
 
-test("with 3D already on, Skip on step 1 goes straight to the last card", () => {
+test("with 3D already on, Skip on step 3 goes straight to the last card", () => {
   terrain = true;
-  tour.start();
-  button("Skip").click();
+  toTerrain();
   assert.equal(title(), "You're all set.");
-});
-
-test("Skip on step 1 jumps past the card steps to 3D", () => {
-  tour.start();
-  button("Skip").click();
-  assert.equal(title(), "3D");
 });
 
 test("Escape ends the tour from the tour, and the close button does too", () => {
@@ -331,8 +327,10 @@ test("Take me to a glacier shows it is busy, and goes away when there is no glac
   await new Promise((resolve) => setTimeout(resolve, 0));
   assert.equal(button("Take me to a glacier"), undefined);
   assert.equal(button("Opening…"), undefined);
-  assert.ok(button("Skip"), "Skip stays");
+  assert.equal(popup().querySelectorAll(".tour-actions button").length, 0, "only the X is left; a glacier the reader opens still moves on");
   assert.equal(title(), "Find a glacier");
+  toCard();
+  assert.equal(title(), "The glacier card");
 });
 
 test("the tour and the welcome hide under the phone's full-screen search and layers pane", () => {
@@ -413,8 +411,7 @@ test("the last card follows its anchor as it grows, as the search does with its 
   };
   try {
     terrain = true;
-    tour.start();
-    button("Skip").click();
+    toTerrain();
     assert.equal(title(), "You're all set.");
     const watcher = observed.find((o) => o.node === targets.done);
     assert.ok(watcher, "the last card watches its anchor");

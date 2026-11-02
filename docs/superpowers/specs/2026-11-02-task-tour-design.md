@@ -203,6 +203,9 @@ These replace the matching points above.
   the owner preferred: they ride on its edge above the credits, moved by the
   same CSS variable as the sheet, so a swipe carries them in one motion, and
   a sheet raised high leaves them under the search bar.
+- **Step 1 has no Skip** (the owner's call): past it no card is open, so it
+  would skip the card steps too. "Take me to a glacier" and the X remain; a
+  catalog without the sample glacier leaves the X and the reader's own pick.
 - **The last card on the desktop** takes the 3D step's place, beside the
   round buttons at the bottom right, so an open card or panel never covers it.
 - **The welcome on the phone** sits at the top under the search bar too, as

@@ -24,7 +24,7 @@ const STEPS = {
     /* The ring goes round the bar alone; the popover follows the whole search, results included. */
     ring: "searchBar",
     sides: ["below"],
-    skipTo: "terrain",
+    /* No Skip: past step 1 no card is open, so it would skip the card steps too. */
   },
   card: { n: 2, anchor: "panel", sides: PANEL_SIDES, skipTo: "data", needsPanel: true },
   data: {
@@ -209,9 +209,9 @@ export function mountTour(root, { anchor, panel, terrainOn, onTakeMe, onStep, on
     if (step === "done") return [filled("Done", () => end())];
     const skip = () => go(STEPS[step].skipTo);
     if (step === "card" && used) return [filled("Next", () => go("data"))];
-    if (step === "find" && takeMe !== "gone") {
+    if (step === "find") {
       const busy = takeMe === "working";
-      return [outline(busy ? "Opening…" : "Take me to a glacier", takeMeThere, { disabled: busy }), outline("Skip", skip)];
+      return takeMe === "gone" ? [] : [outline(busy ? "Opening…" : "Take me to a glacier", takeMeThere, { disabled: busy })];
     }
     return [outline("Skip", skip)];
   }
