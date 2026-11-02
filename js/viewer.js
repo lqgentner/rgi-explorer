@@ -39,15 +39,27 @@ let state = null;
 
 const isOpen = () => Boolean(dialog && (dialog.open || dialog.hasAttribute("open")));
 
+/* Who hears the viewer open and close: the tour. */
+const toggleListeners = new Set();
+
+/** Hear the viewer open (`fn(true)`) and close (`fn(false)`), by any route. */
+export function onViewerToggle(fn) {
+  toggleListeners.add(fn);
+}
+
 function show() {
+  const was = isOpen();
   if (typeof dialog.showModal === "function") {
     if (!dialog.open) dialog.showModal();
   } else dialog.setAttribute("open", "");
+  if (!was) for (const fn of toggleListeners) fn(true);
 }
 
 function hide() {
+  const was = isOpen();
   if (typeof dialog.close === "function" && dialog.open) dialog.close();
   else dialog.removeAttribute("open");
+  if (was) for (const fn of toggleListeners) fn(false);
 }
 
 /*

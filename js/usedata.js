@@ -163,7 +163,7 @@ let mounted = 0;
  * @param {HTMLElement} root
  * @param {{catalog: object, sheet?: HTMLElement}} ctx
  */
-export function mountUseData(root, { catalog, sheet = root }) {
+export function mountUseData(root, { catalog, sheet = root, onToggle }) {
   mounted += 1;
   const id = `usedata-${mounted}`;
   const choice = { tool: "python", scope: "glacier" };
@@ -230,17 +230,22 @@ export function mountUseData(root, { catalog, sheet = root }) {
 
   const isOpen = () => (container === pane ? !pane.hidden : dialog.open || dialog.hasAttribute("open"));
 
+  /* onToggle hears each real change, after it happens. */
   function show() {
+    const was = isOpen();
     if (container === pane) pane.hidden = false;
     else if (typeof dialog.showModal === "function") {
       if (!dialog.open) dialog.showModal();
     } else dialog.setAttribute("open", "");
+    if (!was) onToggle?.(true);
   }
 
   function hide() {
+    const was = isOpen();
     if (container === pane) pane.hidden = true;
     else if (typeof dialog.close === "function" && dialog.open) dialog.close();
     else dialog.removeAttribute("open");
+    if (was) onToggle?.(false);
   }
 
   /* Move the content to the layout's container, open there if it was open. */
