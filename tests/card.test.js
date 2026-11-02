@@ -64,6 +64,8 @@ function setup(over = {}) {
   return { root, card, calls, ctx };
 }
 const text = (root, sel) => root.querySelector(sel)?.textContent;
+/* The subtitle's rows: the kind and the region, then the ID of a named glacier. */
+const rows = (root) => [...root.querySelectorAll(".card-subtitle > span")].map((n) => n.textContent);
 
 /** Run `fn` with the page on a phone, then back on desktop. */
 async function onPhone(fn) {
@@ -138,12 +140,12 @@ test("no caption while the hypsometry loads or when there is none", async () => 
 test("a title, subtitle and unnamed glacier", async () => {
   const named = setup();
   await named.card.open({ rgiId: IDS[0], props: { display_name: "Grosser Aletsch Gletscher", o1region: "11" } });
-  assert.equal(text(named.root, ".card-subtitle"), `Glacier · ${IDS[0]} · Central Europe`);
+  assert.deepEqual(rows(named.root), ["Glacier · Central Europe", IDS[0]], "two rows, whatever the region's length");
 
   const bare = setup();
   await bare.card.open({ rgiId: IDS[4], props: {} });
   assert.equal(text(bare.root, ".card-title"), IDS[4]);
-  assert.equal(text(bare.root, ".card-subtitle"), "Glacier · Central Europe");
+  assert.deepEqual(rows(bare.root), ["Glacier · Central Europe"], "the title is the ID, so one row");
   assert.doesNotMatch(bare.root.textContent, /null|undefined/);
 });
 
@@ -683,4 +685,9 @@ test("the imagery's viewer item is the glacier at 3:2, the same on every screen"
   assert.equal(item.large(), esriCrop(BBOX, 1200, 800, 0));
   assert.equal(item.ratio, 1.5, "known before it loads, for the viewer's placeholder");
   await onPhone(() => assert.equal(item.large(), esriCrop(BBOX, 1200, 800, 0)));
+});
+
+test("the subtitle's rows are blocks, so the ID always starts the second row", () => {
+  const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
+  assert.match(css, /\.card-subtitle > span\s*\{\s*display:\s*block;/);
 });

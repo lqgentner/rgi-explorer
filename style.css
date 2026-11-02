@@ -1374,6 +1374,10 @@ body:has(#search.fullscreen) .welcome {
   color: var(--muted);
 }
 
+.card-subtitle > span {
+  display: block;
+}
+
 .card-actions {
   display: flex;
   gap: 8px;

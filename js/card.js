@@ -299,11 +299,12 @@ export function mountCard(root, ctx) {
     const name = nonEmpty(props.display_name);
     const code = nonEmpty(props.o1region) ?? regionOfId(rgiId);
     const region = (ctx.regions ?? []).find((r) => Number(r.level) === 1 && r.o1region === code)?.full_name;
-    const subtitle = ["Glacier", name ? rgiId : null, region].filter(Boolean).join(" · ");
+    /* Two rows whatever the region's length: the kind and the region, then a named glacier's ID. */
+    const kind = ["Glacier", region].filter(Boolean).join(" · ");
     ctx.onTitle?.(name ?? rgiId);
     head.replaceChildren(
       h("h2", { class: "card-title" }, name ?? rgiId),
-      subtitle ? h("p", { class: "card-subtitle" }, subtitle) : null,
+      h("p", { class: "card-subtitle" }, h("span", {}, kind), name ? h("span", {}, rgiId) : null),
     );
   }
 

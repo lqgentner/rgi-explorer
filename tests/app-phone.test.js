@@ -35,7 +35,7 @@ test("a pick mounts the card in the sheet: the header in the band, the photo and
   assert.equal($("#card").children.length, 0, "the desktop sidebar stays empty");
   assert.equal($("#sheet-band .card-title").textContent, "Grosser Aletsch Gletscher");
   assert.equal($('#search button[aria-label="Close"]').hidden, false, "the search bar's Close shows as on desktop");
-  assert.equal($("#sheet-band .card-subtitle").textContent, `Glacier · ${ALETSCH} · Central Europe`);
+  assert.deepEqual([...$("#sheet-band .card-subtitle").children].map((n) => n.textContent), ["Glacier · Central Europe", ALETSCH]);
   assert.equal($("#sheet-band").textContent.includes("km²"), false, "the area is in the overview, not the band");
   assert.ok(button($("#sheet-band"), "Use this data"));
   assert.ok($("#sheet-body .photo"));
