@@ -304,7 +304,8 @@ test("the card column rises above the status line and the search above the card"
   assert.ok(z("#card") > z("#status"));
   assert.ok(z("#search") > z("#card"));
   assert.match(css, /--card-w:\s*408px/);
-  assert.match(css, /#card\s*{[^}]*width:\s*var\(--card-w\)/);
+  assert.match(css, /#card\s*{[^}]*width:\s*var\(--sidebar-w\)/);
+  assert.match(css, /#card\s*{[^}]*scrollbar-gutter:\s*stable/);
 });
 
 test("the buttons take the outer radius, the tiles and table the tile radius, and the ⓘ sits concentric", () => {

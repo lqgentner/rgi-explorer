@@ -18,7 +18,7 @@ import { mountSearch } from "./searchbox.js";
 import { initSheet, popupPadding, setSheetLevel } from "./sheet.js";
 import { parseState, writeState } from "./state.js";
 import { mountStatus } from "./status.js";
-import { el, PHONE } from "./ui.js";
+import { el, PHONE, scrollbarWidth } from "./ui.js";
 import { mountUseData } from "./usedata.js";
 
 const CARD_WIDTH = 408;
@@ -59,6 +59,19 @@ function registerServiceWorker() {
 }
 
 registerServiceWorker();
+
+/*
+ * The desktop sidebar's scrollbar, kept outside its 408px content by
+ * --sidebar-w in style.css. Browser zoom changes its width, so a resize
+ * measures again. The phone shows no sidebar.
+ */
+const sidebarScrollbar = () => (PHONE.matches ? 0 : scrollbarWidth(el("card")));
+function measureScrollbar() {
+  document.documentElement.style.setProperty("--scrollbar", `${sidebarScrollbar()}px`);
+}
+measureScrollbar();
+window.addEventListener("resize", measureScrollbar);
+PHONE.addEventListener("change", measureScrollbar);
 
 const state = parseState(new URL(location.href));
 /* A tilt by hand past this many degrees turns 3D on; one that ends below it levels the map and turns 3D off. */
@@ -348,7 +361,7 @@ function wire(catalog, rgiMap, regions) {
 
   const padding = () => {
     if (PHONE.matches) return { top: PHONE_TOP, right: GAP, bottom: (popupPadding()?.bottom ?? 0) + GAP, left: GAP };
-    return { top: GAP, right: GAP, bottom: GAP, left: (shown || shownComplex ? CARD_WIDTH : 0) + GAP };
+    return { top: GAP, right: GAP, bottom: GAP, left: (shown || shownComplex ? CARD_WIDTH + sidebarScrollbar() : 0) + GAP };
   };
   const fitTo = (bbox) => rgiMap.fitBbox(bbox, padding());
   /** Fit a glacier or a complex with room around it. */

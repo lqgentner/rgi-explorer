@@ -10,6 +10,9 @@ export const PHONE = window.matchMedia("(max-width: 640px)");
 
 export const el = (id) => document.getElementById(id);
 
+/** The width a classic scrollbar takes from `node`; 0 where scrollbars overlay the content. */
+export const scrollbarWidth = (node) => Math.max(0, (node?.offsetWidth ?? 0) - (node?.clientWidth ?? 0));
+
 /**
  * Make the page inert around `keep`, for a pane that covers it: each child of
  * the body that holds none of `keep`, except the scripts and the notice, which

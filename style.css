@@ -12,6 +12,10 @@
   --photo-glass: rgb(255 255 255 / 45%);
   --space: #10141c;
   --card-w: 408px;
+  /* The desktop sidebar's scrollbar, which js/app.js measures; 0 where scrollbars overlay. */
+  --scrollbar: 0px;
+  /* The sidebar's outer width: the content keeps --card-w, the scrollbar sits beyond it. */
+  --sidebar-w: calc(var(--card-w) + var(--scrollbar));
   /* Corners: round on the outside (buttons, the phone's images), smaller on boxes of text. */
   --radius: 16px;
   --tile-radius: 12px;
@@ -951,8 +955,9 @@ button:focus-visible {
   bottom: 0;
   left: 0;
   z-index: 3;
-  width: var(--card-w);
+  width: var(--sidebar-w);
   overflow-y: auto;
+  scrollbar-gutter: stable;
   background: var(--surface);
   box-shadow: var(--shadow);
 }
@@ -984,12 +989,12 @@ button:focus-visible {
   }
 
   body.card-open #status {
-    max-width: calc(100% - var(--card-w));
+    max-width: calc(100% - var(--sidebar-w));
   }
 
   /* With the card open, the layer control sits at the map area's left edge. */
   body.card-open #layers {
-    left: calc(var(--card-w) + 16px);
+    left: calc(var(--sidebar-w) + 16px);
   }
 
   /* The phone's parts: the round Layers button and the bottom sheet. */
