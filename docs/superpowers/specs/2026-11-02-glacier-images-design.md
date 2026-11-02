@@ -215,17 +215,33 @@ keeps the position. Tests cross the breakpoint with `setPhone()`.
 
 ## The viewer
 
+Revised on 2026-11-02 after a look at the first build (mockups:
+`viewer-fixed.html` variant F, `viewer-variants.html` phone variant 2,
+`scrim.html`).
+
 - A tap or click on any image opens a modal `<dialog>` at that image. A
   scroll or swipe does not produce a click, so swiping never opens it. A click
   on a link in the credit follows the link and does not open the viewer.
-- On the phone it fills the screen. On the desktop it covers the viewport
-  with a dark backdrop. *(My call.)* Each image is shown whole
-  (`object-fit: contain`).
-- **Moving between images:** swipe on the phone, the arrow keys, and previous
-  and next buttons on the desktop. The phone viewer has no buttons, matching
-  the strip. *(My call.)* The counter shows. ✕ and Esc close it, and focus
-  returns to the image that opened it. When it closes, the strip shows the
-  image the viewer was last on. *(My call.)*
+- **The controls never move.** Under the images sits one dock, fixed to the
+  bottom of the screen: the image's credit, centred and wrapping to as many
+  lines as it needs, and below it ‹ "n / N" ›. ✕ is fixed in the screen's top
+  right corner. A longer credit grows upwards, so the arrows stay in place.
+  At the first and last image an arrow is disabled, not hidden. With one
+  image there is no counter and no arrows.
+- **Desktop:** the page behind the viewer is darkened with `--scrim-strong`,
+  dark grey (`#202124`) at 70%, so the app stays recognisable and the white
+  credit and controls read over it. The image floats above the dock at its
+  own size and shape, as large as fits, with 16px corners. A click anywhere
+  outside the image and the dock closes the viewer.
+- **Phone:** the image fills the screen's width. Behind it, in place of black,
+  is a strongly blurred, brighter-saturated copy of the same image (blur so
+  strong only its colours remain), drawn from the image already loaded. There
+  are no arrows; a swipe moves between images, the counter shows in the dock,
+  and ✕ closes. A tap on the background does nothing. *(My call: a stray tap
+  between swipes should not close the viewer.)*
+- **Moving between images:** the arrow keys, the arrows on the desktop, and
+  swiping. ✕ and Esc close it. When it closes, the strip shows the image the
+  viewer was last on, and focus goes to that image.
 - **Larger files, fetched only when the viewer opens.** A photo loads a
   Commons thumbnail about 1600px wide. Until it arrives, the strip's
   thumbnail stands in, scaled up. That is the same picture, so nothing
@@ -241,12 +257,23 @@ keeps the position. Tests cross the breakpoint with `setPhone()`.
   A finer export can come from different imagery than the strip's crop, and
   the credit has to name what is shown. Until `identify` answers, the credit
   reads "Esri, Vantor, Earthstar Geographics", as on the strip. *(My call.)*
-- **The full credit** sits under the image:
+- **The full credit** in the dock:
   - for a photo: the author, the license linking to its deed, the source
     ("Wikidata Q204658 · P18" or "· P373"), and a link to the Commons file
     page;
   - for the imagery: "Esri", the provider and the capture date, as on the
     strip.
+
+### Scrims
+
+A scrim is the translucent dark layer laid over the page behind a pane or
+dialog. Two strengths, as custom properties in `:root`:
+
+- `--scrim`, dark grey (`#202124`) at 40%: the phone's layer pane
+  (`.layers-scrim`, black at 40% today) and the "Use this data" dialog's
+  backdrop (already this value). One value for both.
+- `--scrim-strong`, the same grey at 70%: the desktop image viewer, whose
+  white credit and controls sit on it.
 
 ## Credits
 

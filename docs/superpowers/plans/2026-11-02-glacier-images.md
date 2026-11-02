@@ -625,3 +625,79 @@ export function viewerCropSize(width: number, height: number, { scale = 2, max =
     At compact height, a tap on the photo raises the sheet.
   - **The complex panel:** one image, and a tap opens the viewer.
 - [ ] **Step 4: Commit:** `git add docs/superpowers/specs/2026-10-28-rgi-explorer-design.md docs/superpowers/specs/2026-11-02-glacier-images-design.md docs/superpowers/plans/2026-11-02-glacier-images.md && git commit -m "docs: the glacier image strip and viewer in the main design"`
+
+---
+
+### Task 8: The revised viewer: a fixed dock, the strong scrim on the desktop, the colour blur on the phone
+
+Added on 2026-11-02 after the user reviewed the first build. Spec: "The
+viewer" and "Scrims".
+
+**Files:**
+- Modify: `js/viewer.js`:
+  - the credit and counter move out of the slides into one dock;
+  - each slide gets a blurred copy of its image;
+  - a click outside the image closes on the desktop;
+  - the arrows are disabled at the ends, not hidden.
+- Modify: `style.css`:
+  - `:root` gets `--scrim: rgb(32 33 36 / 40%)` and
+    `--scrim-strong: rgb(32 33 36 / 70%)`;
+  - `.layers-scrim` and `dialog.usedata::backdrop` use `var(--scrim)`;
+  - the viewer's rules are rewritten.
+- Test: `tests/viewer.test.js`, `tests/card.test.js`, and the CSS checks.
+
+**Interfaces:**
+- `openViewer` and `viewerCropSize` keep their signatures.
+- **DOM:** `dialog.viewer` holds:
+  - `div.viewer-track`, with one `figure.viewer-slide` per image, each holding
+    `div.viewer-stage`, then `img.viewer-blur` (`aria-hidden`), then the image;
+  - `div.viewer-dock`, holding `div.viewer-credit` (the current image's
+    credit, built once per image) and `div.viewer-controls` (`.viewer-prev`,
+    `span.viewer-count` "n / N" and `.viewer-next`);
+  - `button.viewer-close`.
+- The current slide keeps its `current` class. The blur image takes the same
+  `src` as the image whenever that changes.
+
+- [ ] **Step 1: Write the failing tests.**
+  - **"the credit and controls sit in one dock outside the images, the same
+    for every image":**
+    - `.viewer-dock` is not inside `.viewer-track`.
+    - After ArrowRight it is the same element, its credit text has changed,
+      and `.viewer-count` reads "2 / 3".
+  - **"the arrows stay in place at the ends: disabled, not hidden".**
+  - **"one image has no counter or arrows"** replaces the earlier version.
+  - **"on the desktop a click outside the image closes the viewer; a click on
+    the image or the dock does not; on the phone the background does not
+    close it".**
+  - **"each slide carries a blurred copy of its image":** `img.viewer-blur`
+    follows the stand-in and then the large file.
+  - **CSS:**
+    - `--scrim: rgb(32 33 36 / 40%)` and
+      `--scrim-strong: rgb(32 33 36 / 70%)`;
+    - `.layers-scrim` and `dialog.usedata::backdrop` use `var(--scrim)`;
+    - `dialog.viewer::backdrop` uses `var(--scrim-strong)`;
+    - inside the phone media query, `.viewer-blur` has a `blur(` filter.
+  - Update the existing viewer, card and app tests that read
+    `.viewer-slide.current .photo-count` or `.viewer-credit` to read the dock.
+- [ ] **Step 2: Run** `pixi run --locked node --test tests/viewer.test.js tests/card.test.js tests/app.test.js`.
+  Expected: the new tests FAIL.
+- [ ] **Step 3: Implement it in `js/viewer.js` and `style.css`.**
+  - **Desktop:**
+    - the dialog is transparent and its `::backdrop` is
+      `var(--scrim-strong)`;
+    - the stage centres the image with `max-width` and `max-height: 100%`,
+      16px corners, and bottom padding that leaves room for the dock;
+    - the dock is fixed at the bottom with the credit wrapping, and ✕ is
+      fixed in the top right;
+    - `.viewer-blur` has `display: none`.
+  - **Phone:**
+    - the image is `width: 100%`;
+    - `.viewer-blur` covers its slide with
+      `filter: blur(90px) saturate(1.5) brightness(0.7)` and a 1.4× scale;
+    - the arrows have `display: none`.
+- [ ] **Step 4: Run** `pixi run --locked test`. Expected: all PASS.
+- [ ] **Step 5: Check it by eye** in headless Chromium on desktop and phone:
+  - the controls stay put across a wide crop, a landscape and a portrait;
+  - a long credit wraps upwards;
+  - a click outside the image closes the viewer on the desktop.
+- [ ] **Step 6: Commit:** `git commit -m "feat: fix the viewer's controls under the image, over a strong scrim or the image's colours"`
