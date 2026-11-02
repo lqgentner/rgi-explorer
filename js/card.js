@@ -6,7 +6,7 @@ import { renderHypsometry } from "./hypsometry.js";
 import { CARD_COLUMNS, readRow } from "./parquet.js";
 import { commonsThumb, esriCrop, findCropSource } from "./photo.js";
 import { mountStrip } from "./strip.js";
-import { PHONE, h, icon, popover } from "./ui.js";
+import { PHONE, externalLink, h, icon, popover } from "./ui.js";
 import { openViewer } from "./viewer.js";
 
 const TABS = [
@@ -40,10 +40,6 @@ export function infoButton(label, ...content) {
   const button = h("button", { type: "button", class: "info", "aria-label": `About ${label}` }, icon("circle-question-mark"));
   return [button, popover(button, "info-popover", ...children)];
 }
-
-/* A link out of the explorer: the icon says it opens a new tab. */
-const externalLink = (href, text) =>
-  h("a", { class: "external", href, target: "_blank", rel: "noopener noreferrer", title: "Opens in a new tab" }, text, icon("external-link"));
 
 /**
  * A photo's credit: one line of text along the photo's bottom left, set like

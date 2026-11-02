@@ -54,6 +54,10 @@ export function h(tag, props = {}, ...children) {
   return node;
 }
 
+/* A link out of the explorer: the icon says it opens a new tab. */
+export const externalLink = (href, text) =>
+  h("a", { class: "external", href, target: "_blank", rel: "noopener noreferrer", title: "Opens in a new tab" }, text, icon("external-link"));
+
 const SVG_NS = "http://www.w3.org/2000/svg";
 /* Lucide's sprite holds every icon as a symbol named like the icon. */
 const ICON_SPRITE = "node_modules/lucide-static/sprite.svg";
