@@ -121,10 +121,10 @@ test("regions match by name prefix or code only", () => {
   const [hit] = searchRegions(regions, "central");
   assert.deepEqual(
     { kind: hit.kind, title: hit.title, subtitle: hit.subtitle, score: hit.score, bbox: hit.bbox },
-    { kind: "region", title: "Central Europe", subtitle: "RGI region · 11", score: 650, bbox: regions[0].bbox },
+    { kind: "region", title: "Central Europe", subtitle: "Glacier region · 11", score: 650, bbox: regions[0].bbox },
   );
   assert.equal(searchRegions(regions, "11")[0].title, "Central Europe");
-  assert.equal(searchRegions(regions, "11-01")[0].subtitle, "RGI subregion · 11-01");
+  assert.equal(searchRegions(regions, "11-01")[0].subtitle, "Glacier subregion · 11-01");
   assert.deepEqual(searchRegions(regions, "europe"), []);
   assert.deepEqual(searchRegions(regions, "1"), []);
 });

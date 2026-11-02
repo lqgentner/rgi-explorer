@@ -236,7 +236,7 @@ test("a region pick made while a glacier's bbox is read keeps the region fit", a
   click(row);
   assert.equal(params().get("glacier"), "RGI2000-v7.0-G-03-00002");
   await search("central europe");
-  await pick("Central Europe", "RGI region · 11");
+  await pick("Central Europe", "Glacier region · 11");
   assert.deepEqual(map.lastFit.bounds, [[-1.5, 41], [20, 48.5]]);
   release();
   hold = null;
@@ -283,13 +283,13 @@ test("a camera move without a user event keeps the glacier fit", async () => {
 
 test("a region pick fits the region's bbox and a place pick jumps to zoom 12", async () => {
   await search("central europe");
-  await pick("Central Europe", "RGI region · 11");
+  await pick("Central Europe", "Glacier region · 11");
   await waitFor(() => map.lastFit.bounds[0][0] === -1.5);
   assert.deepEqual(map.lastFit.bounds, [[-1.5, 41], [20, 48.5]]);
   assert.equal(map.lastFit.options.padding.left, 24, "no card, no card padding");
 
   await search("north asia");
-  await pick("North Asia", "RGI region · 10");
+  await pick("North Asia", "Glacier region · 10");
   await waitFor(() => map.lastFit.bounds[0][0] === -180);
   assert.deepEqual(map.lastFit.bounds, [[-180, 31], [180, 78]], "a 360° region fits the world's width");
 

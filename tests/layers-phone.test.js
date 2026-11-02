@@ -36,7 +36,7 @@ test("the phone layer button opens a pane with map types and RGI layers", () => 
   assert.equal(tile("Imagery").getAttribute("aria-pressed"), "true");
   assert.equal(tile("Standard").getAttribute("aria-pressed"), "false");
 
-  assert.equal(tile("RGI regions").getAttribute("aria-pressed"), "true");
+  assert.equal(tile("Glacier regions").getAttribute("aria-pressed"), "true");
   tile("Centerlines").click();
   assert.deepEqual(toggles, [["centerlines", true]]);
   assert.equal(tile("Centerlines").getAttribute("aria-pressed"), "true");

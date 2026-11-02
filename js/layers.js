@@ -15,7 +15,7 @@ const BASES = {
 };
 
 const TOGGLES = [
-  { name: "regions", label: "RGI regions" },
+  { name: "regions", label: "Glacier regions" },
   { name: "centerlines", label: "Centerlines" },
   { name: "intersects", label: "Intersects" },
 ];

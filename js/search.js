@@ -141,7 +141,7 @@ export function searchRegions(regions, q) {
     hits.push({
       kind: "region",
       title: region.full_name,
-      subtitle: region.level === 1 ? `RGI region · ${code}` : `RGI subregion · ${code}`,
+      subtitle: region.level === 1 ? `Glacier region · ${code}` : `Glacier subregion · ${code}`,
       score: SCORE.region,
       bbox: region.bbox,
     });

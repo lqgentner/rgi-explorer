@@ -29,7 +29,7 @@ GeoPandas or QGIS.
 ## Goals
 
 - A layout that feels instantly familiar because it follows Google Maps.
-- Search across every RGI glacier (by name and RGI ID), the RGI regions, and
+- Search across every RGI glacier (by name and RGI ID), the glacier regions, and
   OpenStreetMap places.
 - A glacier card that shows all the metadata RGI provides, in two tabs
   (Overview, Hypsometry), plus a photo when one exists.
@@ -185,7 +185,7 @@ elsewhere closes it.
   map's colors. It does not follow the view.
   `scripts/make_layer_previews.py` cuts them from the GeoParquet files into
   `js/previews.js`:
-  - RGI regions, on by default;
+  - Glacier regions (the GTN-G glacier regions), on by default;
   - Centerlines, off by default;
   - Intersects, off by default.
 - **Compass**, then the **3D button** and **+ / −**, centred at the bottom
@@ -284,7 +284,7 @@ elsewhere closes it.
 - One ranked list. The most likely match is at the top, and the list is not
   grouped. Each result has an icon and a subtitle naming its kind:
   - glacier (RGI ID and area);
-  - RGI region (its code);
+  - glacier region or subregion (its code);
   - place (OSM type, capitalised, and country; an OSM glacier reads
     "Glacier (OSM)" to set it apart from RGI glaciers);
   - glacier complex (its ID; see the complexes design,
@@ -304,7 +304,7 @@ elsewhere closes it.
   it was opened: from search, the map, a link or another panel. Closing the
   panel empties it. Someone typing in it keeps their text, and Escape puts
   the name back.
-- **RGI regions** come from the regions GeoParquet (`full_name`, codes), which
+- **Glacier regions** come from the regions GeoParquet (`full_name`, codes), which
   is small. Picking one fits the region's bbox.
 - **OSM places** come from Photon (`photon.komoot.io`), queried with a
   debounce and biased towards the current view. Nominatim is not used,

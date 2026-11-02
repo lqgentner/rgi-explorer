@@ -65,17 +65,17 @@ test("toggles are pressed buttons that call onToggle, and setLayers syncs them",
   const { root, calls, api } = layers();
   const toggle = (label) => [...root.querySelectorAll(".layer-toggle")].find((b) => b.textContent.includes(label));
   assert.deepEqual([...root.querySelectorAll(".layer-toggle")].map((b) => b.querySelector(".layer-name").textContent), [
-    "RGI regions",
+    "Glacier regions",
     "Centerlines",
     "Intersects",
   ]);
   assert.ok(toggle("Centerlines").querySelector("svg"));
-  assert.equal(toggle("RGI regions").getAttribute("aria-pressed"), "true");
+  assert.equal(toggle("Glacier regions").getAttribute("aria-pressed"), "true");
   toggle("Intersects").click();
   assert.deepEqual(calls.toggles, [["intersects", true]]);
   assert.equal(toggle("Intersects").getAttribute("aria-pressed"), "true");
   api.setLayers(new Set(["centerlines"]));
-  assert.equal(toggle("RGI regions").getAttribute("aria-pressed"), "false");
+  assert.equal(toggle("Glacier regions").getAttribute("aria-pressed"), "false");
   assert.equal(toggle("Centerlines").getAttribute("aria-pressed"), "true");
   assert.equal(toggle("Intersects").getAttribute("aria-pressed"), "false");
   assert.equal(calls.toggles.length, 1);
