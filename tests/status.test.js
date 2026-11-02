@@ -46,7 +46,7 @@ const catalog = {
 };
 
 /** Each group as "Label: text, text". */
-const texts = (groups) => groups.map(({ label, items }) => `${label}: ${items.map((c) => c.text).join(", ")}`);
+const texts = (groups) => groups.map(({ label, items }) => `${label ? `${label}: ` : ""}${items.map((c) => c.text).join(", ")}`);
 const BASEMAP = "Basemap: © OpenStreetMap contributors, OpenFreeMap, © OpenMapTiles";
 
 test("scale bar picks a round length", () => {
@@ -62,14 +62,16 @@ test("meters per pixel follow the 512 px tile formula", () => {
 
 test("credits name what each source draws, Esri only on imagery and Mapterhorn only in 3D", () => {
   const plain = credits({ base: "standard", terrain: false, catalog });
-  assert.deepEqual(texts(plain), ["Glaciers: RGI Consortium 2023", BASEMAP]);
+  assert.deepEqual(texts(plain), ["Glaciers: RGI Consortium 2023", BASEMAP, "MapLibre"]);
   const both = credits({ base: "imagery", terrain: true, catalog });
   assert.deepEqual(texts(both), [
     "Glaciers: RGI Consortium 2023",
     BASEMAP,
     "Imagery: Powered by Esri, Vantor, Earthstar Geographics, and the GIS User Community",
     "Terrain: © Mapterhorn",
+    "MapLibre",
   ]);
+  assert.deepEqual(plain.at(-1), { label: null, items: [{ text: "MapLibre", href: "https://maplibre.org/" }] });
 });
 
 test("the imagery credits list Esri's contributors in view after Esri", () => {
@@ -78,7 +80,7 @@ test("the imagery credits list Esri's contributors in view after Esri", () => {
   assert.deepEqual(group.items.map((c) => c.text), ["Powered by Esri", "©swisstopo, ©Planet"]);
   /* Esri asks for "Powered by Esri" on interactive maps, with Esri linked to its site. */
   assert.equal(group.items[0].href, "https://www.esri.com");
-  assert.equal(credits({ base: "standard", terrain: false, catalog, imagery }).length, 2);
+  assert.equal(credits({ base: "standard", terrain: false, catalog, imagery }).length, 3, "glaciers, basemap and MapLibre");
 });
 
 test("the contributors in view are those whose areas meet the view at its zoom, best score first", () => {
@@ -150,7 +152,7 @@ test("the terrain credits list the producers in view after Mapterhorn", () => {
   const producers = [{ text: "© swisstopo", href: "https://swisstopo.example/" }];
   const [, , terrain] = credits({ base: "standard", terrain: true, catalog, producers });
   assert.deepEqual(terrain.items.map((c) => c.text), ["© Mapterhorn", "© swisstopo"]);
-  assert.equal(credits({ base: "standard", terrain: false, catalog, producers }).length, 2);
+  assert.equal(credits({ base: "standard", terrain: false, catalog, producers }).length, 3, "glaciers, basemap and MapLibre");
 });
 
 test("the coverage tiles are the index's tiles over the view, at most 16, at zooms 4 to 12", () => {
@@ -251,6 +253,10 @@ test("the status line draws the scale and links, and refresh updates the credits
   assert.equal(root.querySelector(".scale-bar").style.width, "76px");
   assert.ok(!root.textContent.includes("Esri"));
   assert.deepEqual([...root.querySelectorAll(".credit-label")].map((l) => l.textContent), ["Glaciers", "Basemap"]);
+  const last = root.querySelector(".credit-group:last-child");
+  assert.equal(last.querySelector(".credit-label"), null, "the map library's credit has no label");
+  assert.equal(last.textContent, "MapLibre");
+  assert.equal(last.querySelector("a").href, "https://maplibre.org/");
   const osm = [...root.querySelectorAll("a")].find((a) => a.textContent.startsWith("©\u00a0OpenStreetMap"));
   assert.equal(osm.href, "https://www.openstreetmap.org/copyright");
   const rgi = [...root.querySelectorAll("a")].find((a) => a.textContent === "RGI Consortium 2023");

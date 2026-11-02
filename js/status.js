@@ -15,6 +15,8 @@ const OPENMAPTILES = { text: "© OpenMapTiles", href: "https://www.openmaptiles.
 const ESRI = { text: "Powered by Esri", href: "https://www.esri.com" };
 const ESRI_SOURCES = { text: "Vantor, Earthstar Geographics, and the GIS User Community" };
 const MAPTERHORN = { text: "© Mapterhorn", href: "https://mapterhorn.com/attribution" };
+/* MapLibre's own control credits it last, with this link; the license asks for no credit, so it is a courtesy. */
+const MAPLIBRE = { text: "MapLibre", href: "https://maplibre.org/" };
 const DOI = /^10\.\d{4,}\/\S+$/;
 const WEB = /^https?:\/\//;
 
@@ -127,7 +129,8 @@ function rgiCredit(citation) {
 
 /**
  * The credits for what the map shows, in reading order, as groups of
- * `{ label, items }`, each item `{ text, href? }`. `imagery` credits Esri's
+ * `{ label, items }`, each item `{ text, href? }`. The map library comes
+ * last, with no label. `imagery` credits Esri's
  * contributors in view after Esri, in place of its fixed sources; `producers`
  * credits the elevation sources of the terrain in view after Mapterhorn.
  */
@@ -139,6 +142,7 @@ export function credits({ base, terrain, catalog, imagery = null, producers = nu
     { label: "Basemap", items: [OSM, OPENFREEMAP, OPENMAPTILES] },
     base === "imagery" ? { label: "Imagery", items: [ESRI, ...(imagery ?? [ESRI_SOURCES])] } : null,
     terrain ? { label: "Terrain", items: [MAPTERHORN, ...(producers ?? [])] } : null,
+    { label: null, items: [MAPLIBRE] },
   ].filter(Boolean);
 }
 
@@ -185,7 +189,7 @@ export function mountStatus(root, rgiMap, catalog, getState) {
         h(
           "span",
           { class: "credit-group" },
-          h("span", { class: "credit-label" }, label),
+          label ? h("span", { class: "credit-label" }, label) : null,
           ...items.flatMap((entry, i) => (i ? [", ", item(entry)] : [item(entry)])),
         ),
       ),
