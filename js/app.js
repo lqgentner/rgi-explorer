@@ -371,14 +371,22 @@ function wire(catalog, rgiMap, regions) {
   const tour = mountTour(document.body, {
     anchor: (name) => ANCHORS[name](),
     panelOpen: () => Boolean(shown || shownComplex),
+    /* True once the sample glacier opens; false when this catalog has none, or the index fails. */
     onTakeMe() {
-      glaciers.index().then(
+      return glaciers.index().then(
         (index) => {
           const row = index.byId.get(SAMPLE_GLACIER);
-          if (row === undefined) console.warn("tour: no sample glacier", SAMPLE_GLACIER);
-          else openGlacier({ rgiId: SAMPLE_GLACIER, row }, ALWAYS);
+          if (row === undefined) {
+            console.warn("tour: no sample glacier", SAMPLE_GLACIER);
+            return false;
+          }
+          openGlacier({ rgiId: SAMPLE_GLACIER, row }, ALWAYS);
+          return true;
         },
-        (error) => console.warn("glacier index:", error.message),
+        (error) => {
+          console.warn("glacier index:", error.message);
+          return false;
+        },
       );
     },
     /* A click on Use this data leaves the focus in the data it opened. */

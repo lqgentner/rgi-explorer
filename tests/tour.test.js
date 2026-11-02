@@ -1,6 +1,7 @@
 /* The guided tour: where its popover goes, its four steps, the wait for a glacier and the ways it ends. */
 
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import { beforeEach, test } from "node:test";
 
 import { loadPage, load } from "./helpers/browser.js";
@@ -63,7 +64,10 @@ beforeEach(() => {
   tour = mountTour(document.body, {
     anchor: (name) => (name === "panel" && PHONE.matches ? targets.phonePanel : targets[name]),
     panelOpen: () => open,
-    onTakeMe: () => (calls.takeMe += 1),
+    onTakeMe: () => {
+      calls.takeMe += 1;
+      return calls.takeMeResult;
+    },
     onEnd: (how) => calls.ends.push(how),
   });
 });
@@ -176,4 +180,69 @@ test("across the breakpoint the step points at the layout's panel", () => {
   assert.deepEqual(ringed(), ["phone-panel"]);
   page.setPhone(false);
   assert.deepEqual(ringed(), ["panel"]);
+});
+
+test("an Escape that something else handled, or one typed outside the tour, leaves the tour running", () => {
+  tour.start();
+  const input = document.body.appendChild(document.createElement("input"));
+  input.focus();
+  input.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  assert.equal(tour.running, true, "Escape in the search clears the search, not the tour");
+  popup().focus();
+  const handled = new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true });
+  handled.preventDefault();
+  popup().dispatchEvent(handled);
+  assert.equal(tour.running, true, "an Escape another control handled stays with it");
+  popup().dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  assert.equal(tour.running, false);
+});
+
+test("the popover follows its target when the target grows, as the search does with its results", () => {
+  const observed = [];
+  window.ResizeObserver = class {
+    constructor(callback) {
+      this.callback = callback;
+      observed.push(this);
+    }
+    observe(node) {
+      this.node = node;
+    }
+    disconnect() {
+      this.node = null;
+    }
+  };
+  try {
+    tour.start();
+    const watcher = observed.find((o) => o.node === targets.search);
+    assert.ok(watcher, "the ringed target is watched");
+    targets.search.getBoundingClientRect = () => rect(16, 16, 392, 300);
+    watcher.callback([]);
+    assert.equal(popup().style.top, `${300 + 12}px`);
+    tour.end();
+    assert.equal(watcher.node, null, "an ended tour stops watching");
+  } finally {
+    delete window.ResizeObserver;
+  }
+});
+
+test("Take me to a glacier shows it is busy, and goes away when there is no glacier to take the reader to", async () => {
+  let settle;
+  calls.takeMeResult = new Promise((resolve) => (settle = resolve));
+  tour.start();
+  button("Next").click();
+  button("Take me to a glacier").click();
+  const busy = button("Opening…");
+  assert.ok(busy, "the button says it is working");
+  assert.equal(busy.disabled, true);
+  settle(false);
+  await calls.takeMeResult;
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(button("Take me to a glacier"), undefined);
+  assert.equal(button("Opening…"), undefined);
+  assert.ok(popup().textContent.includes("2 of 4"), "the step still asks for a click on a glacier");
+});
+
+test("the tour and the welcome hide under the phone's full-screen search and layers pane", () => {
+  const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
+  assert.match(css, /body:has\(#search\.fullscreen\) \.tour,\s*body:has\(\.layers-pane:not\(\[hidden\]\)\) \.tour,\s*body:has\(#search\.fullscreen\) \.welcome \{\s*visibility: hidden;/);
 });

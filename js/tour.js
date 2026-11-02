@@ -58,7 +58,8 @@ export function placeNear(target, box, viewport, sides) {
 /**
  * Mount the tour on `root`. `anchor(name)` finds a step's control in the
  * current layout; `panelOpen()` says whether a glacier card or complex panel
- * is open; `onTakeMe()` opens the sample glacier; `onEnd({byTarget})` hears
+ * is open; `onTakeMe()` opens the sample glacier and may return a promise of
+ * false when there is none, which removes the offer; `onEnd({byTarget})` hears
  * the tour end, `byTarget` when the reader clicked Use this data.
  *
  * @returns {{start(): void, end(): void, refresh(): void, readonly running: boolean}}
@@ -70,14 +71,24 @@ export function mountTour(root, { anchor, panelOpen, onTakeMe, onEnd }) {
   /* Aborts the listeners of the whole tour, and of the step on show. */
   let running = null;
   let showing = null;
+  /* The ringed control grows and shrinks, as the search does with its results; the popover follows. */
+  let watcher = null;
+  /* "Take me to a glacier": offered, working, or gone for this tour when there is no glacier. */
+  let takeMe = "offered";
 
   const waiting = () => STEPS[step].needsPanel && step === 1 && !panelOpen();
 
   function ring(target) {
     if (ringed === target) return;
     ringed?.classList.remove("tour-target");
+    watcher?.disconnect();
+    watcher = null;
     ringed = target;
     ringed?.classList.add("tour-target");
+    if (ringed && typeof window.ResizeObserver === "function") {
+      watcher = new window.ResizeObserver(() => place());
+      watcher.observe(ringed);
+    }
   }
 
   function place() {
@@ -107,12 +118,14 @@ export function mountTour(root, { anchor, panelOpen, onTakeMe, onEnd }) {
     const back = h("button", { type: "button", class: "btn", hidden: step === 0 }, "Back");
     back.addEventListener("click", () => go(step - 1));
     const last = step === STEPS.length - 1;
-    const forward = h("button", { type: "button", class: "btn primary" }, wait ? "Take me to a glacier" : last ? "Done" : "Next");
-    forward.addEventListener("click", () => {
-      if (wait) {
-        onTakeMe();
-        node?.focus();
-      } else if (last) end();
+    const busy = wait && takeMe === "working";
+    const forward = wait && takeMe === "gone"
+      ? null
+      : h("button", { type: "button", class: "btn primary", disabled: busy },
+        wait ? (busy ? "Opening…" : "Take me to a glacier") : last ? "Done" : "Next");
+    forward?.addEventListener("click", () => {
+      if (wait) takeMeThere();
+      else if (last) end();
       else go(step + 1);
     });
     const close = h("button", { type: "button", class: "icon-button tour-close", "aria-label": "End tour" }, icon("x"));
@@ -126,6 +139,23 @@ export function mountTour(root, { anchor, panelOpen, onTakeMe, onEnd }) {
     );
     place();
     if (focus) node.focus();
+  }
+
+  /* The sample glacier can take a while: the glacier index loads first. */
+  function takeMeThere() {
+    takeMe = "working";
+    show();
+    node.focus();
+    Promise.resolve(onTakeMe()).then(
+      (found) => {
+        takeMe = found === false ? "gone" : "offered";
+      },
+      () => {
+        takeMe = "gone";
+      },
+    ).then(() => {
+      if (node) show();
+    });
   }
 
   /* A crossing of the breakpoint swaps the layout's controls. */
@@ -151,12 +181,21 @@ export function mountTour(root, { anchor, panelOpen, onTakeMe, onEnd }) {
     start() {
       if (node) end();
       step = 0;
+      takeMe = "offered";
       node = h("div", { class: "tour", role: "dialog", "aria-modal": "false", "aria-labelledby": "tour-title", tabIndex: -1 });
       root.append(node);
       running = new window.AbortController();
       const { signal } = running;
+      /*
+       * Escape ends the tour from the tour or from nowhere in particular. One
+       * that another control handled, or one typed in the search or a
+       * popover, stays with that control.
+       */
       document.addEventListener("keydown", (event) => {
-        if (event.key === "Escape") end();
+        if (event.key !== "Escape" || event.defaultPrevented) return;
+        const at = document.activeElement;
+        if (at && at !== document.body && !node.contains(at)) return;
+        end();
       }, { signal });
       window.addEventListener("resize", place, { signal });
       document.addEventListener("transitionend", place, { signal });

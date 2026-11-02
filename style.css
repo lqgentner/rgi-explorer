@@ -1100,6 +1100,17 @@ button:focus-visible {
   outline: none;
 }
 
+/*
+ * The phone's full-screen search and layers pane cover the page and make it
+ * inert; the tour and the welcome hide under them, out of reach of Tab and
+ * screen readers too.
+ */
+body:has(#search.fullscreen) .tour,
+body:has(.layers-pane:not([hidden])) .tour,
+body:has(#search.fullscreen) .welcome {
+  visibility: hidden;
+}
+
 .tour h2 {
   margin: 0 0 6px;
   font-size: 15px;
