@@ -7,7 +7,7 @@ import { test } from "node:test";
 import { loadPage, load, settle } from "./helpers/browser.js";
 
 const { document, window } = await loadPage();
-const { sparqlQuery, pointInRings, pickFiles, commonsCredits, categoryFiles, esriCrop, cropSourceUrl, imagerySource, findPhotos } =
+const { sparqlQuery, pointInRings, pickFiles, commonsCredits, commonsThumb, categoryFiles, esriCrop, cropSourceUrl, imagerySource, findPhotos } =
   await load("js/photo.js");
 const { TIMEOUT_MS, SPARQL, COMMONS_API, ESRI_IDENTIFY } = await load("js/config.js");
 const { mountCard } = await load("js/card.js");
@@ -113,6 +113,38 @@ test("commons credits read author, license and the thumbnail, with the HTML stri
   assert.match(photos[0].src, /^https:\/\/thumb\.wikimedia\.org\//);
   assert.doesNotMatch(JSON.stringify(photos), /<|&lt;/);
   assert.equal(photos[1].licenseUrl, "");
+});
+
+test("a file's Attribution wins over its Artist, and an empty one falls back", async () => {
+  const page = (title, meta) => ({ title, imageinfo: [{ thumburl: `https://thumb.wikimedia.org/${title}`, extmetadata: meta }] });
+  const data = { query: { pages: {
+    1: page("File:A.jpg", { Artist: { value: "Ann" }, Attribution: { value: "Photo: Ann Example / Agency" } }),
+    2: page("File:B.jpg", { Artist: { value: "Bob" }, Attribution: { value: "  " } }),
+  } } };
+  const [a, b] = await commonsCredits([{ file: "A.jpg", item: "Q1" }, { file: "B.jpg", item: "Q2" }], { fetch: json(data) });
+  assert.equal(a.author, "Photo: Ann Example / Agency");
+  assert.equal(b.author, "Bob");
+  assert.equal(a.file, "A.jpg");
+});
+
+test("commonsThumb asks for one file at the given width and returns its thumbnail", async () => {
+  const calls = [];
+  const fetch = async (url) => {
+    calls.push(new URL(url));
+    return { ok: true, json: async () => ({ query: { pages: { 1: { imageinfo: [{ thumburl: "https://thumb.wikimedia.org/big.jpg" }] } } } }) };
+  };
+  assert.equal(await commonsThumb(FILE_2021, 1600, { fetch }), "https://thumb.wikimedia.org/big.jpg");
+  assert.equal(calls[0].origin + calls[0].pathname, COMMONS_API);
+  assert.equal(calls[0].searchParams.get("titles"), `File:${FILE_2021}`);
+  assert.equal(calls[0].searchParams.get("iiurlwidth"), "1600");
+  assert.equal(calls[0].searchParams.get("iiprop"), "url");
+  assert.equal(calls[0].searchParams.get("origin"), "*");
+});
+
+test("commonsThumb resolves to null on an error or a missing thumbnail", async () => {
+  assert.equal(await commonsThumb("A.jpg", 1600, { fetch: async () => ({ ok: false, status: 500 }) }), null);
+  assert.equal(await commonsThumb("A.jpg", 1600, { fetch: json({ query: { pages: {} } }) }), null);
+  assert.equal(await commonsThumb("A.jpg", 1600, { fetch: async () => { throw new Error("offline"); } }), null);
 });
 
 /* Commons' {{Unknown|author}} as its API returns it: a second copy hidden by an inline style. */

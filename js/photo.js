@@ -181,14 +181,39 @@ export async function commonsCredits(files, { fetch, signal } = {}) {
     const meta = info.extmetadata ?? {};
     photos.push({
       src: info.thumburl,
+      file: normalName(file),
       page: pageUrl(file),
-      author: textOf(meta.Artist?.value),
+      /* A file that names its required credit carries it in Attribution. */
+      author: textOf(meta.Attribution?.value) || textOf(meta.Artist?.value),
       license: textOf(meta.LicenseShortName?.value),
       licenseUrl: String(meta.LicenseUrl?.value ?? ""),
       source: `Wikidata ${item} · ${property}`,
     });
   }
   return photos;
+}
+
+/**
+ * The URL of a `width`-wide Commons thumbnail of `file`, or null on any error.
+ * Commons may round the width up to one of its standard sizes.
+ */
+export async function commonsThumb(file, width, { fetch, signal } = {}) {
+  const params = new URLSearchParams({
+    action: "query",
+    prop: "imageinfo",
+    iiprop: "url",
+    iiurlwidth: String(width),
+    format: "json",
+    origin: "*",
+    titles: `File:${normalName(file)}`,
+  });
+  try {
+    const data = await getJson(`${COMMONS_API}?${params}`, { fetch, signal });
+    const page = Object.values(data?.query?.pages ?? {})[0];
+    return page?.imageinfo?.[0]?.thumburl ?? null;
+  } catch {
+    return null;
+  }
 }
 
 /** The first image files in each Commons category, categories in order. */
