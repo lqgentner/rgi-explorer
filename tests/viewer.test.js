@@ -7,7 +7,7 @@ import { test } from "node:test";
 import { load, loadPage, settle } from "./helpers/browser.js";
 
 const { document, window, setPhone } = await loadPage();
-const { openViewer, viewerCropSize } = await load("js/viewer.js");
+const { openViewer } = await load("js/viewer.js");
 const { h } = await load("js/ui.js");
 
 const click = (node) => node.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
@@ -23,12 +23,12 @@ function items(answers = ["https://big/0.jpg", "https://big/1.jpg", null]) {
   const list = answers.map((answer, i) => ({
     alt: `Image ${i}`,
     thumb: i === 2 ? `https://thumb/${i}.jpg` : i === 0 ? undefined : `https://thumb/${i}.jpg`,
-    large: (size) => {
-      calls.large.push([i, size]);
+    large: () => {
+      calls.large.push(i);
       return Promise.resolve(answer);
     },
-    credit: (size) => {
-      calls.credit.push([i, size]);
+    credit: () => {
+      calls.credit.push(i);
       return h("div", {}, `credit ${i}`);
     },
   }));
@@ -38,12 +38,6 @@ function items(answers = ["https://big/0.jpg", "https://big/1.jpg", null]) {
 function closeIfOpen() {
   if (isOpen()) key(dialog(), "Escape");
 }
-
-test("viewerCropSize doubles the CSS size and keeps the longest side within 4096", () => {
-  assert.deepEqual(viewerCropSize(1000, 600), [2000, 1200]);
-  assert.deepEqual(viewerCropSize(3000, 1000), [4096, 1365]);
-  assert.deepEqual(viewerCropSize(500, 300, { scale: 1 }), [500, 300]);
-});
 
 test("the viewer opens at the given image with its counter", () => {
   const { list } = items();
@@ -58,14 +52,12 @@ test("the viewer opens at the given image with its counter", () => {
 test("only the shown image asks for its large file, once", async () => {
   const { list, calls } = items();
   openViewer(list, 1, {});
-  /* One export pixel per CSS pixel: finer asks cost four times the bytes and can reach Esri's patchier levels. */
-  const size = viewerCropSize(window.innerWidth, window.innerHeight, { scale: 1 });
-  assert.deepEqual(calls.large, [[1, size]]);
-  assert.deepEqual(calls.credit, [[1, size]]);
+  assert.deepEqual(calls.large, [1]);
+  assert.deepEqual(calls.credit, [1]);
   key(dialog(), "ArrowRight");
-  assert.deepEqual(calls.large.map(([i]) => i), [1, 2]);
+  assert.deepEqual(calls.large, [1, 2]);
   key(dialog(), "ArrowLeft");
-  assert.deepEqual(calls.large.map(([i]) => i), [1, 2], "a slide loads once");
+  assert.deepEqual(calls.large, [1, 2], "a slide loads once");
   await settle();
   closeIfOpen();
 });
@@ -176,14 +168,25 @@ test("on the desktop a click outside the image closes the viewer; the image, the
   assert.equal(isOpen(), false, "on the desktop the area around the image closes it");
 });
 
-test("each slide carries a blurred copy of its image, for the phone's background", async () => {
+test("the phone's background is one blurred layer that stays put and follows the shown image", async () => {
   const { list } = items();
   openViewer(list, 1, {});
-  const blur = current().querySelector("img.viewer-blur");
-  assert.equal(blur.getAttribute("aria-hidden"), "true");
-  assert.equal(blur.getAttribute("src"), "https://thumb/1.jpg", "the stand-in first");
+  const layers = [...dialog().querySelectorAll("img.viewer-backdrop")];
+  assert.equal(layers.length, 2, "two layers, to cross-fade");
+  for (const layer of layers) {
+    assert.equal(dialog().querySelector(".viewer-track").contains(layer), false, "not in the track, so a swipe does not move it");
+    assert.equal(layer.getAttribute("aria-hidden"), "true");
+  }
+  const shown = () => dialog().querySelectorAll("img.viewer-backdrop.on");
+  assert.equal(shown().length, 1);
+  assert.equal(shown()[0].getAttribute("src"), "https://thumb/1.jpg", "the stand-in first");
   await settle();
-  assert.equal(blur.getAttribute("src"), "https://big/1.jpg", "then the large file");
+  assert.equal(shown()[0].getAttribute("src"), "https://big/1.jpg", "then the large file");
+  const before = shown()[0];
+  key(dialog(), "ArrowRight");
+  assert.equal(shown().length, 1);
+  assert.notEqual(shown()[0], before, "the other layer fades in");
+  assert.equal(shown()[0].getAttribute("src"), "https://thumb/2.jpg");
   closeIfOpen();
 });
 
@@ -196,7 +199,7 @@ test("the layer pane and the dialog share the light scrim, and the desktop viewe
   assert.match(rule("dialog\\.usedata::backdrop"), /background:\s*var\(--scrim\)/);
   assert.match(rule("dialog\\.viewer"), /background:\s*var\(--scrim-strong\)/, "the full-screen dialog is the scrim");
   const phone = [...css.matchAll(/@media \(max-width: 640px\)\s*{([\s\S]*?)\n}/g)].map((m) => m[1]).join("\n");
-  assert.match(phone, /\.viewer-blur\s*{[^}]*filter:\s*blur\(/);
+  assert.match(phone, /\.viewer-backdrop\s*{[^}]*filter:\s*blur\(/);
 });
 
 test("crossing the breakpoint keeps the viewer open on the same image", () => {

@@ -1649,7 +1649,7 @@ dialog.viewer::backdrop {
   box-shadow: 0 12px 40px rgb(0 0 0 / 45%);
 }
 
-.viewer-blur {
+.viewer-backdrop {
   display: none;
 }
 
@@ -2144,7 +2144,6 @@ dialog.usedata::backdrop {
   }
 
   .viewer-stage {
-    position: relative;
     padding: 64px 0 var(--dock-room);
   }
 
@@ -2156,7 +2155,8 @@ dialog.usedata::backdrop {
     box-shadow: none;
   }
 
-  .viewer-blur {
+  /* The background stays put: two layers behind the track cross-fade to the shown image's colours. */
+  .viewer-backdrop {
     position: absolute;
     inset: 0;
     display: block;
@@ -2165,6 +2165,12 @@ dialog.usedata::backdrop {
     object-fit: cover;
     filter: blur(90px) saturate(1.5) brightness(0.7);
     transform: scale(1.4);
+    opacity: 0;
+    transition: opacity 400ms ease-out;
+  }
+
+  .viewer-backdrop.on {
+    opacity: 1;
   }
 
   :is(.viewer-prev, .viewer-next) {

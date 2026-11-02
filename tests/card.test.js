@@ -607,3 +607,11 @@ test("a tile's keyboard ring is drawn inside it, and the desktop arrows hide onl
   const base = /(^|\n)\.photo-prev,\n\.photo-next\s*{([^}]*)}/.exec(css)?.[2] ?? "";
   assert.doesNotMatch(base, /opacity:\s*0/, "without hover the arrows stay visible");
 });
+
+test("the imagery's viewer item is the glacier at 3:2, the same on every screen", async () => {
+  const { imageryViewerItem } = await load("js/card.js");
+  const { esriCrop } = await load("js/photo.js");
+  const item = imageryViewerItem(BBOX, "Satellite imagery of the glacier");
+  assert.equal(item.large(), esriCrop(BBOX, 1200, 800, 0));
+  await onPhone(() => assert.equal(item.large(), esriCrop(BBOX, 1200, 800, 0)));
+});

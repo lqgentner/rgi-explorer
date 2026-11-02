@@ -234,8 +234,10 @@ Revised on 2026-11-02 after a look at the first build (mockups:
   own size and shape, as large as fits, with 16px corners. A click anywhere
   outside the image and the dock closes the viewer.
 - **Phone:** the image fills the screen's width. Behind it, in place of black,
-  is a strongly blurred, brighter-saturated copy of the same image (blur so
-  strong only its colours remain), drawn from the image already loaded. There
+  is a strongly blurred, more saturated copy of the shown image (blur so
+  strong only its colours remain), drawn from the image already loaded. The
+  background does not move with a swipe: it is one layer behind the images
+  that cross-fades to the next image's colours. There
   are no arrows; a swipe moves between images, the counter shows in the dock,
   and ✕ closes. A tap on the background does nothing. *(My call: a stray tap
   between swipes should not close the viewer.)*
@@ -247,16 +249,18 @@ Revised on 2026-11-02 after a look at the first build (mockups:
   thumbnail stands in, scaled up. That is the same picture, so nothing
   jumps. Only the image on screen loads. Prefetching its neighbours is left
   to the builder.
-- **The imagery in the viewer is framed on its own.** It uses `esriCrop()`
-  on the bbox at the viewer's size, one export pixel per CSS pixel and within
-  Esri's export limit, with `top: 0`, since nothing covers it there. The strip's crop
-  is framed differently (on the desktop it keeps its top rows clear for the
-  search bar), so it does not stand in. The viewer shows a plain dark area
-  until the export loads. *(My call.)* Twice the CSS pixels was tried first:
-  it costs four times the bytes, and for a large glacier it can tip Esri
-  into a finer level. Around Vatnajökull that level is a patchwork of scenes
-  from different dates (Dyngjujökull, RGI2000-v7.0-G-06-00375: the 75 m
-  level at 2000 px wide against the even 150 m Earthstar level at 1400 px).
+- **The imagery in the viewer is framed by the glacier, not the screen.** It
+  uses `esriCrop()` on the bbox at a fixed 1200×800 (3:2, the shape of the
+  photos it sits among) with `top: 0`, since nothing covers it there. Phone
+  and desktop get the same image. The strip's crop is framed differently (on
+  the desktop it keeps its top rows clear for the search bar), so it does not
+  stand in; the viewer shows a plain dark area until the export loads.
+  Framing to the screen was tried first and gave tall, narrow crops on
+  phones. Asking for more detail, such as twice the screen's pixels, costs
+  more bytes and can tip World Imagery into a finer level: around
+  Vatnajökull a patchwork of scenes from different dates (Dyngjujökull,
+  RGI2000-v7.0-G-06-00375: the 75 m level at 2000 px wide against the even
+  150 m Earthstar level at 1400 px and below).
 - **The viewer's imagery gets its own `identify`** for that extent and size.
   A finer export can come from different imagery than the strip's crop, and
   the credit has to name what is shown. Until `identify` answers, the credit

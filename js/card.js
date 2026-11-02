@@ -176,11 +176,19 @@ export function photoItem(photo, { alt, onError }) {
   return { key: photo.page, src: photo.src, alt, credit, onError };
 }
 
-/** The viewer item of the imagery crop of `bbox`: framed on its own at the viewer's size, nothing covering it. */
+/*
+ * The viewer's crop: the glacier framed at 3:2, the shape of the photos it
+ * sits among, and the same on every screen. 1200 px wide keeps World Imagery
+ * on its even levels; asked for more detail, it can switch to a patchwork of
+ * scenes from different dates (Dyngjujokull, near 1400 px and above).
+ */
+const VIEWER_CROP = [1200, 800];
+
+/** The viewer item of the imagery crop of `bbox`: framed on its own, nothing covering it. */
 export const imageryViewerItem = (bbox, alt) => ({
   alt,
-  large: (size) => esriCrop(bbox, ...size, 0),
-  credit: (size) => imageryCredit(bbox, size, 0),
+  large: () => esriCrop(bbox, ...VIEWER_CROP, 0),
+  credit: () => imageryCredit(bbox, VIEWER_CROP, 0),
 });
 
 /** The viewer item of a Commons photo: a larger thumbnail and the full credit. */

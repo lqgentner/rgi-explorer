@@ -140,9 +140,9 @@ test("the photo lookup waits for the map, reads the outline pieces and fills the
 });
 
 test("the imagery's viewer frames its own crop and asks identify for it", async () => {
-  const { viewerCropSize } = await load("js/viewer.js");
   const { ESRI_EXPORT, ESRI_IDENTIFY } = await load("js/config.js");
-  const [w, hgt] = viewerCropSize(window.innerWidth, window.innerHeight, { scale: 1 });
+  /* The glacier frames it at 3:2, the same on every screen. */
+  const [w, hgt] = [1200, 800];
   click($("#card .strip-tile .strip-open"));
   const viewer = $("dialog.viewer");
   const img = await waitFor(() => viewer.querySelector(".viewer-slide.current .viewer-image[src]"));

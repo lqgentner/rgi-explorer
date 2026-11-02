@@ -13,19 +13,9 @@ import { PHONE, h, icon } from "./ui.js";
  * @typedef {object} ViewerItem
  * @property {string} alt
  * @property {string} [thumb]  shown until the large file arrives
- * @property {(size: [number, number]) => Promise<string | null> | string | null} large
- * @property {(size: [number, number]) => Node} credit
+ * @property {() => Promise<string | null> | string | null} large
+ * @property {() => Node} credit
  */
-
-/**
- * The pixel size to ask a server for: `width` by `height` CSS pixels at
- * `scale`, scaled down evenly so the longest side is at most `max`.
- */
-export function viewerCropSize(width, height, { scale = 2, max = 4096 } = {}) {
-  const [w, hgt] = [width * scale, height * scale];
-  const k = Math.min(1, max / Math.max(w, hgt));
-  return [Math.round(w * k), Math.round(hgt * k)];
-}
 
 let dialog = null;
 let track = null;
@@ -35,7 +25,9 @@ let closeButton = null;
 let credit = null;
 let controls = null;
 let count = null;
-/** The open viewer: { items, slides, credits, index, size, loaded, onClose, returnFocus }. */
+/* The phone's background: two blurred layers behind the track, cross-faded, so a swipe does not move it. */
+let backdrops = [];
+/** The open viewer: { items, slides, srcs, credits, index, loaded, onClose, returnFocus }. */
 let state = null;
 
 const isOpen = () => Boolean(dialog && (dialog.open || dialog.hasAttribute("open")));
@@ -72,17 +64,17 @@ function load(i) {
   if (mine.loaded.has(i)) return;
   mine.loaded.add(i);
   const item = mine.items[i];
-  const { img, blur } = mine.slides[i];
-  /* The phone's background is a blur of the same file, so it costs no download of its own. */
+  const { img } = mine.slides[i];
   const setSrc = (src) => {
     img.src = src;
-    blur.src = src;
+    mine.srcs[i] = src;
+    if (mine.index === i) backdrop(src);
   };
   if (item.thumb) setSrc(item.thumb);
-  mine.credits[i] = item.credit(mine.size);
+  mine.credits[i] = item.credit();
   let answer;
   try {
-    answer = item.large(mine.size);
+    answer = item.large();
   } catch {
     return;
   }
@@ -91,6 +83,20 @@ function load(i) {
       if (url && state === mine) setSrc(url);
     })
     .catch(() => {});
+}
+
+/*
+ * Fade the background to a blur of `src`, the file already loaded, so it
+ * costs no download of its own. The hidden layer takes the new picture and
+ * fades in over the shown one.
+ */
+function backdrop(src) {
+  const shown = backdrops.find((layer) => layer.classList.contains("on"));
+  if (!src || shown?.getAttribute("src") === src) return;
+  const next = backdrops.find((layer) => layer !== shown);
+  next.src = src;
+  next.classList.add("on");
+  shown?.classList.remove("on");
 }
 
 function scrollTo(i, smooth) {
@@ -116,6 +122,7 @@ function go(i, { scroll = true, smooth = false } = {}) {
   count.textContent = `${index + 1} / ${state.items.length}`;
   load(index);
   credit.replaceChildren(state.credits[index]);
+  backdrop(state.srcs[index]);
   if (scroll) scrollTo(index, smooth);
 }
 
@@ -128,7 +135,8 @@ function build() {
   count = h("span", { class: "viewer-count" });
   controls = h("div", { class: "viewer-controls" }, prev, count, next);
   const dock = h("div", { class: "viewer-dock" }, credit, controls);
-  dialog = h("dialog", { class: "viewer", "aria-label": "Images" }, track, dock, closeButton);
+  backdrops = [0, 1].map(() => h("img", { class: "viewer-backdrop", alt: "", "aria-hidden": "true" }));
+  dialog = h("dialog", { class: "viewer", "aria-label": "Images" }, ...backdrops, track, dock, closeButton);
   document.body.append(dialog);
 
   /* On the desktop, a click around the image closes, as on the page behind it. The phone swipes there. */
@@ -182,24 +190,22 @@ export function openViewer(items, index, { onClose, returnFocus } = {}) {
   if (!dialog) build();
   if (isOpen()) hide();
   const slides = items.map((item) => {
-    const blur = h("img", { class: "viewer-blur", alt: "", "aria-hidden": "true" });
     const img = h("img", { class: "viewer-image", alt: item.alt });
-    const figure = h("figure", { class: "viewer-slide" }, h("div", { class: "viewer-stage" }, blur, img));
-    return { figure, img, blur };
+    const figure = h("figure", { class: "viewer-slide" }, h("div", { class: "viewer-stage" }, img));
+    return { figure, img };
   });
+  for (const layer of backdrops) {
+    layer.classList.remove("on");
+    layer.removeAttribute("src");
+  }
   controls.hidden = items.length < 2;
   track.replaceChildren(...slides.map((s) => s.figure));
   state = {
     items,
     slides,
+    srcs: [],
     credits: [],
     index: 0,
-    /*
-     * One export pixel per CSS pixel. Asking Esri for twice that costs four
-     * times the bytes and can tip it into a finer level, which in places is
-     * a patchwork of scenes from different dates.
-     */
-    size: viewerCropSize(window.innerWidth, window.innerHeight, { scale: 1 }),
     loaded: new Set(),
     onClose,
     returnFocus,
