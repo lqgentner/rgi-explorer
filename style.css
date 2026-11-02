@@ -22,8 +22,8 @@
   --radius: 16px;
   /* A card holding buttons: their radius plus its 12 px padding, so the corners are concentric. */
   --card-radius: calc(var(--radius) + 12px);
-  /* The phone sheet's close button: 17 px from the top centres its disc on the name; as far from the right. */
-  --sheet-x-inset: 17px;
+  /* The phone sheet's close button: the band's 16 px margin from the top and the right, like the name and the buttons. */
+  --sheet-x-inset: 16px;
   --tile-radius: 12px;
   /* What darkens the page behind a pane or dialog: light for panes, strong behind the image viewer. */
   --scrim: rgb(32 33 36 / 40%);
@@ -1230,6 +1230,13 @@ body:has(#search.fullscreen) .welcome {
   outline-offset: -3px;
 }
 
+/* The search bar keeps its ring while focused, over its own "no outline" focus style. */
+#search input.tour-target,
+#search input.tour-target:focus {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
 /* Sidebar and glacier card */
 
 #card {
@@ -2411,11 +2418,10 @@ dialog.usedata::backdrop {
   }
 
   /*
-   * The grey disc, 32 px, is centred on the name's first line, which starts
-   * 20 px down the band (12 px of padding, the handle's 4 px and the head's
-   * 4 px) and is 22 px × 1.25 tall: 17 px from the top. It sits as far from the
-   * right, and the sheet's corner is the disc's radius plus that inset, so the
-   * two are concentric.
+   * The grey disc, 32 px, sits in the band's 16 px margin from the top and
+   * the right, like the name and the buttons. Its middle, 32 px down, meets
+   * the middle of the name's capitals within a pixel. The sheet's corner is
+   * the disc's radius plus that margin, so the two are concentric.
    */
   #sheet-head .card-close {
     top: var(--sheet-x-inset);
@@ -2427,6 +2433,15 @@ dialog.usedata::backdrop {
     gap: 6px;
     padding-top: 16px;
     padding-bottom: 16px;
+  }
+
+  /*
+   * At compact the subtitle hides and the name's line ends the head. Its
+   * line box leaves 7 px under the baseline, so the buttons come 7 px closer:
+   * 16 px under the letters, as far as above the picture.
+   */
+  #sheet[data-level="compact"] #sheet-head .card-actions {
+    padding-top: 9px;
   }
 
   /* Three buttons with their icons fit across a 360px phone. */

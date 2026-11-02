@@ -60,6 +60,7 @@ beforeEach(() => {
   const target = (name) => document.body.appendChild(Object.assign(document.createElement("div"), { id: name }));
   targets = {
     search: target("search"),
+    searchBar: document.body.appendChild(Object.assign(document.createElement("input"), { id: "search-bar" })),
     panel: target("panel"),
     phonePanel: target("phone-panel"),
     useData: document.body.appendChild(Object.assign(document.createElement("button"), { id: "use-data" })),
@@ -108,7 +109,7 @@ test("step 1 asks for a glacier and offers two outline choices", () => {
   assert.equal(button("Next"), undefined);
   assert.equal(button("Back"), undefined);
   assert.ok(node.querySelector('button[aria-label="End tour"]'));
-  assert.deepEqual(ringed(), ["search"]);
+  assert.deepEqual(ringed(), ["search-bar"], "only the search bar is ringed, not its results");
   assert.equal(document.activeElement, node);
 });
 
@@ -134,6 +135,7 @@ test("an interaction turns Skip into a filled Next, which leads to Use this data
   tour.interacted();
   assert.equal(button("Skip"), undefined);
   assert.ok(button("Next").classList.contains("primary"));
+  assert.deepEqual(ringed(), [], "the card is done: its ring goes, and Next is the way on");
   button("Next").click();
   assert.equal(title(), "Use this data");
   assert.equal(text(), "This map reads the cloud-native RGI catalog directly, with no download. Open Use this data to read it in Python or QGIS.");
@@ -406,4 +408,9 @@ test("the last card follows its anchor as it grows, as the search does with its 
   } finally {
     delete window.ResizeObserver;
   }
+});
+
+test("the ring on a focused search input survives the search's own focus style", () => {
+  const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
+  assert.match(css, /#search input\.tour-target,\s*#search input\.tour-target:focus \{\s*outline: 3px solid var\(--accent\);/);
 });

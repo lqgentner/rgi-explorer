@@ -379,6 +379,8 @@ function wire(catalog, rgiMap, regions) {
   const visible = (selector) => [...document.querySelectorAll(selector)].find((node) => !node.closest("[hidden]")) ?? null;
   const ANCHORS = {
     search: () => el("search"),
+    /* The bar alone: on the phone the search grows to the full screen, which a ring would frame whole. */
+    searchBar: () => el("search").querySelector("input"),
     panel: () => (PHONE.matches ? el("sheet") : el("card")),
     useData: () => visible(PHONE.matches ? '#sheet [data-tour="use-data"]' : '#card [data-tour="use-data"]'),
     terrain: () => document.querySelector(".terrain-btn"),

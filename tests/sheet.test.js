@@ -177,8 +177,14 @@ test("the credits ride on the sheet's edge, fade as it rises and hide once it re
 
 test("the sheet's close button sits concentric in its corner, its disc centred on the name", () => {
   const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
-  assert.match(css, /--sheet-x-inset: 17px;/, "the inset that centres the 32 px disc on the name's first line");
+  assert.match(css, /--sheet-x-inset: 16px;/, "the band's own 16 px margin, which the name and the buttons keep too");
   assert.match(css, /#sheet \{[^}]*border-radius: calc\(var\(--radius\) \+ var\(--sheet-x-inset\)\) calc\(var\(--radius\) \+ var\(--sheet-x-inset\)\) 0 0;/,
     "the corner is the disc's radius plus its inset");
   assert.match(css, /#sheet-head \.card-close \{\s*top: var\(--sheet-x-inset\);\s*right: var\(--sheet-x-inset\);/);
+});
+
+test("at compact the buttons sit as far under the name's baseline as above the picture", () => {
+  const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
+  assert.match(css, /#sheet\[data-level="compact"\] #sheet-head \.card-actions \{\s*padding-top: 9px;/,
+    "16 px less the 7 px the name's line box leaves under its baseline");
 });

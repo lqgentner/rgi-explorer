@@ -59,7 +59,7 @@ const usedataOpen = () => $("dialog.usedata").open || $("dialog.usedata").hasAtt
 test("the tour moves on as the reader acts: a glacier, the card, Use this data, 3D", async () => {
   click(button($(".welcome"), "Take the tour"));
   assert.equal(title(), "Find a glacier");
-  assert.deepEqual(ringed(), [$("#search")]);
+  assert.deepEqual(ringed(), [$("#search input")]);
   click(button($(".tour"), "Take me to a glacier"));
   await waitFor(() => location.search.includes(`glacier=${UPSALA}`));
   await waitFor(() => title() === "The glacier card");

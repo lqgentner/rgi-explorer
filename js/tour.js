@@ -21,6 +21,8 @@ const STEPS = {
     title: "Find a glacier",
     text: "To start, click a glacier on the map or search for one.",
     anchor: "search",
+    /* The ring goes round the bar alone; the popover follows the whole search, results included. */
+    ring: "searchBar",
     sides: ["below"],
     skipTo: "terrain",
   },
@@ -104,7 +106,7 @@ export function mountTour(root, { anchor, panel, terrainOn, onTakeMe, onStep, on
   let ringed = null;
   /* Aborts the listeners of the whole tour. */
   let running = null;
-  /* The ringed control grows and shrinks, as the search does with its results; the popover follows. */
+  /* Watches the anchor as it grows and shrinks, as the search does with its results; the popover follows. */
   let watcher = null;
   /* "Take me to a glacier": offered, working, or gone for this tour when there is no glacier. */
   let takeMe = "offered";
@@ -115,7 +117,7 @@ export function mountTour(root, { anchor, panel, terrainOn, onTakeMe, onStep, on
   /* The step the app last heard of. */
   let told = null;
 
-  /* The node the popover follows as it grows or shrinks: the ringed control, or the last card's anchor. */
+  /* The node the popover is placed against and follows as it grows or shrinks: the step's anchor. */
   let watched = null;
   function watch(target) {
     if (watched === target) return;
@@ -129,16 +131,15 @@ export function mountTour(root, { anchor, panel, terrainOn, onTakeMe, onStep, on
   }
 
   function ring(target) {
-    if (ringed !== target) {
-      ringed?.classList.remove("tour-target");
-      ringed = target;
-      ringed?.classList.add("tour-target");
-    }
-    watch(target);
+    if (ringed === target) return;
+    ringed?.classList.remove("tour-target");
+    ringed = target;
+    ringed?.classList.add("tour-target");
   }
 
   function place() {
     if (!node || covered) return;
+    const at = watched;
     /*
      * On the phone style.css places it: the card steps dock to the sheet's
      * edge and follow a swipe frame by frame; the others sit at the top,
@@ -154,7 +155,6 @@ export function mountTour(root, { anchor, panel, terrainOn, onTakeMe, onStep, on
       return;
     }
     delete node.dataset.dock;
-    const at = step === "done" ? anchor("done") : ringed;
     if (!at) return;
     const sides = step === "done" ? [PHONE.matches ? "above" : "below"] : STEPS[step].sides;
     const spot = placeNear(
@@ -176,7 +176,7 @@ export function mountTour(root, { anchor, panel, terrainOn, onTakeMe, onStep, on
   function dockToButton() {
     node.dataset.dock = "button";
     const sheet = anchor("panel")?.getBoundingClientRect();
-    const button = ringed?.getBoundingClientRect();
+    const button = watched?.getBoundingClientRect();
     if (sheet && button) node.style.setProperty("--tour-below", `${Math.round(button.bottom - sheet.top + GAP - 4)}px`);
   }
 
@@ -226,6 +226,7 @@ export function mountTour(root, { anchor, panel, terrainOn, onTakeMe, onStep, on
     /* No X of its own: the ring points at the close button that continues the tour. */
     if (covered) {
       delete node.dataset.dock;
+      watch(null);
       ring(anchor(covered === "useData" ? "useDataClose" : "viewerClose"));
       node.style.top = "";
       node.style.left = "";
@@ -242,9 +243,15 @@ export function mountTour(root, { anchor, panel, terrainOn, onTakeMe, onStep, on
     const { n, anchor: name } = STEPS[step];
     const title = step === "card" ? CARD[kind].title : STEPS[step].title;
     const text = step === "card" ? cardText(kind) : STEPS[step].text;
-    ring(name ? anchor(name) : null);
-    /* The last card rings nothing but stays clear of what grows under its anchor, such as the search results. */
-    if (step === "done") watch(anchor("done"));
+    /*
+     * The popover follows its anchor as it grows. The ring marks what to use:
+     * none on the last card, and none on the card once it was used, so Next
+     * reads as the way on.
+     */
+    const target = anchor(name ?? "done");
+    watch(target);
+    const done = step === "done" || (step === "card" && used);
+    ring(done ? null : STEPS[step].ring ? anchor(STEPS[step].ring) : target);
     node.replaceChildren(
       h("h2", { id: "tour-title" }, title),
       h("p", {}, ...textNodes(text)),
@@ -300,6 +307,7 @@ export function mountTour(root, { anchor, panel, terrainOn, onTakeMe, onStep, on
     running.abort();
     PHONE.removeEventListener("change", reanchor);
     ring(null);
+    watch(null);
     lower();
     node.remove();
     node = null;
