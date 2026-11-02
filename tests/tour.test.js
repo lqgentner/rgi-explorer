@@ -65,6 +65,8 @@ beforeEach(() => {
     useData: document.body.appendChild(Object.assign(document.createElement("button"), { id: "use-data" })),
     terrain: target("terrain"),
     done: target("done"),
+    useDataClose: document.body.appendChild(Object.assign(document.createElement("button"), { id: "usedata-close" })),
+    viewerClose: document.body.appendChild(Object.assign(document.createElement("button"), { id: "viewer-close" })),
   };
   tour = mountTour(document.body, {
     anchor: (name) => (name === "panel" && PHONE.matches ? targets.phonePanel : targets[name]),
@@ -182,8 +184,8 @@ test("opening Use this data on step 3 covers the tour, and closing it moves on t
   const node = popup();
   assert.ok(node.classList.contains("covering"));
   assert.equal(node.textContent.includes("Close to continue the tour"), true);
-  assert.deepEqual([...node.querySelectorAll("button")].map((b) => b.getAttribute("aria-label")), ["End tour"]);
-  assert.deepEqual(ringed(), []);
+  assert.equal(node.querySelectorAll("button").length, 0, "no X of its own: the reader closes Use this data, not the message");
+  assert.deepEqual(ringed(), ["usedata-close"], "the ring points at the close button to press");
   tour.cover("useData", false);
   assert.ok(!popup().classList.contains("covering"));
   assert.equal(title(), "3D");
@@ -206,6 +208,7 @@ test("the viewer covers a step and returns to it, keeping step 2's interaction",
   tour.interacted();
   tour.cover("viewer", true);
   assert.ok(popup().classList.contains("covering"));
+  assert.deepEqual(ringed(), ["viewer-close"]);
   tour.cover("viewer", false);
   assert.equal(title(), "The glacier card");
   assert.ok(button("Next"));
@@ -326,4 +329,26 @@ test("the app hears each step the tour enters, once, so it can reveal the step's
   button("Skip").click();
   button("Skip").click();
   assert.deepEqual(calls.steps, ["find", "card", "data", "terrain"]);
+});
+
+test("on the phone the popover sits at the top under the search, by CSS, whatever it points at", () => {
+  tour.start();
+  page.setPhone(true);
+  assert.equal(popup().style.top, "");
+  assert.equal(popup().style.left, "");
+  panelKind = "glacier";
+  tour.refresh();
+  assert.equal(popup().style.top, "", "the card step stays at the top too, so a swipe of the sheet moves nothing");
+  const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
+  assert.match(css, /@media \(max-width: 640px\) \{\s*\.tour \{\s*top: calc\(12px \+ var\(--search-h\) \+ 12px\);\s*left: 12px;\s*right: 64px;\s*width: auto;/);
+});
+
+test("the text runs to the card's padding; only the heading keeps clear of the X", () => {
+  const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
+  for (const selector of ["welcome", "tour"]) {
+    const rule = new RegExp(`\\n\\.${selector} \\{[^}]*\\}`).exec(css)?.[0] ?? "";
+    assert.match(rule, /padding: 12px;/, `.${selector} padding`);
+    assert.match(css, new RegExp(`\\.${selector} h2 \\{[^}]*padding-right: 36px;`), `.${selector} h2 clears the X`);
+  }
+  assert.match(css, /\.welcome \.btn \{[^}]*margin: 8px 0 0 auto;/, "Take the tour sits on the right");
 });

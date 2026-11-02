@@ -130,6 +130,13 @@ export function mountTour(root, { anchor, panel, terrainOn, onTakeMe, onStep, on
 
   function place() {
     if (!node || covered) return;
+    /* On the phone style.css holds it at the top, under the search: a swipe of the sheet or new credits move nothing. */
+    if (PHONE.matches) {
+      node.dataset.side = "top";
+      node.style.top = "";
+      node.style.left = "";
+      return;
+    }
     const at = step === "done" ? anchor("done") : ringed;
     if (!at) return;
     const sides = step === "done" ? [PHONE.matches ? "above" : "below"] : STEPS[step].sides;
@@ -185,11 +192,14 @@ export function mountTour(root, { anchor, panel, terrainOn, onTakeMe, onStep, on
     const close = h("button", { type: "button", class: "icon-button tour-close", "aria-label": "End tour" }, icon("x"));
     close.addEventListener("click", () => end());
     node.classList.toggle("covering", Boolean(covered));
+    if (covered) node.dataset.cover = covered;
+    else delete node.dataset.cover;
+    /* No X of its own: the ring points at the close button that continues the tour. */
     if (covered) {
-      ring(null);
+      ring(anchor(covered === "useData" ? "useDataClose" : "viewerClose"));
       node.style.top = "";
       node.style.left = "";
-      node.replaceChildren(h("p", { id: "tour-title" }, COVER_TEXT), close);
+      node.replaceChildren(h("p", { id: "tour-title" }, COVER_TEXT));
       raise();
       return;
     }

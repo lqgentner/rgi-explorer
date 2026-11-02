@@ -129,6 +129,6 @@ test("the welcome and the tour have concentric corners: the button radius plus 1
   for (const selector of ["welcome", "tour"]) {
     const rule = new RegExp(`\\n\\.${selector} \\{[^}]*\\}`).exec(css)?.[0] ?? "";
     assert.match(rule, /border-radius: var\(--card-radius\);/, `.${selector} radius`);
-    assert.match(rule, /padding: 12px /, `.${selector} padding`);
+    assert.match(rule, /padding: 12px;/, `.${selector} padding`);
   }
 });

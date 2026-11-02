@@ -190,3 +190,20 @@ viewer and 3D changes through new callbacks or events that the builder adds.
   3D on, a card scroll, an info popover's toggle, the Hypsometry tab.
 - The mechanism that keeps "Close to continue the tour" above modal dialogs.
 - Exact spacing, within the radius rule.
+
+## After the first build (owner's review, 2026-11-02)
+
+These replace the matching points above.
+
+- **Placement on the phone:** every step sits at the top, under the search
+  bar, from 12 px on the left to clear of the round buttons on the right. It
+  no longer follows the sheet or the credits, so a swipe of the sheet moves
+  nothing. The last card sits there too.
+- **"Close to continue the tour":** the message has no X of its own; it
+  rings the close button of Use this data or the viewer, so the reader closes
+  that and not the message. On the phone it waits at the bottom over the Use
+  this data pane, whose heading is at the top.
+- **Buttons:** the main action (Done, Take the tour, Next) sits on the right.
+  The text and the buttons run to the card's 12 px padding; only the heading
+  keeps clear of the X.
+- **3D notice:** removed from the explorer.

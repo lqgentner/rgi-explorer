@@ -371,6 +371,9 @@ function wire(catalog, rgiMap, regions) {
     terrain: () => document.querySelector(".terrain-btn"),
     /* The last card sits under the search on the desktop, above the status line on the phone. */
     done: () => (PHONE.matches ? el("status") : el("search")),
+    /* While Use this data or the viewer covers the tour, the ring points at the close button that continues it. */
+    useDataClose: () => visible(".usedata-close"),
+    viewerClose: () => document.querySelector(".viewer-close"),
   };
   const tour = mountTour(document.body, {
     anchor: (name) => ANCHORS[name](),

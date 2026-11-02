@@ -1011,7 +1011,7 @@ button:focus-visible {
   left: 16px;
   z-index: 3;
   width: 376px;
-  padding: 12px 48px 12px 12px;
+  padding: 12px;
   border-radius: var(--card-radius);
   background: var(--surface);
   box-shadow: var(--shadow);
@@ -1023,6 +1023,7 @@ button:focus-visible {
 
 .welcome h2 {
   margin: 0 0 8px;
+  padding-right: 36px;
   font-size: 17px;
   line-height: 1.3;
 }
@@ -1032,8 +1033,10 @@ button:focus-visible {
   color: var(--muted);
 }
 
+/* Take the tour on the right, 12 px from the edges. */
 .welcome .btn {
-  margin-top: 8px;
+  display: flex;
+  margin: 8px 0 0 auto;
 }
 
 .welcome-close {
@@ -1064,9 +1067,11 @@ button:focus-visible {
 .tour {
   position: fixed;
   z-index: 7;
+  right: auto;
+  bottom: auto;
   width: 300px;
   max-width: calc(100vw - 16px);
-  padding: 12px 44px 12px 12px;
+  padding: 12px;
   border-radius: var(--card-radius);
   background: var(--surface);
   box-shadow: var(--shadow);
@@ -1081,7 +1086,6 @@ button:focus-visible {
  * box, which centres it with a border; place() sets top and left.
  */
 .tour[popover] {
-  inset: auto;
   margin: 0;
   border: 0;
   color: inherit;
@@ -1109,10 +1113,28 @@ button:focus-visible {
   vertical-align: -0.15em;
 }
 
+/*
+ * On the phone every step sits at the top, under the search and clear of the
+ * round buttons on the right, so neither the sheet nor the credits move it.
+ */
 @media (max-width: 640px) {
+  .tour {
+    top: calc(12px + var(--search-h) + 12px);
+    left: 12px;
+    right: 64px;
+    width: auto;
+  }
+
   .tour.covering {
+    left: 50%;
+    right: auto;
+    width: max-content;
+  }
+
+  /* The phone's Use this data pane has its heading at the top; the message waits at the bottom, where the pane is empty. */
+  .tour.covering[data-cover="useData"] {
     top: auto;
-    bottom: calc(var(--status-h, 0px) + 20px);
+    bottom: 24px;
   }
 }
 
@@ -1129,6 +1151,7 @@ body:has(#search.fullscreen) .welcome {
 
 .tour h2 {
   margin: 0 0 6px;
+  padding-right: 36px;
   font-size: 15px;
 }
 
@@ -1136,14 +1159,13 @@ body:has(#search.fullscreen) .welcome {
   margin: 0 0 10px;
 }
 
-/* The buttons run under the X, to 12 px from the edge, so their corners are concentric with the card's. */
+/* The buttons sit 12 px from the edge, so their corners are concentric with the card's; the main one on the right. */
 .tour-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
-  margin-right: -32px;
 }
 
 .tour-count {
