@@ -154,8 +154,9 @@ PMTiles header and the GeoParquet footer, and fails if any of them changed shape
 Visual style: a bright base map, a solid white monochrome UI, a blue accent (`#1a73e8` in the mockups) for the active tab,
 the primary button and the selected search result, and Noto Sans throughout.
 Shadows follow Google Maps' elevation style. Only the controls that sit over
-the map or the photo are translucent white (the status line, the photo's
-arrows and ⓘ, and the photo credits), so what is behind them shows through.
+the map or the photo are translucent (the status line, the photo's arrows,
+the credit chips and the "n / N" counter), so what is behind them shows
+through.
 Every ⓘ opens a popover next to its button, below it or above when there is
 no room. It floats over the page without moving anything, and a click
 elsewhere closes it.
@@ -220,6 +221,9 @@ elsewhere closes it.
     and the start of the tabs show.
   - Full height, up to the search bar's top: the photo and both tabs, which
     scroll.
+  - The photo is an inset strip of images with rounded corners, inside the
+    card's 16px gutters, with a sliver of the next image. A swipe moves it
+    (see `2026-11-02-glacier-images-design.md`).
   - The credits button rides on the sheet's edge, fades as the sheet rises
     from compact to middle, and hides above compact.
 - The credits fold into an ⓘ button.
@@ -407,15 +411,18 @@ adapted because an RGI glacier has no OSM tags.
    geometry, so the point-in-polygon test is approximate at tile resolution.
 3. Collect each kept item's `P18` image and, as OSMapp does, files from its
    Commons category (`P373`).
-4. Show the hits as a carousel. Each image's credit always shows, as one
-   line of text along the photo's bottom left, set like the map's credits:
-   "Photo", then its source ("Wikidata Q204658 · P18", linking to the
-   Commons file page), the author and the license.
+4. Show the hits in a strip after the imagery crop, which always comes
+   first (`2026-11-02-glacier-images-design.md`). Each image's credit always
+   shows, as a chip inside its bottom left: for a photo, "Author · License",
+   with the author linked to the Commons file page and the license to its
+   deed. A tap opens a viewer that shows the image whole, with its source
+   ("Wikidata Q204658 · P18") and a link to Commons.
 5. The author and license come from the Commons API (`imageinfo` with
-   `extmetadata`).
-6. With no hit, or on any error or timeout, show an Esri World Imagery crop
-   framed on the glacier's bbox, with the line "Esri, Vantor, Earthstar
-   Geographics". The page asks World Imagery's `identify` about the bbox's
+   `extmetadata`). A file's `Attribution`, when it names one, is the
+   credit it requires and replaces the `Artist`.
+6. Always show an Esri World Imagery crop framed on the glacier's bbox as
+   the strip's first image, with or without hits, with the line "Esri,
+   Vantor, Earthstar Geographics". The page asks World Imagery's `identify` about the bbox's
    centre at the crop's extent and size, so only the metadata layer drawn at
    the crop's scale answers. Its provider and capture date then replace the
    line: "Esri, ©swisstopo, ©Planet, imaged 20 Aug 2023". On desktop
