@@ -67,9 +67,11 @@ test("the tour moves on as the reader acts: a glacier, the card, Use this data, 
   assert.deepEqual(ringed(), [$("#card")]);
   assert.ok(button($(".tour"), "Skip"));
 
-  click($("#card-tab-hypsometry"));
-  assert.equal(button($(".tour"), "Skip"), undefined);
+  $("#card").scrollTop = 600;
+  $("#card").dispatchEvent(new window.Event("scroll"));
+  assert.equal(button($(".tour"), "Skip"), undefined, "a scroll of the card counts");
   click(button($(".tour"), "Next"));
+  assert.equal($("#card").scrollTop, 0, "the card scrolls back so the step's button shows");
   assert.equal(title(), "Use this data");
   const [useData] = ringed();
   assert.equal(useData.dataset.tour, "use-data");

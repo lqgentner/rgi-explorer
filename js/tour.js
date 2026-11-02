@@ -115,17 +115,26 @@ export function mountTour(root, { anchor, panel, terrainOn, onTakeMe, onStep, on
   /* The step the app last heard of. */
   let told = null;
 
-  function ring(target) {
-    if (ringed === target) return;
-    ringed?.classList.remove("tour-target");
+  /* The node the popover follows as it grows or shrinks: the ringed control, or the last card's anchor. */
+  let watched = null;
+  function watch(target) {
+    if (watched === target) return;
     watcher?.disconnect();
     watcher = null;
-    ringed = target;
-    ringed?.classList.add("tour-target");
-    if (ringed && typeof window.ResizeObserver === "function") {
+    watched = target;
+    if (target && typeof window.ResizeObserver === "function") {
       watcher = new window.ResizeObserver(() => place());
-      watcher.observe(ringed);
+      watcher.observe(target);
     }
+  }
+
+  function ring(target) {
+    if (ringed !== target) {
+      ringed?.classList.remove("tour-target");
+      ringed = target;
+      ringed?.classList.add("tour-target");
+    }
+    watch(target);
   }
 
   function place() {
@@ -213,6 +222,8 @@ export function mountTour(root, { anchor, panel, terrainOn, onTakeMe, onStep, on
     const title = step === "card" ? CARD[kind].title : STEPS[step].title;
     const text = step === "card" ? cardText(kind) : STEPS[step].text;
     ring(name ? anchor(name) : null);
+    /* The last card rings nothing but stays clear of what grows under its anchor, such as the search results. */
+    if (step === "done") watch(anchor("done"));
     node.replaceChildren(
       h("h2", { id: "tour-title" }, title),
       h("p", {}, ...textNodes(text)),

@@ -140,8 +140,10 @@ isn't interested in the tour, so it closes the welcome and marks it seen.
 - **The map:** a drag, a pinch, a wheel or keyboard zoom, a rotation or a
   tilt by the reader, and a click on the map. These are the MapLibre events
   that carry an `originalEvent`; the page's own camera moves don't count.
-- **The search:** focusing the search input. Opening a result already counts,
-  through opening a glacier.
+- **The search:** typing in it or pressing on it. Tabbing into it doesn't
+  count, so a keyboard reader's first Tab, which lands in the search, still
+  reaches "Take the tour" (changed after review). Opening a result already
+  counts, through opening a glacier.
 - The welcome shown again by Help follows the same rule.
 - The X, "Take the tour" and opening a glacier or complex still close it, as
   built.

@@ -353,3 +353,33 @@ test("the text runs to the card's padding; only the heading keeps clear of the X
   }
   assert.match(css, /\.welcome \.btn \{[^}]*margin: 8px 0 0 auto;/, "Take the tour sits on the right");
 });
+
+test("the last card follows its anchor as it grows, as the search does with its results", () => {
+  const observed = [];
+  window.ResizeObserver = class {
+    constructor(callback) {
+      this.callback = callback;
+      observed.push(this);
+    }
+    observe(node) {
+      this.node = node;
+    }
+    disconnect() {
+      this.node = null;
+    }
+  };
+  try {
+    terrain = true;
+    tour.start();
+    button("Skip").click();
+    assert.equal(title(), "You're all set.");
+    const watcher = observed.find((o) => o.node === targets.done);
+    assert.ok(watcher, "the last card watches its anchor");
+    targets.done.getBoundingClientRect = () => rect(16, 16, 392, 400);
+    watcher.callback([]);
+    assert.equal(popup().style.top, `${400 + 12}px`);
+    assert.deepEqual(ringed(), [], "watched, not ringed");
+  } finally {
+    delete window.ResizeObserver;
+  }
+});

@@ -382,6 +382,8 @@ function wire(catalog, rgiMap, regions) {
     /* On the phone a raised sheet covers the 3D button; the 3D step lowers it. */
     onStep(step) {
       if (step === "terrain" && PHONE.matches && (shown || shownComplex)) setSheetLevel("compact");
+      /* On the desktop Use this data heads the scrolling card, which step 2 may have scrolled away. */
+      if (step === "data" && !PHONE.matches) el("card").scrollTop = 0;
     },
     /* True once the sample glacier opens; false when this catalog has none, or the index fails. */
     onTakeMe() {
@@ -438,7 +440,9 @@ function wire(catalog, rgiMap, regions) {
     camera += 1;
     welcome.dismiss();
   });
-  el("search").addEventListener("focusin", () => welcome.dismiss());
+  /* Typing in the search, or a press on it; a keyboard reader's Tab into it still reaches the welcome. */
+  el("search").addEventListener("input", () => welcome.dismiss());
+  el("search").addEventListener("pointerdown", () => welcome.dismiss());
 
   const padding = () => {
     if (PHONE.matches) return { top: PHONE_TOP, right: GAP, bottom: (popupPadding()?.bottom ?? 0) + GAP, left: GAP };

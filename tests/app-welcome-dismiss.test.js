@@ -24,10 +24,20 @@ test("the page's own camera moves leave the welcome; a wheel zoom by the reader 
   assert.equal(window.localStorage.getItem("rgi-explorer:welcome"), "seen");
 });
 
-test("focusing the search closes the welcome Help brought back", () => {
+test("tabbing into the search keeps the welcome; typing in it closes the welcome Help brought back", () => {
   help().click();
   assert.equal(welcome.hidden, false);
-  document.querySelector("#search input").focus();
+  const input = document.querySelector("#search input");
+  input.focus();
+  assert.equal(welcome.hidden, false, "a keyboard reader's first Tab lands in the search and still reaches Take the tour");
+  input.value = "a";
+  input.dispatchEvent(new window.Event("input", { bubbles: true }));
+  assert.equal(welcome.hidden, true);
+});
+
+test("a press on the search closes the welcome too", () => {
+  help().click();
+  document.querySelector("#search input").dispatchEvent(new window.Event("pointerdown", { bubbles: true }));
   assert.equal(welcome.hidden, true);
 });
 
