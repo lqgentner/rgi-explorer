@@ -38,8 +38,16 @@ function toCollection({ url, json }) {
   return { id: json.id, dataUrl: abs(data), pmtilesUrl: abs(pmtiles), styleUrl: abs(style), json };
 }
 
+const dataAsset = (collection) => Object.values(collection.assets ?? {}).find((a) => a.roles?.includes("data"));
+
+/** The rows of a collection's data file, from its table:row_count, or null. */
+function rowCount(collection) {
+  const n = dataAsset(collection)?.["table:row_count"];
+  return Number.isInteger(n) && n > 0 ? n : null;
+}
+
 function toColumns(collection) {
-  const data = Object.values(collection.assets ?? {}).find((a) => a.roles?.includes("data"));
+  const data = dataAsset(collection);
   const columns = new Map();
   for (const column of data?.["table:columns"] ?? []) {
     const classes = column["classification:classes"];
@@ -56,7 +64,7 @@ function toColumns(collection) {
 /**
  * Walks the catalog at `rootUrl` and returns the highest version's five
  * collections with absolute asset URLs, the glaciers and complexes column labels, the
- * citation and the license. Rejects when a collection is missing.
+ * glacier count (or null), the citation and the license. Rejects when a collection is missing.
  */
 export async function loadCatalog(rootUrl, fetchJson = defaultFetchJson) {
   const found = await walk(rootUrl, fetchJson, new Set());
@@ -80,6 +88,7 @@ export async function loadCatalog(rootUrl, fetchJson = defaultFetchJson) {
     version: `${top.major}.${top.minor}`,
     collections,
     columns: toColumns(json),
+    glacierCount: rowCount(json),
     complexColumns: toColumns(complexes),
     citation: json["sci:citation"],
     license: { id: json.license, href: licenseLink ? resolve(licenseLink.href, url) : null },

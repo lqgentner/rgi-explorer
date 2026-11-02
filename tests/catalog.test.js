@@ -120,3 +120,21 @@ test("the catalog carries the complexes column descriptions", async () => {
   assert.match(c.complexColumns.get("glacier_ids").description, /rgi_id of every glacier in this complex/);
   assert.equal(c.complexColumns.has("complex_id"), false, "the complexes table, not the glaciers table");
 });
+
+test("reads the glacier count from the data asset's table:row_count", async () => {
+  const c = await loadCatalog(ROOT, fixtureFetch());
+  assert.equal(c.glacierCount, 274531);
+});
+
+test("the glacier count is null without a usable table:row_count", async () => {
+  const dataAsset = (json) => Object.values(json.assets ?? {}).find((a) => a.roles?.includes("data"));
+  const glaciers = (path) => path === "v7.0/glaciers/collection.json";
+  const missing = await loadCatalog(ROOT, fixtureFetch((path, json) => {
+    if (glaciers(path)) delete dataAsset(json)["table:row_count"];
+  }));
+  assert.equal(missing.glacierCount, null);
+  const odd = await loadCatalog(ROOT, fixtureFetch((path, json) => {
+    if (glaciers(path)) dataAsset(json)["table:row_count"] = "many";
+  }));
+  assert.equal(odd.glacierCount, null);
+});
