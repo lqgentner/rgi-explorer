@@ -114,12 +114,14 @@ The geometry, in the capsule's own 54 × 40 coordinates:
 - **Rotate left and Rotate right** ease the map 45° counter-clockwise or
   clockwise. The pitch, the 3D mode and the centre stay as they are.
 - **A click on the needle** eases the map to bearing 0 and pitch 0 and leaves
-  3D. Leaving 3D this way is the same as pressing the 3D button off: the 3D
-  button's pressed state, the address (`?3d=1`) and the terrain notice follow.
+  3D. Leaving 3D this way is the same as leaving it with the 3D button: the
+  button's label, the address (`?3d=1`) and the terrain notice follow.
   In 2D and already facing north it does nothing visible.
 - **The 3D button** keeps today's behavior: turning 3D on eases to a 60° tilt,
   and turning it off also brings the map back to north (`setTerrain(false)`
-  eases to pitch 0 and bearing 0).
+  eases to pitch 0 and bearing 0). It names the mode it switches to, "3D" in
+  2D and "2D" in 3D ("Switch to 3D", "Switch to 2D" to a screen reader), and
+  looks the same in both: an action, not a pressed toggle.
 
 ## Tilting turns 3D on and off
 
@@ -127,12 +129,12 @@ On the desktop and the phone alike:
 
 - **Tilting from 2D turns on 3D.** When the reader tilts the map by hand and
   the tilt passes 5°, the page does what the 3D button does: the terrain
-  loads, the 3D button shows pressed, `?3d=1` goes into the address, and the
+  loads, the 3D button reads "2D", `?3d=1` goes into the address, and the
   terrain notice shows the first time in the session. The camera stays where
   the reader put it. It doesn't jump to 60°.
 - **Tilting back flat turns 3D off.** When a tilt by hand ends below 5° in 3D,
   the map eases to pitch 0 and 3D turns off: the terrain goes, the 3D button
-  shows unpressed, `?3d=1` leaves the address, and the notice hides. The
+  reads "3D" again, `?3d=1` leaves the address, and the notice hides. The
   bearing stays as the reader left it.
 - **Only the reader's tilts count.** A tilt counts when it comes from a
   gesture or the keyboard, which MapLibre marks with the original input
@@ -147,8 +149,8 @@ On the desktop and the phone alike:
   It sits under the 3D button in the right-hand column, 8 px below it.
 - It shows while **the map isn't facing north or 3D is on**, and hides once
   the map faces north in 2D. In 3D it is a second sign of the tilt, next to
-  the pressed 3D button. It eases in and out (scale and fade, about 160 ms;
-  none with reduced motion).
+  the 3D button that reads "2D". It eases in and out (scale and fade, about
+  160 ms; none with reduced motion).
 - A tap on it does what a click on the desktop needle does: north, pitch 0,
   and out of 3D.
 

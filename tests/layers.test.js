@@ -27,6 +27,43 @@ function layers(extra = {}) {
 
 const hover = (root, type = "pointerenter") => root.firstElementChild.dispatchEvent(new window.Event(type));
 
+const CSS = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
+/** The body of the first rule in `css` whose selectors are exactly `selectors`, one per line. */
+function rule(selectors, css = CSS) {
+  const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const head = new RegExp(`(^|\\n)[ \\t]*${selectors.map(escape).join(",\\s*")}\\s*\\{`);
+  const match = head.exec(css);
+  assert.ok(match, `no rule for ${selectors.join(", ")}`);
+  const start = match.index + match[0].length;
+  return css.slice(start, css.indexOf("}", start));
+}
+
+test("the desktop drawer gives its toggles one width, as wide as the longest label, on one line", () => {
+  const drawer = rule([".layers-drawer"]);
+  assert.match(drawer, /display:\s*grid;/);
+  assert.match(drawer, /grid-auto-flow:\s*column;/);
+  /*
+   * The panel is as wide as its content, so the equal columns grow to the
+   * widest toggle. Shrunk to fit the card's narrow width, it would size them
+   * at min-content, where 1fr columns keep to their minimum.
+   */
+  assert.match(drawer, /grid-auto-columns:\s*minmax\(var\(--tile\),\s*1fr\);/);
+  assert.match(rule([".layers-panel"]), /(^|[\s;])width:\s*max-content;/);
+  const toggle = rule([".layers .layer-toggle"]);
+  assert.match(toggle, /white-space:\s*nowrap;/);
+  assert.match(toggle, /(^|[\s;])width:\s*auto;/, "the column sets the width, so a long label never runs into the next");
+});
+
+test("the narrow window's drawer column lets a long label wrap under its preview", () => {
+  const narrow = CSS.slice(CSS.indexOf("@media (min-width: 641px) and (max-width: 814px) {"));
+  assert.match(rule(["body.card-open .layers-drawer"], narrow), /grid-auto-flow:\s*row;/);
+  assert.match(rule(["body.card-open .layers .layer-toggle"], narrow), /white-space:\s*normal;/);
+});
+
+test("every tile's picture sits at the top, so a label that wraps leaves the row of pictures straight", () => {
+  assert.match(rule([".layer-toggle", ".base-tile"]), /justify-content:\s*flex-start;/);
+});
+
 test("the phone's round button stays out of the desktop, through style.css", () => {
   const { root } = layers();
   assert.ok(root.querySelector(".layers-open"), "drawn for a change of layout");
@@ -137,7 +174,7 @@ test("the zoom buttons zoom the map", () => {
   assert.ok(root.querySelector('button[aria-label="Zoom in"] use').getAttribute("href").endsWith("#plus"));
 });
 
-const NOTICE = "3D terrain is newer than the RGI outlines. Mapterhorn elevation and the outlines come from different years, so edges may not match.";
+const NOTICE = "The terrain is newer than the RGI outlines, so their edges may not match.";
 
 function terrain(start = false) {
   const root = document.createElement("div");
@@ -146,16 +183,30 @@ function terrain(start = false) {
   return { root, changes, api, button: root.querySelector(".terrain-btn") };
 }
 
-test("the 3D button toggles and reports", () => {
+test("the 3D button names the mode it switches to, and reports", () => {
   const { button, changes, api } = terrain();
-  assert.equal(button.textContent, "3D");
-  assert.equal(button.getAttribute("aria-pressed"), "false");
+  const reads = () => [button.textContent, button.getAttribute("aria-label")];
+  assert.deepEqual(reads(), ["3D", "Switch to 3D"]);
+  assert.equal(button.hasAttribute("aria-pressed"), false, "an action, not a toggle: its label changes");
   button.click();
   assert.deepEqual(changes, [true]);
-  assert.equal(button.getAttribute("aria-pressed"), "true");
+  assert.deepEqual(reads(), ["2D", "Switch to 2D"]);
+  assert.equal(button.hasAttribute("aria-pressed"), false);
   api.set(false);
-  assert.equal(button.getAttribute("aria-pressed"), "false");
-  assert.deepEqual(changes, [true]);
+  assert.deepEqual(reads(), ["3D", "Switch to 3D"]);
+  api.set(true);
+  assert.deepEqual(reads(), ["2D", "Switch to 2D"]);
+  assert.deepEqual(changes, [true], "set() does not report");
+});
+
+test("a 3D button that opens in 3D reads 2D", () => {
+  const { button } = terrain(true);
+  assert.equal(button.textContent, "2D");
+  assert.equal(button.getAttribute("aria-label"), "Switch to 2D");
+});
+
+test("the 3D button looks the same in 2D and 3D: no pressed style", () => {
+  assert.doesNotMatch(CSS, /\.terrain-btn\[aria-pressed/);
 });
 
 test("the terrain notice shows once per session and survives a throwing sessionStorage", () => {

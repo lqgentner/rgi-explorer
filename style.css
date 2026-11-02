@@ -408,13 +408,23 @@ button:focus-visible {
   top: 0;
   left: calc(var(--layers-h) - 16px);
   z-index: 1;
+  /* As wide as the drawer's content: shrunk to fit the card, its 1fr columns would keep to their minimum. */
+  width: max-content;
   height: var(--layers-h);
   clip-path: inset(-32px -32px -32px 0);
 }
 
+/*
+ * The toggles stand in equal columns as wide as the longest label, so
+ * "Glacier regions" keeps to one line, clear of its neighbour, and the
+ * previews stay evenly spaced. The drawer has no width of its own: its 1fr
+ * columns grow to the widest toggle.
+ */
 .layers-drawer {
-  display: flex;
-  gap: 16px;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(var(--tile), 1fr);
+  gap: 8px;
   height: 100%;
   padding: var(--pad) var(--pad) var(--pad) calc(16px + 16px);
   border-radius: 0 12px 12px 0;
@@ -446,9 +456,7 @@ button:focus-visible {
   }
 
   body.card-open .layers-drawer {
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
+    grid-auto-flow: row;
     padding: var(--pad) var(--pad) calc(16px + 16px);
     border-radius: 12px 12px 0 0;
     transform: translateY(100%);
@@ -456,6 +464,11 @@ button:focus-visible {
 
   body.card-open .layers.open .layers-drawer {
     transform: none;
+  }
+
+  /* Stacked, the column is narrower than "Glacier regions", which wraps under its preview. */
+  body.card-open .layers .layer-toggle {
+    white-space: normal;
   }
 }
 
@@ -467,8 +480,9 @@ button:focus-visible {
   }
 }
 
+/* The drawer's column sets the width. */
 .layers .layer-toggle {
-  width: var(--tile);
+  width: auto;
   font-size: 11px;
   line-height: var(--label);
   white-space: nowrap;
@@ -479,13 +493,17 @@ button:focus-visible {
   height: var(--tile);
 }
 
-/* A tile: a square picture with its name below. Hover and selection outline the square. */
+/*
+ * A tile: a square picture with its name below. Hover and selection outline
+ * the square. The picture sits at the top, so a name that wraps to two lines
+ * hangs below it and the row's pictures stay level.
+ */
 .layer-toggle,
 .base-tile {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 4px;
   width: 76px;
   padding: 0;
@@ -555,11 +573,6 @@ button:focus-visible {
   height: 36px;
   border-radius: 11px;
   font-weight: 600;
-}
-
-.terrain-btn[aria-pressed="true"] {
-  background: var(--accent);
-  color: #fff;
 }
 
 .zoom-control {

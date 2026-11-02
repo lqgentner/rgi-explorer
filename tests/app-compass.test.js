@@ -18,7 +18,8 @@ const $ = (sel) => document.querySelector(sel);
 const click = (node) => node.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
 const params = () => new URL(window.location.href).searchParams;
 const map = () => page.map;
-const pressed = () => $("#controls .terrain-btn").getAttribute("aria-pressed");
+/* In 3D the 3D button reads "2D", the mode it switches to. */
+const switchesTo = () => $("#controls .terrain-btn").textContent;
 /* The map calls made since `mark`, so other listeners' calls don't matter. */
 const since = (mark) => map().calls.slice(mark);
 
@@ -40,7 +41,7 @@ test("a tilt by hand past 5° turns 3D on where the reader left the camera, with
   await settle();
   assert.equal(params().get("3d"), "1");
   assert.equal(map().getTerrain().source, "terrain");
-  assert.equal(pressed(), "true");
+  assert.equal(switchesTo(), "2D");
   assert.ok($(".terrain-notice"), "the notice shows the first time");
   assert.equal(map().getPitch(), 30, "no ease to 60°");
   assert.ok(!since(mark).some((c) => c.startsWith("easeTo")));
@@ -52,7 +53,7 @@ test("tilting back flat by hand leaves 3D and keeps the bearing", async () => {
   await settle();
   assert.equal(params().get("3d"), null);
   assert.equal(map().getTerrain(), null);
-  assert.equal(pressed(), "false");
+  assert.equal(switchesTo(), "3D");
   assert.equal($(".terrain-notice"), null);
   assert.ok(since(mark).includes('easeTo {"pitch":0}'));
   assert.equal(map().getPitch(), 0);
@@ -84,7 +85,7 @@ test("the compass leaves 3D the way the 3D button does", async () => {
   click($('.compass button[aria-label="Face north"]'));
   assert.equal(params().get("3d"), null);
   assert.equal(map().getTerrain(), null);
-  assert.equal(pressed(), "false");
+  assert.equal(switchesTo(), "3D");
   assert.equal($(".terrain-notice"), null);
   assert.equal(map().getBearing(), 0);
   assert.equal(map().getPitch(), 0);
@@ -96,7 +97,7 @@ test("the page's own camera moves never switch 3D", () => {
   click($("#controls .terrain-btn"));
   assert.equal(map().getPitch(), 60);
   assert.equal(params().get("3d"), "1");
-  assert.equal(pressed(), "true");
+  assert.equal(switchesTo(), "2D");
   click($("#controls .terrain-btn"));
   assert.equal(map().getPitch(), 0);
   assert.equal(params().get("3d"), null);

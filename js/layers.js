@@ -28,8 +28,7 @@ const THUMB_PX = 192;
 const PREVIEW_DELAY_MS = 500;
 
 const NOTICE_KEY = "rgi-explorer.terrain-notice";
-const NOTICE_TEXT =
-  "3D terrain is newer than the RGI outlines. Mapterhorn elevation and the outlines come from different years, so edges may not match.";
+const NOTICE_TEXT = "The terrain is newer than the RGI outlines, so their edges may not match.";
 
 /* The land behind the previews, near Liberty's own. */
 const PREVIEW_LAND = "#eceff1";
@@ -382,8 +381,10 @@ function writeSession(key, value) {
 }
 
 /**
- * Draw the 3D button. A notice about the terrain's age shows the first time 3D
- * turns on, until the reader dismisses it for the session.
+ * Draw the 3D button. It is an action that names the mode it switches to,
+ * "3D" in 2D and "2D" in 3D, so it has no pressed state. A notice about the
+ * terrain's age shows the first time 3D turns on, until the reader dismisses
+ * it for the session.
  *
  * @returns {{set(on: boolean): void}}
  */
@@ -392,7 +393,7 @@ export function mountTerrain(root, { on, onChange }) {
   let shown = false;
   let notice = null;
 
-  const button = h("button", { type: "button", class: "terrain-btn", "aria-pressed": "false" }, "3D");
+  const button = h("button", { type: "button", class: "terrain-btn" });
   root.append(button);
 
   const hideNotice = () => {
@@ -412,7 +413,9 @@ export function mountTerrain(root, { on, onChange }) {
   };
   const apply = (next) => {
     state = next;
-    button.setAttribute("aria-pressed", String(next));
+    const target = next ? "2D" : "3D";
+    button.textContent = target;
+    button.setAttribute("aria-label", `Switch to ${target}`);
     if (next) showNotice();
     else hideNotice();
   };
