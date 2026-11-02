@@ -4,9 +4,10 @@
  * place; one of the two is open at a time.
  */
 
-import { cardFrame, imageryCrop, infoButton, keyGrid, placeholder, regionOfId } from "./card.js";
+import { cardFrame, imageryItem, infoButton, keyGrid, placeholder, regionOfId } from "./card.js";
+import { mountStrip } from "./strip.js";
 import { GROUP_TITLES, complexRows, formatArea } from "./columns.js";
-import { h } from "./ui.js";
+import { PHONE, h } from "./ui.js";
 
 const AREA_UNIT = "km²";
 const READ_FAILED = "The complex could not be read.";
@@ -32,6 +33,12 @@ export function mountComplexCard(root, ctx) {
     body: [facts, members],
     onUseData: () => ctx.onUseData?.({ kind: "complex", rgiId: current.id, o1region: regionCode() }),
     onZoom: () => ctx.onZoom?.(current.props?.bbox ?? null),
+  });
+  const strip = mountStrip(photo, { label: "Complex image", onOpen: () => {} });
+  const empty = placeholder();
+  /* The crop is framed per layout, so a change of layout re-frames it in place. */
+  PHONE.addEventListener("change", () => {
+    if (current) renderPhoto();
   });
 
   function renderHead() {
@@ -102,9 +109,9 @@ export function mountComplexCard(root, ctx) {
       mine.cropFailed = true;
       renderPhoto();
     };
-    if (mine.cropFailed) photo.replaceChildren(placeholder());
-    else if (bbox) photo.replaceChildren(...imageryCrop(photo, bbox, { crop: ctx.crop, alt: "Satellite imagery of the complex", onError }));
-    else photo.replaceChildren();
+    strip.update(bbox && !mine.cropFailed ? [imageryItem(bbox, { crop: ctx.crop, alt: "Satellite imagery of the complex", onError })] : []);
+    if (mine.cropFailed) photo.append(empty);
+    else empty.remove();
   }
 
   function render() {

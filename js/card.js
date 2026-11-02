@@ -4,6 +4,7 @@ import { ATTRIBUTE_COLUMNS, GROUP_TITLES, missingAttributes, nonEmpty, overviewR
 import { renderHypsometry } from "./hypsometry.js";
 import { CARD_COLUMNS, readRow } from "./parquet.js";
 import { esriCrop, findCropSource } from "./photo.js";
+import { mountStrip } from "./strip.js";
 import { PHONE, h, icon, popover } from "./ui.js";
 
 const TABS = [
@@ -131,21 +132,45 @@ export function cardFrame(root, ctx, { label, className, body, onUseData, onZoom
 export const placeholder = () => h("div", { class: "photo-placeholder", style: { background: "var(--line)" } });
 
 /**
- * The imagery crop of `bbox` and its credit, for the photo area `photo`. An
- * image already there for the same crop stays. `onError` hears a failed load.
+ * The credit of an Esri crop of `bbox` at `size` with `top` rows covered.
  * Once Esri names the imagery's provider and capture date, they replace the
  * fixed credit; a credit no longer shown changes unseen.
  */
-export function imageryCrop(photo, bbox, { crop = CROP, alt, onError }) {
-  const src = esriCrop(bbox, ...crop.size, crop.top);
-  if (photo.querySelector("img.photo-crop")?.getAttribute("src") === src) return [...photo.childNodes];
-  const image = h("img", { class: "photo-crop", src, alt, loading: "lazy" });
-  image.addEventListener("error", onError);
+export function imageryCredit(bbox, size, top) {
   const credit = photoCredit(IMAGERY_CREDIT);
-  findCropSource(bbox, ...crop.size, crop.top).then((source) => {
+  findCropSource(bbox, ...size, top).then((source) => {
     if (source) credit.replaceChildren(...creditParts(["Esri", source.provider, source.date && `imaged ${source.date}`]));
   });
-  return [image, credit];
+  return credit;
+}
+
+/** The strip item of the imagery crop of `bbox`, framed as `crop` says. */
+export function imageryItem(bbox, { crop = CROP, alt, onError }) {
+  return {
+    key: "imagery",
+    src: esriCrop(bbox, ...crop.size, crop.top),
+    alt,
+    className: "photo-crop",
+    credit: () => imageryCredit(bbox, crop.size, crop.top),
+    onError,
+  };
+}
+
+const link = (href, text) => (isHttp(href) ? h("a", { href, target: "_blank", rel: "noopener noreferrer" }, text) : text);
+
+/**
+ * The strip item of a Commons photo. Its credit names the author, linked to
+ * the file's page, and the license, linked to its deed; with no author, the
+ * license alone.
+ */
+export function photoItem(photo, { alt, onError }) {
+  const credit = () => {
+    const author = photo.author ? h("span", { class: "credit-author" }, link(photo.page, photo.author)) : null;
+    const license = photo.license ? link(photo.licenseUrl, photo.license) : null;
+    const parts = [author, license].filter(Boolean).flatMap((part, i) => (i ? [" · ", part] : [part]));
+    return h("div", { class: "photo-credit photo-credit-photo" }, ...parts);
+  };
+  return { key: photo.page, src: photo.src, alt, credit, onError };
 }
 
 /**
@@ -192,6 +217,8 @@ export function mountCard(root, ctx) {
     onUseData: () => ctx.onUseData?.(glacierNow()),
     onZoom: () => ctx.onZoom?.(current.props.bbox ?? current.props),
   });
+  const strip = mountStrip(photo, { label: "Glacier images", onOpen: () => {} });
+  const empty = placeholder();
 
   function selectTab(id, focus = false) {
     state.tab = id;
@@ -313,17 +340,23 @@ export function mountCard(root, ctx) {
   }
 
   /**
-   * The photo area: a carousel once photos arrive. Until then, and when there
-   * are none, the imagery crop as soon as the bbox is known. A plain block
-   * when the crop fails.
+   * The photo area: the imagery crop first, as soon as the bbox is known, then
+   * the photos as they arrive. A crop that fails leaves the photos alone, or
+   * a plain block when there are none; a photo that fails drops out.
    */
   function renderPhotoArea() {
-    const { photos, cropFailed } = current.photos;
-    const { bbox } = current.props;
-    if (photos?.length) photo.replaceChildren(...carousel(photos));
-    else if (cropFailed) photo.replaceChildren(placeholder());
-    else if (bbox) photo.replaceChildren(...imageryCrop(photo, bbox, { crop: ctx.crop, alt: "Satellite imagery of the glacier", onError: cropFailedFor(current) }));
-    else photo.replaceChildren();
+    const mine = current;
+    const { photos, cropFailed, failed } = mine.photos;
+    const { bbox } = mine.props;
+    const title = head.querySelector(".card-title")?.textContent ?? "";
+    const shown = (photos ?? []).filter((p) => !failed.has(p.page));
+    const items = [
+      ...(bbox && !cropFailed ? [imageryItem(bbox, { crop: ctx.crop, alt: "Satellite imagery of the glacier", onError: cropFailedFor(mine) })] : []),
+      ...shown.map((p) => photoItem(p, { alt: `Photo of ${title}`, onError: photoFailedFor(mine, p) })),
+    ];
+    strip.update(items);
+    if (cropFailed && !shown.length) photo.append(empty);
+    else empty.remove();
   }
 
   const cropFailedFor = (mine) => () => {
@@ -332,34 +365,21 @@ export function mountCard(root, ctx) {
     renderPhotoArea();
   };
 
-  function carousel(photos) {
-    const at = current.photos.index;
-    const shown = photos[at];
-    const title = head.querySelector(".card-title")?.textContent ?? "";
-    const link = (href, text) => (isHttp(href) ? h("a", { href, target: "_blank", rel: "noopener noreferrer" }, text) : text);
-    const details = photoCredit(link(shown.page, shown.source), shown.author, shown.license && link(shown.licenseUrl, shown.license));
-    const step = (delta, label, name) => {
-      const node = h("button", { type: "button", class: `icon-button photo-${label}`, "aria-label": `${label === "prev" ? "Previous" : "Next"} photo` }, icon(name));
-      node.addEventListener("click", () => {
-        current.photos.index = (at + delta + photos.length) % photos.length;
-        renderPhotoArea();
-        photo.querySelector(`.photo-${label}`)?.focus();
-      });
-      return node;
-    };
-    return [
-      h("img", { src: shown.src, alt: `Photo of ${title}`, loading: "lazy" }),
-      photos.length > 1 ? step(-1, "prev", "chevron-left") : null,
-      photos.length > 1 ? step(1, "next", "chevron-right") : null,
-      details,
-    ];
-  }
+  const photoFailedFor = (mine, p) => () => {
+    if (current !== mine) return;
+    mine.photos.failed.add(p.page);
+    renderPhotoArea();
+  };
 
   function renderPhotos(photos) {
     current.photos.photos = Array.isArray(photos) ? photos : [];
-    current.photos.index = 0;
     renderPhotoArea();
   }
+
+  /* The crop is framed per layout, so a change of layout re-frames it in place. */
+  PHONE.addEventListener("change", () => {
+    if (current) renderPhotoArea();
+  });
 
   async function load(glacier, mine, signal) {
     const isCurrent = () => current === mine && !signal.aborted;
@@ -396,13 +416,14 @@ export function mountCard(root, ctx) {
         rgiId: glacier.rgiId,
         row: glacier.row,
         props: { ...glacier.props },
-        photos: { photos: null, index: 0, cropFailed: false },
+        photos: { photos: null, cropFailed: false, failed: new Set() },
       };
       current = mine;
       state.rgi6Open = false;
       state.moreOpen = false;
       show(true);
       render();
+      strip.show(0);
       selectTab(state.tab);
       new Promise((resolve) => resolve(ctx.photos?.(glacier, signal)))
         .then((photos) => {

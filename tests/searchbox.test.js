@@ -81,9 +81,10 @@ test("the search bar and its results share one card, with a hidden search icon a
     assert.match(card, declaration);
   }
   const pill = rule("#search input");
-  for (const declaration of [/width:\s*100%/, /height:\s*48px/, /border:\s*0/, /padding:\s*0 48px/, /background:\s*none/]) {
+  for (const declaration of [/width:\s*100%/, /height:\s*var\(--search-h\)/, /border:\s*0/, /padding:\s*0 48px/, /background:\s*none/]) {
     assert.match(pill, declaration);
   }
+  assert.match(css, /--search-h:\s*48px/, "the pill is 48px high");
   assert.doesNotMatch(pill, /box-shadow/, "the card casts the one shadow");
   assert.match(css, /#search input::-webkit-search-cancel-button[^{]*\{[^}]*appearance:\s*none/);
   const results = rule("#search ul");

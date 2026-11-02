@@ -19,6 +19,13 @@
   /* Corners: round on the outside (buttons, the phone's images), smaller on boxes of text. */
   --radius: 16px;
   --tile-radius: 12px;
+  /* The search bar's place, which the desktop photo's arrows are centred against. */
+  --search-top: 16px;
+  --search-h: 48px;
+  /* The photo area, and the credit and counter chips along its bottom. */
+  --photo-h: 280px;
+  --credit-inset: 8px;
+  --credit-row: 20px;
   --slide: 250ms ease-out;
   --font: "Noto Sans", system-ui, sans-serif;
   --mono: "Noto Sans Mono", ui-monospace, monospace;
@@ -111,7 +118,7 @@ kbd {
 #search input {
   display: block;
   width: 100%;
-  height: 48px;
+  height: var(--search-h);
   margin: 0;
   padding: 0 48px;
   border: 0;
@@ -1014,7 +1021,7 @@ button:focus-visible {
 
 #search {
   position: fixed;
-  top: 16px;
+  top: var(--search-top);
   left: 16px;
   z-index: 4;
   width: 376px;
@@ -1027,7 +1034,7 @@ button:focus-visible {
 
 .card .photo {
   position: relative;
-  height: 280px;
+  height: var(--photo-h);
   overflow: hidden;
   background: #e8eaed;
 }
@@ -1417,7 +1424,50 @@ table.members .num {
   text-align: center;
 }
 
-.card .photo > img {
+/*
+ * The image strip: the imagery crop, then the photos, one image per snap.
+ * On the desktop each image fills the photo area under the search bar; the
+ * phone insets them (see the phone's rules). The strip never shows a
+ * scrollbar of its own.
+ */
+.strip {
+  position: relative;
+  display: flex;
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  /* A sideways pan scrolls the strip; an up or down one still reaches the sheet. */
+  touch-action: pan-x pan-y pinch-zoom;
+}
+
+.strip::-webkit-scrollbar {
+  display: none;
+}
+
+.strip-tile {
+  position: relative;
+  flex: 0 0 100%;
+  height: 100%;
+  overflow: hidden;
+  scroll-snap-align: start;
+  background: #e8eaed;
+}
+
+/* The whole image opens the viewer; the credit's links sit beside it. */
+.strip-open {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: zoom-in;
+}
+
+.strip-open img {
   display: block;
   width: 100%;
   height: 100%;
@@ -1425,19 +1475,30 @@ table.members .num {
 }
 
 .photo-placeholder {
-  width: 100%;
-  height: 100%;
+  position: absolute;
+  inset: 0;
 }
 
-/* The photo arrows are faint glass, so the photo shows through. */
+/*
+ * The photo arrows are faint glass, so the photo shows through. They show
+ * while the pointer or focus is on the photo, centred between the search
+ * bar's bottom edge and the top of the credit row.
+ */
 .photo-prev,
 .photo-next {
   position: absolute;
-  top: 50%;
+  z-index: 1;
+  top: calc((var(--search-top) + var(--search-h) + var(--photo-h) - var(--credit-inset) - var(--credit-row)) / 2);
   transform: translateY(-50%);
   background: var(--photo-glass);
   backdrop-filter: var(--glass-blur);
   box-shadow: 0 1px 2px rgb(60 64 67 / 20%);
+  opacity: 0;
+  transition: opacity 150ms ease-out;
+}
+
+.photo:is(:hover, :focus-within) :is(.photo-prev, .photo-next) {
+  opacity: 1;
 }
 
 .photo-prev {
@@ -1453,14 +1514,18 @@ table.members .num {
   background: var(--glass);
 }
 
-/* The photo's credit: one line of text along its bottom left, set like the map's credits. */
+/*
+ * An image's credit floats inside its bottom left, set like the map's
+ * credits. It leaves room for the counter and wraps rather than cut the
+ * credit short; a photo's author takes at most one line, cut with "…".
+ */
 .photo-credit {
   position: absolute;
-  left: 0;
-  bottom: 0;
-  max-width: 100%;
+  left: var(--credit-inset);
+  bottom: var(--credit-inset);
+  max-width: calc(100% - 2 * var(--credit-inset) - 48px);
   padding: 2px 8px;
-  border-top-right-radius: 8px;
+  border-radius: 8px;
   background: var(--glass);
   backdrop-filter: var(--glass-blur);
   color: var(--text);
@@ -1470,6 +1535,28 @@ table.members .num {
 
 .photo-credit a {
   color: inherit;
+}
+
+.credit-author {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
+}
+
+/* "2 / 5" in the bottom right, on the credit's line. */
+.photo-count {
+  position: absolute;
+  right: var(--credit-inset);
+  bottom: var(--credit-inset);
+  padding: 2px 8px;
+  border-radius: 8px;
+  background: rgb(32 33 36 / 62%);
+  color: #fff;
+  font-size: 11px;
+  line-height: 16px;
 }
 
 /* Short confirmations such as "Link copied". */
@@ -1837,8 +1924,35 @@ dialog.usedata::backdrop {
     padding: 6px 10px;
   }
 
-  #sheet .card .photo {
-    height: 180px;
+  /*
+   * The phone's strip sits inside the card's 16px gutters with rounded
+   * images. Each is as wide as the gutters leave, so the 8px gap shows 8px of
+   * the next one; centre snapping keeps the shown one in the middle. No arrows:
+   * a swipe moves it.
+   */
+  .card .photo {
+    --photo-h: 180px;
+    background: none;
+  }
+
+  .card .strip {
+    gap: 8px;
+    padding: 0 16px;
+  }
+
+  .card .strip-tile {
+    border-radius: var(--radius);
+    scroll-snap-align: center;
+  }
+
+  .card .photo-placeholder {
+    left: 16px;
+    right: 16px;
+    border-radius: var(--radius);
+  }
+
+  .card :is(.photo-prev, .photo-next) {
+    display: none;
   }
 
   /* Over the whole sheet, which opens all the way while it shows. */

@@ -37,7 +37,7 @@ const FIT_MAX_ZOOM = 15;
  * covers the photo's top 72px, so the glacier sits in the rows below.
  */
 const DESKTOP_CROP = { size: [816, 560], top: 144 };
-const PHONE_CROP = { size: [816, 400], top: 0 };
+const PHONE_CROP = { size: [720, 360], top: 0 };
 const NOTICE_MS = 2000;
 const REGION_COLUMNS = ["level", "o1region", "o2region", "full_name", "bbox"];
 const FACT_COLUMNS = ["bbox", "glims_id"];

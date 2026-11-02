@@ -451,3 +451,116 @@ test("the header leaves the area to the overview", async () => {
   assert.equal(root.querySelector(".card-head").textContent.includes("km²"), false);
   assert.ok([...root.querySelectorAll(".key-tile")].some((tile) => tile.textContent.includes("81.8 km²")));
 });
+
+/* The image strip: the imagery first, then the photos. */
+
+const BBOX = { xmin: 7.93, ymin: 46.39, xmax: 8.08, ymax: 46.56 };
+const PHOTO = (n, extra = {}) => ({
+  src: `https://thumb.wikimedia.org/${n}.jpg`, file: `${n}.jpg`, page: `https://commons.wikimedia.org/wiki/File:${n}.jpg`,
+  author: `Author ${n}`, license: "CC BY-SA 4.0", licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0",
+  source: `Wikidata Q${n} · P18`, ...extra,
+});
+const PHOTOS = [PHOTO(1), PHOTO(2)];
+const WITH_BBOX = { ...OVERVIEW_PROPS, bbox: BBOX };
+const tilesOf = (root) => [...root.querySelectorAll(".strip-tile")];
+const counts = (root) => [...root.querySelectorAll(".photo-count")].map((n) => n.textContent);
+
+test("the imagery is the first image and keeps its element when photos arrive", async () => {
+  let resolve;
+  const { root, card } = setup({ photos: () => new Promise((r) => { resolve = r; }) });
+  card.open({ rgiId: IDS[0], props: WITH_BBOX });
+  const crop = root.querySelector(".strip-tile img.photo-crop");
+  assert.ok(crop);
+  resolve(PHOTOS);
+  await settle();
+  assert.equal(tilesOf(root)[0].querySelector("img"), crop);
+  assert.equal(tilesOf(root).length, 3);
+  assert.deepEqual(counts(root), ["1 / 3", "2 / 3", "3 / 3"]);
+});
+
+test("a photo credits its author linked to Commons and its license linked to its deed", async () => {
+  const { root, card } = setup({ photos: async () => PHOTOS });
+  await card.open({ rgiId: IDS[0], props: WITH_BBOX });
+  await settle();
+  const credit = tilesOf(root)[1].querySelector(".photo-credit");
+  const author = credit.querySelector(".credit-author a");
+  assert.equal(author.getAttribute("href"), PHOTOS[0].page);
+  assert.equal(author.textContent, PHOTOS[0].author);
+  const license = [...credit.querySelectorAll("a")].find((a) => a !== author);
+  assert.equal(license.getAttribute("href"), PHOTOS[0].licenseUrl);
+  assert.equal(license.textContent, PHOTOS[0].license);
+  assert.equal(credit.textContent, `${PHOTOS[0].author} · ${PHOTOS[0].license}`);
+});
+
+test("a photo without an author credits its license alone", async () => {
+  const { root, card } = setup({ photos: async () => [PHOTO(1, { author: "" })] });
+  await card.open({ rgiId: IDS[0], props: WITH_BBOX });
+  await settle();
+  assert.equal(tilesOf(root)[1].querySelector(".photo-credit").textContent, "CC BY-SA 4.0");
+});
+
+test("a failed crop with photos leaves the photos; without photos the placeholder shows", async () => {
+  const withPhotos = setup({ photos: async () => PHOTOS });
+  await withPhotos.card.open({ rgiId: IDS[0], props: WITH_BBOX });
+  await settle();
+  withPhotos.root.querySelector("img.photo-crop").dispatchEvent(new window.Event("error"));
+  assert.equal(withPhotos.root.querySelector(".photo-crop"), null);
+  assert.equal(tilesOf(withPhotos.root).length, 2);
+  assert.equal(withPhotos.root.querySelector(".photo-placeholder"), null);
+
+  const without = setup();
+  await without.card.open({ rgiId: IDS[0], props: WITH_BBOX });
+  await settle();
+  without.root.querySelector("img.photo-crop").dispatchEvent(new window.Event("error"));
+  assert.equal(tilesOf(without.root).length, 0);
+  assert.ok(without.root.querySelector(".photo-placeholder"));
+});
+
+test("a photo whose thumbnail fails drops out and the rest recount", async () => {
+  const { root, card } = setup({ photos: async () => PHOTOS });
+  await card.open({ rgiId: IDS[0], props: WITH_BBOX });
+  await settle();
+  tilesOf(root)[1].querySelector("img").dispatchEvent(new window.Event("error"));
+  assert.equal(tilesOf(root).length, 2);
+  assert.deepEqual(counts(root), ["1 / 2", "2 / 2"]);
+});
+
+test("a new glacier starts at its first image", async () => {
+  const { root, card } = setup({ photos: async () => PHOTOS });
+  await card.open({ rgiId: IDS[0], props: WITH_BBOX });
+  await settle();
+  click(root.querySelector(".photo-next"));
+  click(root.querySelector(".photo-next"));
+  assert.equal(root.querySelector(".photo-prev").hidden, false);
+  await card.open({ rgiId: IDS[1], props: { ...WITH_BBOX, rgi_id: IDS[1] } });
+  await settle();
+  assert.equal(root.querySelector(".photo-prev").hidden, true);
+});
+
+test("a change of layout re-frames the crop in the same image", async () => {
+  let phone = false;
+  const { root, card, ctx } = setup();
+  Object.defineProperty(ctx, "crop", { get: () => (phone ? { size: [720, 360], top: 0 } : { size: [816, 560], top: 144 }) });
+  await card.open({ rgiId: IDS[0], props: WITH_BBOX });
+  const crop = root.querySelector("img.photo-crop");
+  assert.match(crop.getAttribute("src"), /size=816,560/);
+  phone = true;
+  await onPhone(() => {
+    assert.equal(root.querySelector("img.photo-crop"), crop);
+    assert.match(crop.getAttribute("src"), /size=720,360/);
+  });
+  phone = false;
+  card.close();
+});
+
+test("the desktop arrows are centred between the search bar and the credit row", () => {
+  const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
+  /* Every top-level rule for `sel`, joined: #search has two. */
+  const rule = (sel) => [...css.matchAll(new RegExp(`(^|\\n)${sel}\\s*{([^}]*)}`, "g"))].map((m) => m[2]).join("\n");
+  assert.match(rule("#search"), /top:\s*var\(--search-top\)/);
+  assert.match(rule("#search input"), /height:\s*var\(--search-h\)/);
+  const top = /top:\s*(calc\([^;]*\));/.exec(rule("\\.photo-prev,\\n\\.photo-next"))?.[1] ?? "";
+  for (const name of ["--search-top", "--search-h", "--photo-h", "--credit-inset", "--credit-row"]) {
+    assert.ok(top.includes(`var(${name})`), `${name} in ${top}`);
+  }
+});

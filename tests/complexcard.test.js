@@ -195,3 +195,14 @@ test("the member table fits its box: fixed columns and names cut with an ellipsi
   const cell = rule("table.members td.name");
   for (const declaration of [/overflow:\s*hidden/, /text-overflow:\s*ellipsis/, /white-space:\s*nowrap/]) assert.match(cell, declaration);
 });
+
+test("the complex shows its crop as one image with no counter or arrows", async () => {
+  const { root, card } = setup();
+  await card.open(ID);
+  await settle();
+  assert.equal(root.querySelectorAll(".strip-tile").length, 1);
+  assert.ok(root.querySelector(".strip-tile img.photo-crop"));
+  assert.equal(root.querySelector(".photo-count"), null);
+  assert.equal(root.querySelector(".photo-prev").hidden, true);
+  assert.equal(root.querySelector(".photo-next").hidden, true);
+});

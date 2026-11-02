@@ -1,4 +1,4 @@
-/* Photos: the Wikidata query, picking files, Commons credits, the timeout and the carousel. */
+/* Photos: the Wikidata query, picking files, Commons credits, the timeout and the image strip. */
 
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -295,7 +295,7 @@ test("Esri crop centres the bbox in the rows below a covered top", () => {
   assert.ok(crop.ymax - mercY(bbox.ymax) > 144 * perPixel, "the glacier stays below the covered rows");
 });
 
-/* The carousel and late results, through mountCard. */
+/* The image strip and late results, through mountCard. */
 
 const CATALOG = { columns: new Map() };
 function setup(over = {}) {
@@ -325,52 +325,48 @@ test("a photo for A arriving after B opens is dropped", async () => {
   assert.equal(root.querySelectorAll(".photo img").length, 1);
   resolvers.B([photo(2)]);
   await settle();
-  assert.equal(root.querySelector(".photo img").getAttribute("src"), photo(2).src);
+  assert.equal(root.querySelector(".photo img:not(.photo-crop)").getAttribute("src"), photo(2).src);
 });
 
-test("one photo has no arrows, several have them, and the buttons move the image", async () => {
+test("one image has no arrows, several have them, and the arrows step through without wrapping", async () => {
   const one = setup({ photos: async () => [photo(1)] });
   await one.card.open(OPEN("A"));
   await settle();
-  assert.equal(one.root.querySelector('[aria-label="Next photo"]'), null);
-  assert.equal(one.root.querySelector('[aria-label="Previous photo"]'), null);
-  const img = one.root.querySelector(".photo img");
-  assert.equal(img.getAttribute("alt"), "Photo of Glacier A");
-  assert.equal(img.getAttribute("loading"), "lazy");
+  assert.equal(one.root.querySelector(".photo-next").hidden, true);
+  assert.equal(one.root.querySelector(".photo-prev").hidden, true);
+  assert.equal(one.root.querySelector(".photo img").getAttribute("alt"), "Photo of Glacier A");
 
   const many = setup({ photos: async () => [photo(1), photo(2), photo(3)] });
   await many.card.open(OPEN("A"));
   await settle();
-  const src = () => many.root.querySelector(".photo img").getAttribute("src");
-  assert.equal(src(), photo(1).src);
-  click(many.root.querySelector('[aria-label="Next photo"]'));
-  assert.equal(src(), photo(2).src);
-  click(many.root.querySelector('[aria-label="Previous photo"]'));
-  click(many.root.querySelector('[aria-label="Previous photo"]'));
-  assert.equal(src(), photo(3).src, "previous wraps to the last photo");
+  const prev = many.root.querySelector('[aria-label="Previous image"]');
+  const next = many.root.querySelector('[aria-label="Next image"]');
+  assert.equal(prev.hidden, true);
+  click(next);
+  assert.equal(prev.hidden, false);
+  click(next);
+  assert.equal(next.hidden, true, "the last image ends the strip");
 });
 
-test("the photo credit is a line of text: source, author and license with safe links", async () => {
+test("a photo's credit reads author · license, as text, with safe links", async () => {
   const hostile = photo(1, { author: "<img src=x onerror=alert(1)>", licenseUrl: "javascript:alert(1)" });
   const { root, card } = setup({ photos: async () => [hostile, photo(2)] });
   await card.open(OPEN("A"));
   await settle();
-  const credit = () => root.querySelector(".photo .photo-credit");
+  const [first, second] = [...root.querySelectorAll(".strip-tile .photo-credit")];
   assert.equal(root.querySelector(".photo-info"), null, "no button: the credit always shows");
-  assert.equal(credit().querySelector(".credit-label"), null, "no label: the credit sits on the photo");
-  assert.equal(credit().textContent, "Wikidata Q1 · P18, <img src=x onerror=alert(1)>, CC BY-SA 4.0");
-  assert.equal(credit().querySelector("img"), null);
-  assert.equal(credit().querySelector('a[href="https://commons.wikimedia.org/wiki/File:1.jpg"]').textContent, "Wikidata Q1 · P18");
-  assert.equal(credit().querySelector('a[href^="javascript"]'), null);
-  click(root.querySelector('[aria-label="Next photo"]'));
-  assert.equal(credit().querySelector('a[href="https://creativecommons.org/licenses/by-sa/4.0"]').textContent, "CC BY-SA 4.0");
-  assert.equal(root.querySelectorAll(".photo-credit").length, 1);
+  assert.equal(first.textContent, "<img src=x onerror=alert(1)> · CC BY-SA 4.0");
+  assert.equal(first.querySelector("img"), null);
+  assert.equal(first.querySelector('.credit-author a[href="https://commons.wikimedia.org/wiki/File:1.jpg"]').textContent, hostile.author);
+  assert.equal(first.querySelector('a[href^="javascript"]'), null);
+  assert.equal(second.querySelector('a[href="https://creativecommons.org/licenses/by-sa/4.0"]').textContent, "CC BY-SA 4.0");
+  assert.equal(root.querySelectorAll(".photo-credit").length, 2, "one credit per image");
 });
 
-test("the photo credit sits along the photo's bottom left, set like the map's credits", () => {
+test("the photo credit floats inside the image's bottom left, set like the map's credits", () => {
   const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
   const rule = /(^|\n)\.photo-credit\s*\{([^}]*)\}/.exec(css)?.[2] ?? "";
-  for (const declaration of [/left:\s*0/, /bottom:\s*0/, /font-size:\s*11px/, /background:\s*var\(--glass\)/]) {
+  for (const declaration of [/left:\s*var\(--credit-inset\)/, /bottom:\s*var\(--credit-inset\)/, /border-radius:\s*8px/, /font-size:\s*11px/, /background:\s*var\(--glass\)/]) {
     assert.match(rule, declaration);
   }
   assert.doesNotMatch(css, /\.photo-attrib/, "the fold-out credit is gone");
@@ -450,15 +446,15 @@ test("a late source for A's crop does not touch B's credit", async () => {
   }
 });
 
-test("the crop shows while the photo lookup runs, and photos replace it when they arrive", async () => {
+test("the crop shows while the photo lookup runs, and photos join after it", async () => {
   let resolve;
   const { root, card } = setup({ photos: () => new Promise((r) => { resolve = r; }) });
   card.open(OPEN("A", { bbox: BBOX }));
   assert.equal(root.querySelector(".photo img.photo-crop").getAttribute("src"), esriCrop(BBOX, 816, 400));
   resolve([photo(1)]);
   await settle();
-  assert.equal(root.querySelector(".photo img.photo-crop"), null);
-  assert.equal(root.querySelector(".photo img").getAttribute("src"), photo(1).src);
+  assert.equal(root.querySelector(".photo img.photo-crop").getAttribute("src"), esriCrop(BBOX, 816, 400));
+  assert.equal(root.querySelector(".photo img:not(.photo-crop)").getAttribute("src"), photo(1).src);
 });
 
 test("a crop that fails while the photo lookup runs leaves the plain block", async () => {
@@ -493,7 +489,7 @@ test("without a bbox the area stays empty until the parquet read supplies it", a
   assert.equal(bare.root.querySelector(".photo-placeholder"), null);
 });
 
-test("a late crop error for A does not touch B and a crop error after close does not throw", async () => {
+test("B's crop takes over A's image, and a crop error after close does not throw", async () => {
   const { root, card } = setup();
   await card.open(OPEN("A", { bbox: BBOX }));
   await settle();
@@ -502,9 +498,8 @@ test("a late crop error for A does not touch B and a crop error after close does
   await card.open(OPEN("B", { bbox: other }));
   await settle();
   const crop = root.querySelector(".photo img");
+  assert.equal(crop, oldImg, "the image is reused, so no late load of A's crop can land");
   assert.equal(crop.getAttribute("src"), esriCrop(other, 816, 400));
-  oldImg.dispatchEvent(new window.Event("error"));
-  assert.equal(root.querySelector(".photo img").getAttribute("src"), esriCrop(other, 816, 400));
   assert.equal(root.querySelector(".photo-placeholder"), null);
   card.close();
   assert.doesNotThrow(() => crop.dispatchEvent(new window.Event("error")));

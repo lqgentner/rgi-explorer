@@ -136,7 +136,7 @@ test("the photo lookup waits for the map, reads the outline pieces and fills the
   assert.ok(map.calls.includes("querySourceFeatures data"));
   const sparql = log.find(({ url }) => url.startsWith("https://query.wikidata.org/"));
   assert.match(new URL(sparql.url).searchParams.get("query"), /P6799 "G008032E46504N"/, "the GLIMS ID comes from the row");
-  assert.match($("#card .photo img").getAttribute("src"), /^https:\/\/thumb\.wikimedia\.org\//);
+  assert.match($("#card .photo img:not(.photo-crop)").getAttribute("src"), /^https:\/\/thumb\.wikimedia\.org\//);
 });
 
 test("Use this data shows the exact Python snippet", () => {
