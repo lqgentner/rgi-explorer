@@ -91,8 +91,11 @@ export function keyGrid(rows) {
 export function cardFrame(root, ctx, { label, className, body, onUseData, onZoom }) {
   const photo = h("div", { class: "photo" });
   const head = h("header", { class: "card-head" });
+  const useData = button("Use this data", "btn primary", onUseData, "database");
+  /* The tour's Use this data step points here. */
+  useData.dataset.tour = "use-data";
   const actions = h("div", { class: "card-actions" },
-    button("Use this data", "btn primary", onUseData, "database"),
+    useData,
     button("Zoom to", "btn", onZoom, "scan-search"),
     button("Share", "btn", () => ctx.onShare?.(), "share-2"));
   const close = h("button", { type: "button", class: "icon-button card-close", "aria-label": "Close" }, icon("x"));

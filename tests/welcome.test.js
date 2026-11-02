@@ -10,7 +10,7 @@ const { window, document } = page;
 const { mountHelp, mountWelcome, welcomeTitle } = await load("js/welcome.js");
 
 const KEY = "rgi-explorer:welcome";
-const TITLE = "Explore the 274,531 glaciers of RGI 7.0";
+const TITLE = "Explore the 274,531 glaciers of RGI\u00a07.0";
 const button = (root, label) => [...root.querySelectorAll("button")].find((b) => b.textContent === label);
 
 function welcome(extra = {}) {
@@ -25,7 +25,7 @@ beforeEach(() => window.localStorage.clear());
 
 test("the title names the glacier count and the version, or the version alone", () => {
   assert.equal(welcomeTitle(274531, "7.0"), TITLE);
-  assert.equal(welcomeTitle(null, "7.0"), "Explore the glaciers of RGI 7.0");
+  assert.equal(welcomeTitle(null, "7.0"), "Explore the glaciers of RGI\u00a07.0");
 });
 
 test("on a first visit the welcome shows its heading, two lines, the user guide and the tour", () => {
@@ -91,7 +91,7 @@ test("show() brings the welcome back after it was seen", () => {
 
 test("a catalog without a count gives a heading without a number", () => {
   const { api } = welcome({ title: welcomeTitle(null, "7.0") });
-  assert.equal(api.node.querySelector("h2").textContent, "Explore the glaciers of RGI 7.0");
+  assert.equal(api.node.querySelector("h2").textContent, "Explore the glaciers of RGI\u00a07.0");
 });
 
 test("the help button ends the desktop controls, calls onHelp, and moves beside the credits on the phone", () => {

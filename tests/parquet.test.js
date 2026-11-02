@@ -46,12 +46,12 @@ const open = async () => openParquet(await hyparquet.asyncBufferFromFile(file));
 test("reads the search columns across groups", async () => {
   const h = await open();
   const cols = await readColumns(h, SEARCH_COLUMNS);
-  assert.equal(cols.rgi_id.length, 5);
+  assert.equal(cols.rgi_id.length, 6);
   assert.equal(h.groups.length, 3);
   assert.deepEqual(h.groups, [
     { start: 0, count: 2 },
     { start: 2, count: 2 },
-    { start: 4, count: 1 },
+    { start: 4, count: 2 },
   ]);
   assert.equal(cols.rgi_id[0], "RGI2000-v7.0-G-11-02596");
   assert.equal(cols.display_name[4], null);
@@ -126,8 +126,8 @@ test("a failed read is not cached", async () => {
 
 test("a row outside the file rejects with a RangeError", async () => {
   const h = await open();
-  assert.throws(() => rowGroupOf(h, 5), RangeError);
-  await assert.rejects(readRow(h, 5, CARD_COLUMNS), RangeError);
+  assert.throws(() => rowGroupOf(h, 6), RangeError);
+  await assert.rejects(readRow(h, 6, CARD_COLUMNS), RangeError);
   await assert.rejects(readRow(h, -1, CARD_COLUMNS), RangeError);
   await assert.rejects(readRow(h, 1.5, CARD_COLUMNS), RangeError);
 });

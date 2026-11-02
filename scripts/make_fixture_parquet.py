@@ -209,6 +209,16 @@ def glacier_rows():
             rgi6_links=[link("RGI60-11.00003", "11", 3), link("RGI60-11.00004", "11", 4)],
         ),
         variant(4),
+        # The tour's sample glacier, in the Southern Andes.
+        variant(
+            4760,
+            reg="17",
+            glac_name="UPSALA GLACIER",
+            display_name="Upsala Glacier",
+            cenlon=-73.26,
+            cenlat=-49.73,
+            bbox={"xmin": -73.45, "ymin": -50.0, "xmax": -73.05, "ymax": -49.45},
+        ),
     ]
 
 

@@ -8,7 +8,7 @@ import { mountCard } from "./card.js";
 import { loadCatalog } from "./catalog.js";
 import { mountCompass } from "./compass.js";
 import { mountComplexCard } from "./complexcard.js";
-import { resolveCatalogUrl, TIMEOUT_MS } from "./config.js";
+import { resolveCatalogUrl, SAMPLE_GLACIER, TIMEOUT_MS } from "./config.js";
 import { mountLayers, mountTerrain, mountZoom } from "./layers.js";
 import { createMap } from "./map.js";
 import { groupOfKey, openParquet, readColumns, readRow, rowGroupOf, SEARCH_COLUMNS } from "./parquet.js";
@@ -18,8 +18,10 @@ import { mountSearch } from "./searchbox.js";
 import { initSheet, popupPadding, setSheetLevel } from "./sheet.js";
 import { parseState, writeState } from "./state.js";
 import { mountStatus } from "./status.js";
+import { mountTour } from "./tour.js";
 import { el, PHONE, scrollbarWidth } from "./ui.js";
 import { mountUseData } from "./usedata.js";
+import { mountHelp, mountWelcome, welcomeTitle } from "./welcome.js";
 
 const CARD_WIDTH = 408;
 const GAP = 24;
@@ -346,6 +348,53 @@ function wire(catalog, rgiMap, regions) {
   });
   mountZoom(el("controls"), rgiMap);
   status = mountStatus(el("status"), rgiMap, catalog, () => state);
+
+  /*
+   * The welcome shows on a first visit, unless a shared link opens straight
+   * into a glacier or complex. The tour's steps find their controls in the
+   * layout of the moment; Help ends the tour, closes any panel and shows the
+   * welcome again.
+   */
+  const welcome = mountWelcome(el("sidebar"), {
+    title: welcomeTitle(catalog.glacierCount, catalog.version),
+    autoShow: !state.glacier && !state.complex,
+    onTour: () => tour.start(),
+  });
+  /* The one of a selector's nodes that shows: the glacier card and the complex panel are both mounted. */
+  const visible = (selector) => [...document.querySelectorAll(selector)].find((node) => !node.closest("[hidden]")) ?? null;
+  const ANCHORS = {
+    search: () => el("search"),
+    panel: () => (PHONE.matches ? el("sheet") : el("card")),
+    useData: () => visible(PHONE.matches ? '#sheet [data-tour="use-data"]' : '#card [data-tour="use-data"]'),
+    terrain: () => document.querySelector(".terrain-btn"),
+  };
+  const tour = mountTour(document.body, {
+    anchor: (name) => ANCHORS[name](),
+    panelOpen: () => Boolean(shown || shownComplex),
+    onTakeMe() {
+      glaciers.index().then(
+        (index) => {
+          const row = index.byId.get(SAMPLE_GLACIER);
+          if (row === undefined) console.warn("tour: no sample glacier", SAMPLE_GLACIER);
+          else openGlacier({ rgiId: SAMPLE_GLACIER, row }, ALWAYS);
+        },
+        (error) => console.warn("glacier index:", error.message),
+      );
+    },
+    /* A click on Use this data leaves the focus in the data it opened. */
+    onEnd({ byTarget }) {
+      if (!byTarget) help.button.focus();
+    },
+  });
+  const help = mountHelp({ desktop: el("controls"), phone: el("status") }, {
+    onHelp() {
+      if (tour.running) tour.end();
+      if (shown) closeGlacier();
+      else if (shownComplex) closeComplex();
+      welcome.show();
+      help.button.focus();
+    },
+  });
   rgiMap.onMove((view) => {
     state.view = view;
     save();
@@ -432,6 +481,7 @@ function wire(catalog, rgiMap, regions) {
     useData.close();
     card.close();
     showCard(false);
+    tour.refresh();
   }
 
   /** Fit the map around `bbox`, or around the open glacier or complex once its bbox is read. */
@@ -552,6 +602,8 @@ function wire(catalog, rgiMap, regions) {
     if (fit) fitComplexLater(complexId, fit);
     complexCard.open(complexId);
     if (PHONE.matches) setSheetLevel("compact");
+    welcome.dismiss();
+    tour.refresh();
   }
 
   function closeComplex() {
@@ -564,6 +616,7 @@ function wire(catalog, rgiMap, regions) {
     useData.close();
     complexCard.close();
     showCard(false);
+    tour.refresh();
   }
 
   /** Open a glacier's card and select it; `fit`, ALWAYS or IF_NEEDED, fits the map to its bbox. */
@@ -586,6 +639,8 @@ function wire(catalog, rgiMap, regions) {
     fitting = fit ? fitGlacierLater(glacier, fit) : null;
     card.open(glacier);
     if (PHONE.matches) setSheetLevel("compact");
+    welcome.dismiss();
+    tour.refresh();
   }
 
   map.on("click", (event) => {

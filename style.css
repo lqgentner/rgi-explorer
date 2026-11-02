@@ -1028,8 +1028,7 @@ button:focus-visible {
 
 /*
  * The first-visit welcome. On the desktop it sits under the search box, where
- * the card would open, and the search results draw over it; on the phone it
- * sits at the bottom, clear of the round buttons on the right.
+ * the card would open, and the search results draw over it.
  */
 .welcome {
   position: fixed;
@@ -1068,12 +1067,16 @@ button:focus-visible {
   right: 10px;
 }
 
+/*
+ * On the phone the welcome sits above the whole status line, the help button
+ * and the credits, which show at load: it must not hide the credits.
+ */
 @media (max-width: 640px) {
   .welcome {
     top: auto;
-    bottom: 12px;
+    bottom: calc(var(--status-h, 0px) + 20px);
     left: 12px;
-    right: 64px;
+    right: 12px;
     width: auto;
   }
 }

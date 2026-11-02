@@ -32,6 +32,9 @@ export const DEFAULT_VIEW = { zoom: 2, lat: 30, lon: 10 };
 export const MIN_VISIBLE_FRACTION = 0.8;
 export const MIN_PICK_PX = 24;
 
+/* The tour's sample glacier: Upsala Glacier, Southern Patagonian Icefield. Perito Moreno is unnamed in RGI 7.0. */
+export const SAMPLE_GLACIER = "RGI2000-v7.0-G-17-04760";
+
 /* A rough latitude for each time zone area; South American zones share "America/". */
 const AREA_LAT = {
   Africa: 5, America: 35, Antarctica: -75, Arctic: 75, Asia: 30, Atlantic: 45,

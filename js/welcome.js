@@ -26,9 +26,10 @@ function writeSeen() {
   }
 }
 
-/** The welcome's heading: the glacier count when the catalog gives one. */
+/** The welcome's heading: the glacier count when the catalog gives one. "RGI 7.0" never breaks. */
 export function welcomeTitle(count, version) {
-  return count ? `Explore the ${formatInt(count)} glaciers of RGI ${version}` : `Explore the glaciers of RGI ${version}`;
+  const rgi = `RGI\u00a0${version}`;
+  return count ? `Explore the ${formatInt(count)} glaciers of ${rgi}` : `Explore the glaciers of ${rgi}`;
 }
 
 /**
