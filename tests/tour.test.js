@@ -35,6 +35,13 @@ test("the popover goes right of a tall panel, inside the viewport", () => {
   assert.ok(at.top >= 8 && at.top + BOX.height <= VIEWPORT.height - 8);
 });
 
+test("left-bottom puts the popover left of a column of controls, level with its foot", () => {
+  const at = placeNear(rect(980, 400, 1016, 760), BOX, VIEWPORT, ["left-bottom"]);
+  assert.equal(at.side, "left-bottom");
+  assert.equal(at.top, 760 - 120);
+  assert.equal(at.left, 980 - 12 - 280);
+});
+
 test("with no side that fits, the first side is used and clamped inside the margin", () => {
   const at = placeNear(rect(0, 0, 1024, 768), BOX, VIEWPORT, ["below", "above"]);
   assert.equal(at.side, "below");
@@ -65,6 +72,7 @@ beforeEach(() => {
     phonePanel: target("phone-panel"),
     useData: document.body.appendChild(Object.assign(document.createElement("button"), { id: "use-data" })),
     terrain: target("terrain"),
+    controls: target("controls"),
     done: target("done"),
     useDataClose: document.body.appendChild(Object.assign(document.createElement("button"), { id: "usedata-close" })),
     viewerClose: document.body.appendChild(Object.assign(document.createElement("button"), { id: "viewer-close" })),
@@ -236,20 +244,35 @@ test("3D turning on finishes step 4 with the last card", () => {
   assert.deepEqual(calls.ends, [{ byTarget: false }]);
 });
 
-test("on the desktop the last card takes the 3D step's place, left of the 3D button", () => {
+test("on the desktop 3D and the last card sit left of the controls, level with the lowest", () => {
   window.innerWidth = 1280;
   window.innerHeight = 800;
-  const button3d = rect(1228, 640, 1268, 680);
-  targets.terrain.getBoundingClientRect = () => button3d;
-  targets.done.getBoundingClientRect = () => button3d;
+  const column = rect(1220, 400, 1264, 780);
+  targets.controls.getBoundingClientRect = () => column;
+  targets.done.getBoundingClientRect = () => column;
   toTerrain();
   assert.equal(title(), "3D");
   const step4 = { side: popup().dataset.side, top: popup().style.top, left: popup().style.left };
-  assert.equal(step4.side, "left");
+  assert.deepEqual(step4, { side: "left-bottom", top: `${780 - popup().getBoundingClientRect().height}px`, left: `${1220 - 12 - popup().getBoundingClientRect().width}px` });
+  assert.deepEqual(ringed(), ["terrain"], "the ring stays on the 3D button");
   terrain = true;
   tour.refresh();
   assert.equal(title(), "You're all set.");
   assert.deepEqual({ side: popup().dataset.side, top: popup().style.top, left: popup().style.left }, step4);
+});
+
+test("reposition follows controls that moved without changing size, and keeps the focus on Done", () => {
+  window.innerWidth = 1280;
+  window.innerHeight = 800;
+  targets.done.getBoundingClientRect = () => rect(1220, 400, 1264, 780);
+  terrain = true;
+  toTerrain();
+  assert.equal(title(), "You're all set.");
+  button("Done").focus();
+  targets.done.getBoundingClientRect = () => rect(1220, 384, 1264, 764);
+  tour.reposition();
+  assert.equal(popup().style.top, `${764 - popup().getBoundingClientRect().height}px`);
+  assert.equal(document.activeElement, button("Done"));
 });
 
 test("with 3D already on, Skip on step 3 goes straight to the last card", () => {
@@ -395,7 +418,7 @@ test("the text runs to the card's padding; only the heading keeps clear of the X
   assert.match(css, /\.welcome \.btn \{[^}]*margin: 8px 0 0 auto;/, "Take the tour sits on the right");
 });
 
-test("the last card follows its anchor as it grows, as the search does with its results", () => {
+test("the last card follows its anchor as it changes size", () => {
   const observed = [];
   window.ResizeObserver = class {
     constructor(callback) {
@@ -415,9 +438,9 @@ test("the last card follows its anchor as it grows, as the search does with its 
     assert.equal(title(), "You're all set.");
     const watcher = observed.find((o) => o.node === targets.done);
     assert.ok(watcher, "the last card watches its anchor");
-    targets.done.getBoundingClientRect = () => rect(16, 16, 392, 400);
+    targets.done.getBoundingClientRect = () => rect(1220, 300, 1264, 700);
     watcher.callback([]);
-    assert.equal(popup().style.top, `${400 + 12}px`);
+    assert.equal(popup().style.top, `${700 - popup().getBoundingClientRect().height}px`, "level with the anchor's new foot");
     assert.deepEqual(ringed(), [], "watched, not ringed");
   } finally {
     delete window.ResizeObserver;

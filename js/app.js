@@ -385,7 +385,8 @@ function wire(catalog, rgiMap, regions) {
     useData: () => visible(PHONE.matches ? '#sheet [data-tour="use-data"]' : '#card [data-tour="use-data"]'),
     terrain: () => document.querySelector(".terrain-btn"),
     /* The last card sits under the search on the desktop, above the status line on the phone. */
-    done: () => (PHONE.matches ? el("status") : document.querySelector(".terrain-btn")),
+    controls: () => el("controls"),
+    done: () => (PHONE.matches ? el("status") : el("controls")),
     /* While Use this data or the viewer covers the tour, the ring points at the close button that continues it. */
     useDataClose: () => visible(".usedata-close"),
     viewerClose: () => document.querySelector(".viewer-close"),
@@ -435,6 +436,8 @@ function wire(catalog, rgiMap, regions) {
       help.button.focus();
     },
   });
+  /* A taller status line, as 3D's terrain credits make it, lifts the desktop controls; the tour's popover follows. */
+  if (typeof ResizeObserver === "function") new ResizeObserver(() => tour.reposition()).observe(el("status"));
   rgiMap.onMove((view) => {
     state.view = view;
     save();

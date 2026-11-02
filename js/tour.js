@@ -36,9 +36,18 @@ const STEPS = {
     skipTo: "terrain",
     needsPanel: true,
   },
-  terrain: { n: 4, title: "3D", text: "Switch to 3D to see the terrain.", anchor: "terrain", sides: ["left", "below"], skipTo: "done" },
-  /* On the desktop the last card takes the 3D step's place; the app anchors it to the 3D button. */
-  done: { title: "You're all set.", text: "Have fun exploring the glaciers on your own.", sides: ["left", "below"] },
+  /* On the desktop 3D and the last card sit left of the map's controls, level with the lowest. */
+  terrain: {
+    n: 4,
+    title: "3D",
+    text: "Switch to 3D to see the terrain.",
+    anchor: "controls",
+    ring: "terrain",
+    sides: ["left-bottom"],
+    skipTo: "done",
+  },
+  /* The app anchors the last card to the controls on the desktop and the status line on the phone. */
+  done: { title: "You're all set.", text: "Have fun exploring the glaciers on your own.", sides: ["left-bottom"] },
 };
 /* Step 2 names what is open, and on the phone first asks to raise the sheet. */
 const CARD = {
@@ -69,6 +78,7 @@ const clamp = (value, low, high) => Math.max(low, Math.min(value, high));
  * Where a box of `box` size goes beside `target`, as `{top, left, side}`: the
  * first of `sides` where it lies wholly inside the viewport's margin, centred
  * on the target along the other axis; else the first side, clamped inside.
+ * "left-bottom" is left of the target with the two bottoms level.
  */
 export function placeNear(target, box, viewport, sides) {
   const maxTop = viewport.height - MARGIN - box.height;
@@ -80,6 +90,7 @@ export function placeNear(target, box, viewport, sides) {
     above: { top: target.top - GAP - box.height, left: centreLeft },
     right: { top: centreTop, left: target.right + GAP },
     left: { top: centreTop, left: target.left - GAP - box.width },
+    "left-bottom": { top: target.bottom - box.height, left: target.left - GAP - box.width },
   };
   const inside = ({ top, left }) => top >= MARGIN && top <= maxTop && left >= MARGIN && left <= maxLeft;
   const side = sides.find((s) => inside(at[s])) ?? sides[0];
@@ -99,7 +110,7 @@ export function placeNear(target, box, viewport, sides) {
  * reader used the card; `cover(by, open)` when Use this data ("useData") or
  * the viewer ("viewer") opens or closes.
  *
- * @returns {{start(): void, end(): void, refresh(): void, interacted(): void, cover(by: string, open: boolean): void, readonly running: boolean}}
+ * @returns {{start(): void, end(): void, refresh(): void, reposition(): void, interacted(): void, cover(by: string, open: boolean): void, readonly running: boolean}}
  */
 export function mountTour(root, { anchor, panel, terrainOn, onTakeMe, onStep, onEnd }) {
   let step = "find";
@@ -350,6 +361,10 @@ export function mountTour(root, { anchor, panel, terrainOn, onTakeMe, onStep, on
     /** Re-read what is open, 3D and the layout, move on if a step is done, and re-anchor. */
     refresh() {
       show();
+    },
+    /** Place the popover again by its anchor, which moved without changing size; the content and the focus stay. */
+    reposition() {
+      place();
     },
     /** The reader used the card: on step 2, Skip becomes Next. */
     interacted() {

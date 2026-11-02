@@ -206,8 +206,9 @@ These replace the matching points above.
 - **Step 1 has no Skip** (the owner's call): past it no card is open, so it
   would skip the card steps too. "Take me to a glacier" and the X remain; a
   catalog without the sample glacier leaves the X and the reader's own pick.
-- **The last card on the desktop** takes the 3D step's place, beside the
-  round buttons at the bottom right, so an open card or panel never covers it.
+- **3D and the last card on the desktop** sit left of the round buttons at
+  the bottom right, their bottoms level with the lowest button's, so an open
+  card or panel never covers the last card.
 - **The welcome on the phone** sits at the top under the search bar too, as
   on the desktop, clear of the round buttons.
 - **"Close to continue the tour":** the message has no X of its own; it
