@@ -109,6 +109,82 @@ function place(node, button) {
   Object.assign(node.style, { top: `${top}px`, left: `${left}px` });
 }
 
+/** A flick that ends a scroll the page makes carries it on for its speed times this, in ms. */
+export const GLIDE_MS = 300;
+/* Slower flicks, in px/ms, stop where they are. */
+const GLIDE_MIN = 0.1;
+/* Movement in px before a drag on a popover scrolls. Match LOCK_PX in js/sheet.js. */
+const DRAG_PX = 8;
+/* A drag's speed is measured over this many ms before its release. */
+const SPEED_MS = 100;
+
+/** Carry on a scroll of `scroller` that a flick at `velocity` px/ms ended, positive downward through the content. */
+export function glide(scroller, velocity) {
+  if (Math.abs(velocity) > GLIDE_MIN) scroller.scrollBy?.({ top: velocity * GLIDE_MS, behavior: "smooth" });
+}
+
+/* The nearest ancestor of `node` that scrolls vertically, or null. */
+function scrollerOf(node) {
+  for (let at = node.parentElement; at; at = at.parentElement) {
+    const { overflowY } = window.getComputedStyle(at);
+    if ((overflowY === "auto" || overflowY === "scroll") && at.scrollHeight > at.clientHeight) return at;
+  }
+  return null;
+}
+
+/*
+ * An open popover lies in the top layer, so a scroll that starts on it would
+ * reach only the page, which does not scroll. A wheel or a vertical drag on
+ * it scrolls the panel under its button instead, until `signal` aborts. A
+ * drag that a handler nearer the target took, such as the phone's sheet, or
+ * that the browser scrolls itself, is left to them: the window hears it last.
+ */
+function passScroll(node, button, signal) {
+  let drag = null;
+  node.addEventListener("wheel", (event) => {
+    const scroller = scrollerOf(button);
+    if (!scroller || event.ctrlKey) return;
+    event.preventDefault();
+    scroller.scrollBy({ top: event.deltaY * [1, 16, scroller.clientHeight][event.deltaMode] });
+  }, { passive: false, signal });
+  node.addEventListener("touchstart", (event) => {
+    const [{ clientX, clientY }] = event.touches;
+    drag = event.touches.length === 1 ? { x: clientX, y: clientY, axis: null, samples: [] } : null;
+  }, { passive: true, signal });
+  window.addEventListener("touchmove", (event) => {
+    if (!drag || event.touches.length !== 1) return;
+    if (event.defaultPrevented || !event.cancelable) {
+      drag = null;
+      return;
+    }
+    const [{ clientX, clientY }] = event.touches;
+    if (!drag.axis) {
+      const [dx, dy] = [clientX - drag.x, clientY - drag.y];
+      if (Math.hypot(dx, dy) < DRAG_PX) return;
+      drag.axis = Math.abs(dy) > Math.abs(dx) ? "y" : "x";
+      drag.scroller = scrollerOf(button);
+      if (drag.axis !== "y" || !drag.scroller) {
+        drag = null;
+        return;
+      }
+    }
+    event.preventDefault();
+    drag.scroller.scrollTop += drag.y - clientY;
+    drag.y = clientY;
+    drag.samples.push({ y: clientY, time: event.timeStamp });
+    while (drag.samples.length > 2 && event.timeStamp - drag.samples[0].time > SPEED_MS) drag.samples.shift();
+  }, { passive: false, signal });
+  const end = (event) => {
+    const { samples = [], scroller } = drag ?? {};
+    drag = null;
+    if (samples.length < 2 || event.timeStamp - samples.at(-1).time > SPEED_MS) return;
+    const [first, last] = [samples[0], samples.at(-1)];
+    glide(scroller, (first.y - last.y) / (last.time - first.time || 1));
+  };
+  window.addEventListener("touchend", end, { signal });
+  window.addEventListener("touchcancel", () => (drag = null), { signal });
+}
+
 /** Point the popover's arrow at its button, from whichever side it opened on. */
 function aim(node, button) {
   const at = button.getBoundingClientRect();
@@ -153,6 +229,7 @@ export function popover(button, className, ...children) {
     if (!open) return;
     scrolling = new AbortController();
     const { signal } = scrolling;
+    passScroll(node, button, signal);
     if (!ANCHORS) {
       place(node, button);
       aim(node, button);
