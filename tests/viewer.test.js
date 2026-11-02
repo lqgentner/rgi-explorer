@@ -151,3 +151,19 @@ test("crossing the breakpoint keeps the viewer open on the same image", () => {
     closeIfOpen();
   }
 });
+
+test("closing hands focus to returnFocus(index) without scrolling, after onClose", () => {
+  const order = [];
+  const target = document.createElement("button");
+  document.body.append(target);
+  const options = [];
+  const real = target.focus.bind(target);
+  target.focus = (opts) => { options.push(opts); order.push("focus"); real(opts); };
+  const { list } = items();
+  openViewer(list, 0, { onClose: (i) => order.push(`close ${i}`), returnFocus: (i) => (i === 1 ? target : null) });
+  key(dialog(), "ArrowRight");
+  key(dialog(), "Escape");
+  assert.deepEqual(order, ["close 1", "focus"]);
+  assert.deepEqual(options, [{ preventScroll: true }]);
+  assert.equal(document.activeElement, target);
+});

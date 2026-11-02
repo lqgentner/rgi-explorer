@@ -148,9 +148,9 @@ export function imageryCredit(bbox, size, top) {
 }
 
 /** The strip item of the imagery crop of `bbox`, framed as `crop` says. */
-export function imageryItem(bbox, { crop = CROP, alt, onError }) {
+export function imageryItem(bbox, { key = "imagery", crop = CROP, alt, onError }) {
   return {
-    key: "imagery",
+    key,
     src: esriCrop(bbox, ...crop.size, crop.top),
     alt,
     className: "photo-crop",
@@ -243,7 +243,7 @@ export function mountCard(root, ctx) {
   });
   const strip = mountStrip(photo, {
     label: "Glacier images",
-    onOpen: (index, button) => openViewer(viewerItems(), index, { onClose: (i) => strip.show(i), returnFocus: button }),
+    onOpen: (index) => openViewer(viewerItems(), index, { onClose: (i) => strip.show(i), returnFocus: (i) => strip.buttonAt(i) }),
   });
   const empty = placeholder();
 
@@ -388,7 +388,8 @@ export function mountCard(root, ctx) {
     const mine = current;
     const { bbox, photos } = shownImages();
     strip.update([
-      ...(bbox ? [imageryItem(bbox, { crop: ctx.crop, alt: IMAGERY_ALT, onError: cropFailedFor(mine) })] : []),
+      /* Keyed by glacier: a new glacier's crop is a new image, so the last one's never shows under its title. */
+      ...(bbox ? [imageryItem(bbox, { key: `imagery:${mine.rgiId}`, crop: ctx.crop, alt: IMAGERY_ALT, onError: cropFailedFor(mine) })] : []),
       ...photos.map((p) => photoItem(p, { alt: photoAlt(), onError: photoFailedFor(mine, p) })),
     ]);
     if (mine.photos.cropFailed && !photos.length) photo.append(empty);

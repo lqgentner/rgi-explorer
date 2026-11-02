@@ -46,13 +46,19 @@ function hide() {
   else dialog.removeAttribute("open");
 }
 
+/*
+ * Close, then let the caller show the image closed on, then focus it without
+ * scrolling: the browser's own focus restore and a scrolling focus would both
+ * bring back the image that opened the viewer.
+ */
 function close() {
   if (!state) return;
   const { index, onClose, returnFocus } = state;
   state = null;
   hide();
   onClose?.(index);
-  returnFocus?.focus();
+  const target = typeof returnFocus === "function" ? returnFocus(index) : returnFocus;
+  target?.focus({ preventScroll: true });
 }
 
 /** Fill slide `i` the first time it is shown: its stand-in, its large file and its credit. */
@@ -141,7 +147,8 @@ function build() {
 
 /**
  * Opens the viewer on `items` at `index`. `onClose(index)` hears the image it
- * closed on; focus then returns to `returnFocus`.
+ * closed on; focus then goes to `returnFocus`, an element or a function of
+ * that index.
  */
 export function openViewer(items, index, { onClose, returnFocus } = {}) {
   if (!items.length) return;

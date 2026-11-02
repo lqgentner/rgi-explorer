@@ -583,6 +583,27 @@ test("a click on an image opens the viewer there, and closing shows that image i
   viewer.dispatchEvent(new window.KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
   viewer.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
   assert.equal(root.querySelector(".photo-next").hidden, true, "the strip shows the third image");
-  assert.equal(document.activeElement, opener);
+  assert.equal(document.activeElement, tilesOf(root)[2].querySelector(".strip-open"), "focus lands on the image closed on");
   card.close();
+});
+
+test("a new glacier's crop is a new image, so the last glacier's imagery never shows under its title", async () => {
+  const { root, card } = setup();
+  await card.open({ rgiId: IDS[0], props: WITH_BBOX });
+  const first = root.querySelector("img.photo-crop");
+  await card.open({ rgiId: IDS[1], props: { ...WITH_BBOX, rgi_id: IDS[1], bbox: { xmin: 1, ymin: 2, xmax: 3, ymax: 4 } } });
+  const second = root.querySelector("img.photo-crop");
+  assert.notEqual(second, first);
+  first.dispatchEvent(new window.Event("error"));
+  assert.ok(root.querySelector("img.photo-crop"), "a late error from the old crop changes nothing");
+  card.close();
+});
+
+test("a tile's keyboard ring is drawn inside it, and the desktop arrows hide only where there is hover", () => {
+  const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
+  assert.match(css, /\.strip-open:focus-visible\s*{[^}]*outline-offset:\s*-\d+px/);
+  const hover = [...css.matchAll(/@media \(hover: hover\)\s*{([\s\S]*?)\n}/g)].map((m) => m[1]).join("\n");
+  assert.match(hover, /\.photo-prev,\s*\.photo-next\s*{[^}]*opacity:\s*0/, "the fade is for pointers that hover");
+  const base = /(^|\n)\.photo-prev,\n\.photo-next\s*{([^}]*)}/.exec(css)?.[2] ?? "";
+  assert.doesNotMatch(base, /opacity:\s*0/, "without hover the arrows stay visible");
 });

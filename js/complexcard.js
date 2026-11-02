@@ -39,7 +39,7 @@ export function mountComplexCard(root, ctx) {
     label: "Complex image",
     onOpen: (index, button) => {
       const bbox = current?.props?.bbox;
-      if (bbox) openViewer([imageryViewerItem(bbox, "Satellite imagery of the complex")], 0, { onClose: (i) => strip.show(i), returnFocus: button });
+      if (bbox) openViewer([imageryViewerItem(bbox, "Satellite imagery of the complex")], 0, { onClose: (i) => strip.show(i), returnFocus: (i) => strip.buttonAt(i) ?? button });
     },
   });
   const empty = placeholder();
@@ -116,7 +116,7 @@ export function mountComplexCard(root, ctx) {
       mine.cropFailed = true;
       renderPhoto();
     };
-    strip.update(bbox && !mine.cropFailed ? [imageryItem(bbox, { crop: ctx.crop, alt: "Satellite imagery of the complex", onError })] : []);
+    strip.update(bbox && !mine.cropFailed ? [imageryItem(bbox, { key: `imagery:${mine.id}`, crop: ctx.crop, alt: "Satellite imagery of the complex", onError })] : []);
     if (mine.cropFailed) photo.append(empty);
     else empty.remove();
   }

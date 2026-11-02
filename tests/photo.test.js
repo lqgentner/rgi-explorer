@@ -489,7 +489,7 @@ test("without a bbox the area stays empty until the parquet read supplies it", a
   assert.equal(bare.root.querySelector(".photo-placeholder"), null);
 });
 
-test("B's crop takes over A's image, and a crop error after close does not throw", async () => {
+test("a late crop error for A does not touch B and a crop error after close does not throw", async () => {
   const { root, card } = setup();
   await card.open(OPEN("A", { bbox: BBOX }));
   await settle();
@@ -498,8 +498,10 @@ test("B's crop takes over A's image, and a crop error after close does not throw
   await card.open(OPEN("B", { bbox: other }));
   await settle();
   const crop = root.querySelector(".photo img");
-  assert.equal(crop, oldImg, "the image is reused, so no late load of A's crop can land");
+  assert.notEqual(crop, oldImg, "B gets an image of its own, so A's imagery never shows under B's title");
   assert.equal(crop.getAttribute("src"), esriCrop(other, 816, 400));
+  oldImg.dispatchEvent(new window.Event("error"));
+  assert.equal(root.querySelector(".photo img").getAttribute("src"), esriCrop(other, 816, 400));
   assert.equal(root.querySelector(".photo-placeholder"), null);
   card.close();
   assert.doesNotThrow(() => crop.dispatchEvent(new window.Event("error")));

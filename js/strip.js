@@ -40,8 +40,12 @@ export function mountStrip(photo, { label, onOpen }) {
 
   function refreshArrows() {
     const many = order.length > 1;
+    const focused = document.activeElement;
     prev.hidden = !many || index === 0;
     next.hidden = !many || index === order.length - 1;
+    /* An arrow that hides while focused would drop focus to the page. */
+    if (focused === next && next.hidden && !prev.hidden) prev.focus();
+    else if (focused === prev && prev.hidden && !next.hidden) next.focus();
   }
 
   function makeTile(item) {
@@ -83,7 +87,8 @@ export function mountStrip(photo, { label, onOpen }) {
       entry.count?.remove();
       entry.count = items.length > 1 ? h("span", { class: "photo-count" }, `${i + 1} / ${items.length}`) : null;
       if (entry.count) entry.tile.append(entry.count);
-      strip.append(entry.tile);
+      /* Move a tile only when it is out of place: moving it would drop keyboard focus. */
+      if (strip.children[i] !== entry.tile) strip.insertBefore(entry.tile, strip.children[i] ?? null);
     });
     order = keys;
     index = order.length ? clamp(index) : 0;
@@ -129,6 +134,8 @@ export function mountStrip(photo, { label, onOpen }) {
   return {
     update,
     show,
+    /** The open button of image `i`, or null. */
+    buttonAt: (i) => tiles.get(order[i])?.button ?? null,
     get index() {
       return index;
     },

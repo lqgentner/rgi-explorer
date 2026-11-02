@@ -1467,6 +1467,11 @@ table.members .num {
   cursor: zoom-in;
 }
 
+/* The tile clips anything outside it, so the keyboard ring is drawn inside. */
+.strip-open:focus-visible {
+  outline-offset: -3px;
+}
+
 .strip-open img {
   display: block;
   width: 100%;
@@ -1493,12 +1498,19 @@ table.members .num {
   background: var(--photo-glass);
   backdrop-filter: var(--glass-blur);
   box-shadow: 0 1px 2px rgb(60 64 67 / 20%);
-  opacity: 0;
   transition: opacity 150ms ease-out;
 }
 
-.photo:is(:hover, :focus-within) :is(.photo-prev, .photo-next) {
-  opacity: 1;
+/* Where there is hover, the arrows wait for it; a touch screen keeps them in view. */
+@media (hover: hover) {
+  .photo-prev,
+  .photo-next {
+    opacity: 0;
+  }
+
+  .photo:is(:hover, :focus-within) :is(.photo-prev, .photo-next) {
+    opacity: 1;
+  }
 }
 
 .photo-prev {

@@ -153,3 +153,30 @@ test("an update clamps the index", () => {
   strip.update([item("a")]);
   assert.equal(strip.index, 0);
 });
+
+test("an update keeps keyboard focus on a tile that stays", () => {
+  const { strip, tiles } = mount();
+  const a = item("a");
+  strip.update([a]);
+  const button = tiles()[0].querySelector(".strip-open");
+  button.focus();
+  strip.update([a, item("b"), item("c")]);
+  assert.equal(document.activeElement, button);
+});
+
+test("an arrow that hides while focused hands focus to the other arrow", () => {
+  const { photo, strip } = mount();
+  strip.update([item("a"), item("b")]);
+  const next = photo.querySelector(".photo-next");
+  next.focus();
+  click(next);
+  assert.equal(next.hidden, true);
+  assert.equal(document.activeElement, photo.querySelector(".photo-prev"));
+});
+
+test("buttonAt returns the open button of image i", () => {
+  const { strip, tiles } = mount();
+  strip.update([item("a"), item("b")]);
+  assert.equal(strip.buttonAt(1), tiles()[1].querySelector(".strip-open"));
+  assert.equal(strip.buttonAt(5), null);
+});
