@@ -58,7 +58,8 @@ test("the viewer opens at the given image with its counter", () => {
 test("only the shown image asks for its large file, once", async () => {
   const { list, calls } = items();
   openViewer(list, 1, {});
-  const size = viewerCropSize(window.innerWidth, window.innerHeight);
+  /* One export pixel per CSS pixel: finer asks cost four times the bytes and can reach Esri's patchier levels. */
+  const size = viewerCropSize(window.innerWidth, window.innerHeight, { scale: 1 });
   assert.deepEqual(calls.large, [[1, size]]);
   assert.deepEqual(calls.credit, [[1, size]]);
   key(dialog(), "ArrowRight");
@@ -190,7 +191,7 @@ test("the layer pane and the dialog share the light scrim, and the desktop viewe
   const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
   const rule = (sel) => [...css.matchAll(new RegExp(`(^|\\n)\\s*${sel}\\s*{([^}]*)}`, "g"))].map((m) => m[2]).join("\n");
   assert.match(css, /--scrim:\s*rgb\(32 33 36 \/ 40%\)/);
-  assert.match(css, /--scrim-strong:\s*rgb\(32 33 36 \/ 70%\)/);
+  assert.match(css, /--scrim-strong:\s*rgb\(32 33 36 \/ 80%\)/);
   assert.match(rule("\\.layers-scrim"), /background:\s*var\(--scrim\)/);
   assert.match(rule("dialog\\.usedata::backdrop"), /background:\s*var\(--scrim\)/);
   assert.match(rule("dialog\\.viewer"), /background:\s*var\(--scrim-strong\)/, "the full-screen dialog is the scrim");

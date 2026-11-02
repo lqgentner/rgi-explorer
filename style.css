@@ -21,7 +21,7 @@
   --tile-radius: 12px;
   /* What darkens the page behind a pane or dialog: light for panes, strong behind the image viewer. */
   --scrim: rgb(32 33 36 / 40%);
-  --scrim-strong: rgb(32 33 36 / 70%);
+  --scrim-strong: rgb(32 33 36 / 80%);
   /* The search bar's place, which the desktop photo's arrows are centred against. */
   --search-top: 16px;
   --search-h: 48px;
@@ -1582,7 +1582,7 @@ table.members .num {
  * from image to image.
  */
 dialog.viewer {
-  --dock-room: 160px;
+  --dock-room: 128px;
   inset: 0;
   width: 100vw;
   height: 100dvh;

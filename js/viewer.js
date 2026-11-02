@@ -194,7 +194,12 @@ export function openViewer(items, index, { onClose, returnFocus } = {}) {
     slides,
     credits: [],
     index: 0,
-    size: viewerCropSize(window.innerWidth, window.innerHeight),
+    /*
+     * One export pixel per CSS pixel. Asking Esri for twice that costs four
+     * times the bytes and can tip it into a finer level, which in places is
+     * a patchwork of scenes from different dates.
+     */
+    size: viewerCropSize(window.innerWidth, window.innerHeight, { scale: 1 }),
     loaded: new Set(),
     onClose,
     returnFocus,

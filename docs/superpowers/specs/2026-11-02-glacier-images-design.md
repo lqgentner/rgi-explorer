@@ -229,7 +229,7 @@ Revised on 2026-11-02 after a look at the first build (mockups:
   At the first and last image an arrow is disabled, not hidden. With one
   image there is no counter and no arrows.
 - **Desktop:** the page behind the viewer is darkened with `--scrim-strong`,
-  dark grey (`#202124`) at 70%, so the app stays recognisable and the white
+  dark grey (`#202124`) at 80%, so the app stays recognisable and the white
   credit and controls read over it. The image floats above the dock at its
   own size and shape, as large as fits, with 16px corners. A click anywhere
   outside the image and the dock closes the viewer.
@@ -248,11 +248,15 @@ Revised on 2026-11-02 after a look at the first build (mockups:
   jumps. Only the image on screen loads. Prefetching its neighbours is left
   to the builder.
 - **The imagery in the viewer is framed on its own.** It uses `esriCrop()`
-  on the bbox at the viewer's size, at twice the CSS pixels and within Esri's
-  export limit, with `top: 0`, since nothing covers it there. The strip's crop
+  on the bbox at the viewer's size, one export pixel per CSS pixel and within
+  Esri's export limit, with `top: 0`, since nothing covers it there. The strip's crop
   is framed differently (on the desktop it keeps its top rows clear for the
   search bar), so it does not stand in. The viewer shows a plain dark area
-  until the export loads. *(My call.)*
+  until the export loads. *(My call.)* Twice the CSS pixels was tried first:
+  it costs four times the bytes, and for a large glacier it can tip Esri
+  into a finer level. Around Vatnajökull that level is a patchwork of scenes
+  from different dates (Dyngjujökull, RGI2000-v7.0-G-06-00375: the 75 m
+  level at 2000 px wide against the even 150 m Earthstar level at 1400 px).
 - **The viewer's imagery gets its own `identify`** for that extent and size.
   A finer export can come from different imagery than the strip's crop, and
   the credit has to name what is shown. Until `identify` answers, the credit
@@ -272,7 +276,7 @@ dialog. Two strengths, as custom properties in `:root`:
 - `--scrim`, dark grey (`#202124`) at 40%: the phone's layer pane
   (`.layers-scrim`, black at 40% today) and the "Use this data" dialog's
   backdrop (already this value). One value for both.
-- `--scrim-strong`, the same grey at 70%: the desktop image viewer, whose
+- `--scrim-strong`, the same grey at 80%: the desktop image viewer, whose
   white credit and controls sit on it.
 
 ## Credits
