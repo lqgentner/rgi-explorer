@@ -19,8 +19,9 @@ stub(el("sheet"), "offsetHeight", 500);
 stub(el("sheet-body"), "offsetTop", 90);
 stub(el("sheet-body"), "scrollTop", 0);
 
-const { FLICK, LEVELS, LOCK_PX, PEEK_PX, initSheet, lockAxis, popupPadding, setSheetLevel, sheetLevel, snapTarget } =
+const { FLICK, LEVELS, LOCK_PX, MIDDLE_CUT, PEEK_PX, initSheet, lockAxis, popupPadding, setSheetLevel, sheetLevel, snapTarget } =
   await load("js/sheet.js");
+const { GLIDE_MS } = await load("js/ui.js");
 initSheet();
 
 const root = () => document.documentElement.style;
@@ -39,9 +40,10 @@ function pointer(target, type, y, { x = 100, time } = {}) {
   return event;
 }
 
-function touch(target, type, y, { fingers = 1, cancelable = true } = {}) {
+function touch(target, type, y, { fingers = 1, cancelable = true, time } = {}) {
   const touches = Array.from({ length: fingers }, (_, i) => ({ clientX: 100 + 40 * i, clientY: y }));
   const event = new window.TouchEvent(type, { bubbles: true, cancelable, touches });
+  if (time !== undefined) Object.defineProperty(event, "timeStamp", { value: time });
   target.dispatchEvent(event);
   return event;
 }
@@ -167,6 +169,39 @@ test("at full height the body scrolls, and pulled down from its top it lowers th
   assert.equal(sheetLevel(), "middle");
 });
 
+test("a drag up the body that reaches full height goes on to scroll the body, and a flick glides on", () => {
+  const body = el("sheet-body");
+  const glides = [];
+  body.scrollBy = ({ top, behavior }) => glides.push({ top, behavior });
+  setSheetLevel("middle");
+  body.scrollTop = 0;
+  touch(body, "touchstart", 600, { time: 0 });
+  touch(body, "touchmove", 500, { time: 400 });
+  assert.equal(visible(), "425px");
+  assert.equal(body.scrollTop, 0, "below full height the sheet moves, not the body");
+  assert.equal(touch(body, "touchmove", 410, { time: 800 }).defaultPrevented, true);
+  assert.equal(visible(), "500px");
+  assert.equal(body.scrollTop, 15, "the 15 px past full height scroll the body");
+  touch(body, "touchmove", 400, { time: 820 });
+  assert.equal(body.scrollTop, 25);
+  touch(body, "touchend", 400, { time: 830 });
+  assert.equal(sheetLevel(), "full");
+  assert.deepEqual(glides, [{ top: 0.5 * GLIDE_MS, behavior: "smooth" }], "0.5 px/ms carries the scroll on");
+
+  glides.length = 0;
+  setSheetLevel("middle");
+  body.scrollTop = 0;
+  touch(body, "touchstart", 600, { time: 0 });
+  touch(body, "touchmove", 380, { time: 400 });
+  touch(body, "touchmove", 430, { time: 800 });
+  assert.equal(body.scrollTop, 0, "back below full height, the body is back at its start");
+  touch(body, "touchend", 430, { time: 1200 });
+  assert.equal(sheetLevel(), "full", "the nearest height");
+  assert.deepEqual(glides, []);
+  delete body.scrollBy;
+  body.scrollTop = 0;
+});
+
 test("the credits ride on the sheet's edge, fade as it rises and hide once it rests above compact", () => {
   const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
   const phone = css.slice(css.indexOf("/* Phone: the search bar, the bottom sheet"));
@@ -187,4 +222,29 @@ test("at compact the buttons sit as far under the name's baseline as above the p
   const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
   assert.match(css, /#sheet\[data-level="compact"\] #sheet-head \.card-actions \{\s*padding-top: 9px;/,
     "16 px less the 7 px the name's line box leaves under its baseline");
+});
+
+/* Last: the sheet keeps the middle height the key numbers gave. */
+test("the middle sheet cuts through the second row of the key numbers once they are laid out", () => {
+  const rect = (top, height) => ({ top, bottom: top + height, height, left: 0, right: 100, width: 100 });
+  const grid = document.createElement("div");
+  grid.className = "key-grid";
+  const tiles = [0, 1, 2, 3].map((i) => {
+    const tile = document.createElement("div");
+    tile.getBoundingClientRect = () => rect(i < 2 ? 640 : 704, 56);
+    return tile;
+  });
+  grid.append(...tiles);
+  grid.getClientRects = () => [rect(640, 120)];
+  el("sheet-body").append(grid);
+  el("sheet").getBoundingClientRect = () => rect(300, 500);
+
+  setSheetLevel("middle");
+  assert.equal(MIDDLE_CUT, 0.5);
+  assert.equal(visible(), `${704 - 300 + 28}px`, "the second row's top half shows");
+  grid.getClientRects = () => [];
+  setSheetLevel("compact");
+  setSheetLevel("middle");
+  assert.equal(visible(), "432px", "while another tab hides them the height stays");
+  grid.remove();
 });

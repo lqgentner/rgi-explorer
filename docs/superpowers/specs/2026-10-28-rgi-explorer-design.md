@@ -217,10 +217,14 @@ elsewhere closes it.
   square has a blue border drawn inside it, on the phone and the desktop.
 - **One bottom sheet** for the glacier card, with GLACE Viewer's behavior.
   - Compact height: the name, "Use this data" and the top of the photo.
-  - Middle height: the RGI ID and region join the name, and the photo
-    and the start of the tabs show.
+    A pick on the map opens the sheet here.
+  - Middle height: the RGI ID and region join the name, and the photo, the
+    tabs and the first row of key numbers show. The edge cuts through the
+    second row, so the reader sees there is more. A pick in search opens the
+    sheet here.
   - Full height, up to the search bar's top: the photo and both tabs, which
-    scroll.
+    scroll. A swipe up the body that reaches full height goes on to scroll it
+    in the same motion.
   - The photo is an inset strip of images with rounded corners, inside the
     card's 16px gutters, with a sliver of the next image. A swipe moves it
     (see `2026-11-02-glacier-images-design.md`).

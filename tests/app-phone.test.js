@@ -40,12 +40,12 @@ test("a pick mounts the card in the sheet: the header in the band, the photo and
   assert.ok(button($("#sheet-band"), "Use this data"));
   assert.ok($("#sheet-body .photo"));
   assert.ok($("#sheet-body [role=tablist]"));
-  assert.equal($("#sheet").dataset.level, "compact", "the sheet opens compact");
-  assert.ok($("#sheet-body").hasAttribute("inert"));
+  assert.equal($("#sheet").dataset.level, "middle", "a search pick opens the sheet to the key numbers");
+  assert.equal($("#sheet-body").hasAttribute("inert"), false);
   assert.equal(new URL(window.location.href).searchParams.get("glacier"), ALETSCH);
 
   click($("#sheet-handle"));
-  assert.equal($("#sheet").dataset.level, "middle");
+  assert.equal($("#sheet").dataset.level, "full");
   await waitFor(() => $("#sheet-body .panel-hypsometry svg"));
 });
 

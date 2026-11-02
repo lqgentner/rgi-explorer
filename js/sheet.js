@@ -2,15 +2,18 @@
  * The glacier card on phones: a sheet docked to the bottom at three heights.
  * Compact shows the band (the handle, the name and "Use this data") and the
  * top of the photo; middle adds the ID or region line to the band and shows
- * the photo and the start of the tabs; full reaches the search
- * bar's top, and only there does the body scroll. A drag writes two
- * properties on the root: --sheet-visible, which style.css turns into the
- * sheet's transform, and --sheet-rise, 0 at compact and 1 from middle up,
- * which fades the credits that ride on the sheet's edge. Nothing moves
- * between input events but CSS transitions.
+ * the photo, the tabs and the first row of key numbers, and cuts through the
+ * second so the reader sees there is more; full reaches the search bar's top,
+ * and only there does the body scroll. A drag on the body that carries the
+ * sheet to full height goes on to scroll the body in the same motion. A drag
+ * writes two properties on the root: --sheet-visible, which style.css turns
+ * into the sheet's transform, and --sheet-rise, 0 at compact and 1 from
+ * middle up, which fades the credits that ride on the sheet's edge. Nothing
+ * moves between input events but CSS transitions and the browser's smooth
+ * scroll that carries on a flick.
  */
 
-import { el, PHONE } from "./ui.js";
+import { el, glide, PHONE } from "./ui.js";
 
 /** Movement in px before a gesture counts as vertical or horizontal. */
 export const LOCK_PX = 8;
@@ -20,8 +23,10 @@ export const FLICK = 0.5;
 export const LEVELS = ["compact", "middle", "full"];
 /** How much of the photo the compact sheet shows below the band, in px. */
 export const PEEK_PX = 20;
-/** The middle height, as a share of the full one. */
+/** The middle height, as a share of the full one, until the key numbers are laid out. */
 export const MIDDLE_SHARE = 0.65;
+/** The share of the key numbers' second row that the middle sheet shows. */
+export const MIDDLE_CUT = 0.5;
 
 /* Release speed is measured over this many ms before the release. */
 const VELOCITY_WINDOW_MS = 100;
@@ -72,6 +77,9 @@ let level = "compact";
 /* The px on screen at each level, lowest first, and now. */
 let stops = [0, 0, 0];
 let visible = 0;
+/* The middle height the key numbers last gave, kept while another tab hides them. */
+let middle = null;
+let observer = null;
 /* The touch or pointer moving the sheet: its start, axis and recent positions. */
 let gesture = null;
 
@@ -80,6 +88,23 @@ function outerHeight(node) {
   if (!node.getClientRects().length) return 0;
   const style = getComputedStyle(node);
   return node.offsetHeight + parseFloat(style.marginTop || 0) + parseFloat(style.marginBottom || 0);
+}
+
+/*
+ * The middle height: through the second row of the open panel's key numbers,
+ * measured from the sheet's top as if the body were scrolled to its top.
+ * Without a second row laid out, the last such height, or MIDDLE_SHARE.
+ */
+function middleOf(full) {
+  const body = el("sheet-body");
+  const grid = [...body.querySelectorAll(".key-grid")].find((node) => node.getClientRects().length);
+  const rows = grid ? [...grid.children].map((tile) => tile.getBoundingClientRect()) : [];
+  const second = rows.find((row) => row.top > rows[0].bottom);
+  if (second) {
+    const top = second.top - el("sheet").getBoundingClientRect().top + body.scrollTop;
+    middle = Math.round(top + second.height * MIDDLE_CUT);
+  }
+  return middle ?? Math.round(full * MIDDLE_SHARE);
 }
 
 /*
@@ -95,7 +120,9 @@ function measure() {
     0,
   );
   const compact = Math.min(full, band - extra + PEEK_PX);
-  stops = [compact, Math.max(compact, Math.round(full * MIDDLE_SHARE)), full];
+  stops = [compact, Math.min(full, Math.max(compact, middleOf(full))), full];
+  // The panels' content loads after they open, and moves the key numbers.
+  for (const panel of el("sheet-body").children) observer?.observe(panel);
 }
 
 function show(px) {
@@ -144,10 +171,11 @@ export function popupPadding() {
 
 const startsOnRange = (target) => target.closest?.('input[type="range"]') != null;
 
-function begin(x, y, time) {
+/* `scroller`, for a drag on the body, is the body: past full height the drag scrolls it. */
+function begin(x, y, time, scroller = null) {
   measure();
   const from = stops[LEVELS.indexOf(level)];
-  gesture = { x, y, axis: null, from, visible: from, samples: [] };
+  gesture = { x, y, axis: null, from, visible: from, samples: [], scroller, scrollFrom: scroller?.scrollTop ?? 0, past: 0 };
   track(y, time);
 }
 
@@ -158,7 +186,12 @@ function track(y, time) {
 }
 
 function drag(y, time) {
-  gesture.visible = Math.min(stops.at(-1), Math.max(stops[0], gesture.from + gesture.y - y));
+  const at = gesture.from + gesture.y - y;
+  gesture.visible = Math.min(stops.at(-1), Math.max(stops[0], at));
+  if (gesture.scroller) {
+    gesture.past = Math.max(0, at - stops.at(-1));
+    gesture.scroller.scrollTop = gesture.scrollFrom + gesture.past;
+  }
   el("sheet").classList.add("dragging");
   show(gesture.visible);
   track(y, time);
@@ -172,10 +205,16 @@ function release(time) {
   // Upward is positive; no time between samples reads as a flick. A finger held
   // still sends no moves, so after a pause only `last` is recent: no speed.
   const velocity = (first.y - last.y) / (last.time - first.time) || 0;
-  const at = gesture.visible;
+  const { visible: at, past, scroller } = gesture;
   gesture = null;
   el("sheet").classList.remove("dragging");
-  setSheetLevel(snapTarget(at, velocity, stops));
+  if (!past) {
+    setSheetLevel(snapTarget(at, velocity, stops));
+    return;
+  }
+  // A drag that went on into the body's scroll stays at full height, and a flick carries the scroll on.
+  setSheetLevel("full");
+  glide(scroller, velocity);
 }
 
 /*
@@ -243,10 +282,10 @@ function wireGrips(sheet) {
 }
 
 /*
- * Below full height a vertical drag on the body moves the sheet. At full
- * height the body scrolls; scrolled to its top, a pull down moves the sheet.
- * Touch events, since only a cancelable touchmove can take the gesture from
- * the scroller.
+ * Below full height a vertical drag on the body moves the sheet, and past
+ * full height scrolls the body. At full height the body scrolls; scrolled to
+ * its top, a pull down moves the sheet. Touch events, since only a cancelable
+ * touchmove can take the gesture from the scroller.
  */
 function wireContent(body) {
   // A drag that started on a grip belongs to its pointer, whatever other fingers do.
@@ -259,7 +298,7 @@ function wireContent(body) {
       gesture = null;
       if (!PHONE.matches || startsOnRange(event.target)) return;
       const [{ clientX, clientY }] = event.touches;
-      begin(clientX, clientY, event.timeStamp);
+      begin(clientX, clientY, event.timeStamp, body);
     },
     { passive: true },
   );
@@ -298,9 +337,13 @@ export function initSheet() {
   wireGrips(el("sheet"));
   wireContent(el("sheet-body"));
 
-  // The band's height changes with the glacier's name and the sheet's height; the sheet's with the viewport.
+  /*
+   * The band's height changes with the glacier's name and the sheet's height;
+   * the sheet's with the viewport; the panels' with their content, which
+   * measure() watches once they are in the body.
+   */
   if (typeof ResizeObserver === "function") {
-    const observer = new ResizeObserver(() => {
+    observer = new ResizeObserver(() => {
       if (!PHONE.matches || gesture?.axis === "y") return;
       measure();
       show(stops[LEVELS.indexOf(level)]);

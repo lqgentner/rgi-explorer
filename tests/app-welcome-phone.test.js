@@ -5,7 +5,7 @@ import { test } from "node:test";
 
 import * as hyparquet from "hyparquet";
 
-import { load, loadPage, waitFor } from "./helpers/browser.js";
+import { load, loadPage, settle, waitFor } from "./helpers/browser.js";
 import { makeParquet, servedFetch } from "./helpers/served.js";
 
 const page = await loadPage({ phone: true, fetch: servedFetch(makeParquet()) });
@@ -62,4 +62,21 @@ test("across the breakpoint the card step swaps its text and ring", async () => 
   assert.deepEqual(ringed(), [$("#sheet")]);
   assert.ok(text().startsWith("Swipe up to see"));
   assert.equal($(".help-btn").parentElement, $("#status"));
+});
+
+test("a search pick opens the sheet to the middle, which is not the reader's use of the card", async () => {
+  click($(".tour-close"));
+  click($('#search button[aria-label="Close"]'));
+  click($(".help-btn"));
+  click(button($(".welcome"), "Take the tour"));
+  const input = $("#search input");
+  input.value = "aletsch";
+  input.dispatchEvent(new window.Event("input", { bubbles: true }));
+  click(await waitFor(() => [...document.querySelectorAll("#search li")]
+    .find((li) => li.querySelector(".title").textContent === "Grosser Aletsch Gletscher")));
+  await waitFor(() => title() === "The glacier card");
+  assert.equal($("#sheet").dataset.level, "middle");
+  await settle();
+  assert.ok(button($(".tour"), "Skip"));
+  assert.equal(button($(".tour"), "Next"), undefined);
 });

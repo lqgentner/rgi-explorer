@@ -522,10 +522,21 @@ function wire(catalog, rgiMap, regions) {
     });
   }
   /* A new level also moves the card's header, which the Use this data step sits under. */
-  new window.MutationObserver(() => {
+  const levels = new window.MutationObserver(() => {
     if (el("sheet").dataset.level && el("sheet").dataset.level !== "compact") used();
     tour.refresh();
-  }).observe(el("sheet"), { attributes: true, attributeFilter: ["data-level"] });
+  });
+  levels.observe(el("sheet"), { attributes: true, attributeFilter: ["data-level"] });
+  /*
+   * A panel opens on the phone at its top, at `level`. The height is the
+   * page's choice, not the reader's use of the card.
+   */
+  function openSheet(level) {
+    if (!PHONE.matches) return;
+    el("sheet-body").scrollTop = 0;
+    setSheetLevel(level);
+    levels.takeRecords();
+  }
 
   /* The desktop sidebar holds the panels, the phone's sheet its band and body; see cardFrame. */
   const cardRoot = el("card");
@@ -650,9 +661,10 @@ function wire(catalog, rgiMap, regions) {
   /*
    * Open a complex's panel in place of any glacier card and select it; `fit`,
    * ALWAYS or IF_NEEDED, fits the map to it. The reader's open folds the phone's
-   * credits; a shared link's, `fromLink`, leaves them showing.
+   * credits; a shared link's, `fromLink`, leaves them showing. On the phone the
+   * sheet opens at `level`: compact, or middle for a search pick.
    */
-  function openComplex(complexId, fit, { fromLink = false } = {}) {
+  function openComplex(complexId, fit, { fromLink = false, level = "compact" } = {}) {
     if (shown) {
       shown = null;
       fitting = null;
@@ -675,7 +687,7 @@ function wire(catalog, rgiMap, regions) {
     search.setClosable(closeComplex);
     if (fit) fitComplexLater(complexId, fit);
     complexCard.open(complexId);
-    if (PHONE.matches) setSheetLevel("compact");
+    openSheet(level);
     welcome.dismiss();
     if (!fromLink) status.fold();
     tour.refresh();
@@ -694,8 +706,8 @@ function wire(catalog, rgiMap, regions) {
     tour.refresh();
   }
 
-  /** Open a glacier's card and select it; `fit`, ALWAYS or IF_NEEDED, fits the map to its bbox. `fromLink` as for a complex. */
-  function openGlacier(glacier, fit, { fromLink = false } = {}) {
+  /** Open a glacier's card and select it; `fit`, ALWAYS or IF_NEEDED, fits the map to its bbox. `fromLink` and `level` as for a complex. */
+  function openGlacier(glacier, fit, { fromLink = false, level = "compact" } = {}) {
     /* A page holds one of the two, also while a shared complex is still being read. */
     state.complex = null;
     if (shownComplex) {
@@ -713,7 +725,7 @@ function wire(catalog, rgiMap, regions) {
     search.setClosable(closeGlacier);
     fitting = fit ? fitGlacierLater(glacier, fit) : null;
     card.open(glacier);
-    if (PHONE.matches) setSheetLevel("compact");
+    openSheet(level);
     welcome.dismiss();
     if (!fromLink) status.fold();
     tour.refresh();
@@ -730,9 +742,9 @@ function wire(catalog, rgiMap, regions) {
   const search = mountSearch(el("search"), {
     onPick(hit) {
       if (hit.kind === "glacier") {
-        openGlacier({ rgiId: hit.rgiId, row: hit.row }, IF_NEEDED);
+        openGlacier({ rgiId: hit.rgiId, row: hit.row }, IF_NEEDED, { level: "middle" });
       } else if (hit.kind === "complex") {
-        openComplex(hit.complexId, IF_NEEDED);
+        openComplex(hit.complexId, IF_NEEDED, { level: "middle" });
       } else if (hit.kind === "region" && isBbox(hit.bbox)) {
         camera += 1;
         fitTo(hit.bbox);
