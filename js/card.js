@@ -214,7 +214,8 @@ function photoViewerItem(photo, alt) {
  * `ctx.onTitle(title)` hears the title each time the header draws.
  */
 export function mountCard(root, ctx) {
-  const state = { tab: "overview", rgi6Open: false, moreOpen: false, submissionOpen: false };
+  /* moreOpen holds the groups whose "show more" is open. */
+  const state = { tab: "overview", rgi6Open: false, moreOpen: new Set(), submissionOpen: false };
   let current = null;
   let controller = null;
 
@@ -326,9 +327,10 @@ export function mountCard(root, ctx) {
     return wrap;
   }
 
-  function renderRow(row) {
+  /* A `more` row hides while `folded`: its group's "show more" is closed. */
+  function renderRow(row, folded) {
     const [info, popover] = infoButton(row.label, row.description);
-    return h("div", { class: row.more ? "row more" : "row", hidden: row.more && !state.moreOpen },
+    return h("div", { class: row.more ? "row more" : "row", hidden: Boolean(row.more && folded) },
       h("div", { class: "row-label" }, row.label),
       h("div", { class: "row-value" }, renderValue(row)),
       info,
@@ -339,10 +341,14 @@ export function mountCard(root, ctx) {
     const nodes = overviewRows(current.props, ctx.catalog.columns, ctx.regions).map(({ group, rows }) => {
       if (group === "key") return keyGrid(rows);
       if (!rows.length) return null;
-      const body = rows.map(renderRow);
-      if (rows.some((r) => r.more)) {
-        const toggle = button(state.moreOpen ? "show less" : "show more", "link show-more", () => {
-          state.moreOpen = !state.moreOpen;
+      /* Submission opens on a click already, so open it shows all its rows. */
+      const foldable = group !== "submission" && rows.some((r) => r.more);
+      const open = state.moreOpen.has(group);
+      const body = rows.map((row) => renderRow(row, foldable && !open));
+      if (foldable) {
+        const toggle = button(open ? "show less" : "show more", "link show-more", () => {
+          if (open) state.moreOpen.delete(group);
+          else state.moreOpen.add(group);
           renderOverview();
           panels.overview.querySelector(`.group-${group} .show-more`)?.focus();
         });
@@ -472,7 +478,7 @@ export function mountCard(root, ctx) {
       };
       current = mine;
       state.rgi6Open = false;
-      state.moreOpen = false;
+      state.moreOpen.clear();
       show(true);
       render();
       strip.show(0);

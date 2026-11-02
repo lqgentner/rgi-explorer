@@ -18,7 +18,8 @@ const GLIMS_INFO = "https://www.glims.org/maps/info.html?anlys_id=";
 
 /*
  * `with` lists further columns the row's value needs. `more` rows sit behind
- * "show more" in their group.
+ * "show more" in their group, except Submission's: that group opens on a
+ * click already, and open it shows every row.
  */
 export const DISPLAY = [
   { column: "area_km2", label: "Area", unit: "km²", group: "key", format: "km" },

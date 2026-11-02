@@ -275,18 +275,42 @@ test("the Greenland connection shows only in region 05", async () => {
   assert.equal(rowOfLabel(b.root, label).querySelector(".row-value").textContent, "Weak connection");
 });
 
-test("Submission starts collapsed and the IDs stay hidden until show more", async () => {
+test("Submission starts collapsed and, open, shows every row with no show more", async () => {
   const { root, card } = setup();
   await card.open({ rgiId: IDS[0], row: 0 });
   const details = root.querySelector("details.group-submission");
   assert.equal(details.open, false);
-  const ids = ["Analysis ID", "Submission ID", "Regional center ID"].map((l) => rowOfLabel(root, l));
-  assert.ok(ids.every((r) => r.hidden));
-  assert.equal(rowOfLabel(root, "Analysts").hidden, false);
-  click(root.querySelector(".group-submission button.show-more"));
-  assert.ok(["Analysis ID", "Submission ID", "Regional center ID"].every((l) => !rowOfLabel(root, l).hidden));
-  assert.equal(document.activeElement, root.querySelector(".group-submission button.show-more"), "the focus stays on the toggle");
-  assert.equal(document.activeElement.textContent, "show less");
+  const labels = ["Analysts", "Analysis ID", "Submission ID", "Regional center ID"];
+  assert.ok(labels.every((l) => !rowOfLabel(root, l).hidden), "the collapsed group hides nothing more");
+  assert.equal(root.querySelector(".group-submission .show-more"), null);
+  details.open = true;
+  details.dispatchEvent(new window.Event("toggle"));
+  assert.ok(labels.every((l) => !rowOfLabel(root, l).hidden));
+  assert.equal(root.querySelector(".show-more"), null, "no group has a show more of its own");
+});
+
+test("show more in another group reveals that group's rows only", async () => {
+  const { DISPLAY } = await load("js/columns.js");
+  const entries = ["utm_zone", "dem_source"].map((column) => DISPLAY.find((d) => d.column === column));
+  for (const entry of entries) entry.more = true;
+  try {
+    const { root, card } = setup();
+    await card.open({ rgiId: IDS[0], row: 0 });
+    const toggle = (group) => root.querySelector(`.group-${group} button.show-more`);
+    assert.ok(rowOfLabel(root, "UTM zone").hidden && rowOfLabel(root, "Topography DEM").hidden);
+    assert.equal(toggle("location").textContent, "show more");
+    click(toggle("location"));
+    assert.equal(rowOfLabel(root, "UTM zone").hidden, false);
+    assert.equal(rowOfLabel(root, "Topography DEM").hidden, true, "the outline group stays as it was");
+    assert.equal(document.activeElement, toggle("location"), "the focus stays on the toggle");
+    assert.equal(toggle("location").textContent, "show less");
+    assert.equal(toggle("outline").textContent, "show more");
+    assert.equal(root.querySelector(".group-submission .show-more"), null);
+    click(toggle("location"));
+    assert.equal(rowOfLabel(root, "UTM zone").hidden, true);
+  } finally {
+    for (const entry of entries) delete entry.more;
+  }
 });
 
 test("the terminus and complex rows call onAction", async () => {
