@@ -131,6 +131,21 @@ The owner set the actions and the button styles. The texts are my drafts.
 - On the phone, the Use this data pane lives in the sheet and is not modal.
   The message sits above it, clear of the pane's own close button.
 
+## When the welcome goes away
+
+This changes the first design, which kept the welcome through pans and zooms.
+The owner decided: an interaction with the map or the search means the reader
+isn't interested in the tour, so it closes the welcome and marks it seen.
+
+- **The map:** a drag, a pinch, a wheel or keyboard zoom, a rotation or a
+  tilt by the reader, and a click on the map. These are the MapLibre events
+  that carry an `originalEvent`; the page's own camera moves don't count.
+- **The search:** focusing the search input. Opening a result already counts,
+  through opening a glacier.
+- The welcome shown again by Help follows the same rule.
+- The X, "Take the tour" and opening a glacier or complex still close it, as
+  built.
+
 ## The welcome heading
 
 "Explore the 274,531 glaciers of the Randolph Glacier Inventory 7.0". The
