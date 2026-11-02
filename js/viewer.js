@@ -121,6 +121,11 @@ function go(i, { scroll = true, smooth = false } = {}) {
   else if (focused === prev && prev.disabled) (next.disabled ? closeButton : next).focus();
   count.textContent = `${index + 1} / ${state.items.length}`;
   load(index);
+  /* The neighbours' thumbnails are already loaded by the strip: show them, so a swipe never reveals an empty slide. */
+  for (const j of [index - 1, index + 1]) {
+    const img = state.slides[j]?.img;
+    if (img && !img.getAttribute("src") && state.items[j].thumb) img.src = state.items[j].thumb;
+  }
   credit.replaceChildren(state.credits[index]);
   backdrop(state.srcs[index]);
   if (scroll) scrollTo(index, smooth);
@@ -164,13 +169,18 @@ function build() {
     event.preventDefault();
     close();
   });
-  /* A swipe moves the track; the slide nearest its centre becomes current. */
+  /* A swipe moves the track; the slide that starts nearest its left edge becomes current, whatever the gap between slides. */
   track.addEventListener(
     "scroll",
     () => {
       if (!state || !track.clientWidth) return;
-      const i = Math.round(track.scrollLeft / track.clientWidth);
-      if (i !== state.index) go(i, { scroll: false });
+      let best = 0;
+      let distance = Infinity;
+      state.slides.forEach(({ figure }, i) => {
+        const d = Math.abs(figure.offsetLeft - track.scrollLeft);
+        if (d < distance) [best, distance] = [i, d];
+      });
+      if (best !== state.index) go(best, { scroll: false });
     },
     { passive: true },
   );

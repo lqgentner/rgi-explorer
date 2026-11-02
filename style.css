@@ -1640,6 +1640,11 @@ dialog.viewer::backdrop {
   padding: 72px 80px var(--dock-room);
 }
 
+/* An image with nothing loaded yet shows nothing, not a broken-image icon. */
+.viewer-image:not([src]) {
+  visibility: hidden;
+}
+
 .viewer-image {
   position: relative;
   display: block;
@@ -2143,6 +2148,11 @@ dialog.usedata::backdrop {
     background: #202124;
   }
 
+  /* A gap between images while swiping, where the blur shows through. */
+  .viewer-track {
+    gap: 16px;
+  }
+
   .viewer-stage {
     padding: 64px 0 var(--dock-room);
   }
@@ -2163,7 +2173,8 @@ dialog.usedata::backdrop {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    filter: blur(90px) saturate(1.5) brightness(0.7);
+    /* Dark enough that white text reads over an all-white glacier: white comes out #666, 5.7:1. */
+    filter: blur(90px) saturate(1.5) brightness(0.4);
     transform: scale(1.4);
     opacity: 0;
     transition: opacity 400ms ease-out;

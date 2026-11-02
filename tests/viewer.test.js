@@ -190,6 +190,49 @@ test("the phone's background is one blurred layer that stays put and follows the
   closeIfOpen();
 });
 
+test("the neighbours show their thumbnails at once, so a swipe never reveals an empty slide", () => {
+  const { list, calls } = items(["https://big/0.jpg", "https://big/1.jpg", "https://big/2.jpg", "https://big/3.jpg"]);
+  list[3].thumb = "https://thumb/3.jpg";
+  openViewer(list, 2, {});
+  const images = [...dialog().querySelectorAll(".viewer-slide .viewer-image")];
+  assert.equal(images[1].getAttribute("src"), "https://thumb/1.jpg");
+  assert.equal(images[3].getAttribute("src"), "https://thumb/3.jpg");
+  assert.equal(images[0].getAttribute("src"), null, "not a neighbour, and with no thumbnail besides");
+  assert.deepEqual(calls.large, [2], "the neighbours' large files still wait");
+  const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
+  assert.match(css, /\.viewer-image:not\(\[src\]\)\s*{[^}]*visibility:\s*hidden/, "an image with nothing yet shows nothing");
+  closeIfOpen();
+});
+
+test("on the phone the blur alone keeps white text readable over a white glacier: no text shadow", () => {
+  const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
+  const phone = [...css.matchAll(/@media \(max-width: 640px\)\s*{([\s\S]*?)\n}/g)].map((m) => m[1]).join("\n");
+  const brightness = Number(/\.viewer-backdrop\s*{[^}]*brightness\(([\d.]+)\)/.exec(phone)?.[1]);
+  /* White at 0.4 is #666: white text on it has a contrast of about 5.7:1, past the 4.5:1 that WCAG asks. */
+  assert.ok(brightness <= 0.4, `brightness ${brightness}`);
+  assert.doesNotMatch(css, /\.viewer[\w-]*\s*{[^}]*text-shadow/, "no text shadow in the viewer");
+});
+
+test("a swipe makes the slide nearest the track's left edge current, whatever the gap between slides", () => {
+  const { list } = items(["https://big/0.jpg", "https://big/1.jpg", "https://big/2.jpg", "https://big/3.jpg"]);
+  openViewer(list, 0, {});
+  const track = dialog().querySelector(".viewer-track");
+  const slides = [...track.querySelectorAll(".viewer-slide")];
+  /* 100px slides with a 40px gap: slide i starts at 140 i. */
+  slides.forEach((slide, i) => Object.defineProperty(slide, "offsetLeft", { configurable: true, get: () => i * 140 }));
+  Object.defineProperty(track, "clientWidth", { configurable: true, get: () => 100 });
+  track.scrollLeft = 280;
+  track.dispatchEvent(new window.Event("scroll"));
+  assert.equal(count(), "3 / 4", "280 is where slide 2 starts, though 280 / 100 rounds to 3");
+  closeIfOpen();
+});
+
+test("on the phone the slides have a gap, so the blur shows between images while swiping", () => {
+  const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
+  const phone = [...css.matchAll(/@media \(max-width: 640px\)\s*{([\s\S]*?)\n}/g)].map((m) => m[1]).join("\n");
+  assert.match(phone, /\.viewer-track\s*{[^}]*gap:\s*\d+px/);
+});
+
 test("the layer pane and the dialog share the light scrim, and the desktop viewer has the strong one", () => {
   const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
   const rule = (sel) => [...css.matchAll(new RegExp(`(^|\\n)\\s*${sel}\\s*{([^}]*)}`, "g"))].map((m) => m[2]).join("\n");

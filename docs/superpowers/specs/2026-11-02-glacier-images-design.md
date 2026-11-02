@@ -237,7 +237,11 @@ Revised on 2026-11-02 after a look at the first build (mockups:
   is a strongly blurred, more saturated copy of the shown image (blur so
   strong only its colours remain), drawn from the image already loaded. The
   background does not move with a swipe: it is one layer behind the images
-  that cross-fades to the next image's colours. There
+  that cross-fades to the next image's colours. It is darkened to 40%
+  brightness, so even an all-white glacier blurs to about #666 and the white
+  credit keeps a contrast of about 5.7:1, with no text shadow. A 16px gap
+  separates the images while swiping, and the neighbours show their strip
+  thumbnails at once, so a swipe never reveals an empty slide. There
   are no arrows; a swipe moves between images, the counter shows in the dock,
   and ✕ closes. A tap on the background does nothing. *(My call: a stray tap
   between swipes should not close the viewer.)*
