@@ -1021,15 +1021,17 @@ button:focus-visible {
   display: none;
 }
 
+/* As in the tour: the heading's first 22 px line shares the X's middle, 28 px down. */
 .welcome h2 {
   margin: 0 0 8px;
-  padding-right: 36px;
+  padding: 5px 36px 0 8px;
   font-size: 17px;
-  line-height: 1.3;
+  line-height: 22px;
 }
 
 .welcome p {
   margin: 0 0 6px;
+  padding: 0 8px;
   color: var(--muted);
 }
 
@@ -1069,7 +1071,7 @@ button:focus-visible {
   z-index: 7;
   right: auto;
   bottom: auto;
-  width: 300px;
+  width: 320px;
   max-width: calc(100vw - 16px);
   padding: 12px;
   border-radius: var(--card-radius);
@@ -1103,7 +1105,7 @@ button:focus-visible {
 
 .tour.covering p {
   margin: 0;
-  padding: 6px 0;
+  padding: 6px 8px;
   font-weight: 600;
 }
 
@@ -1149,14 +1151,21 @@ body:has(#search.fullscreen) .welcome {
   visibility: hidden;
 }
 
+/*
+ * The heading and text sit 8 px inside the buttons' 12 px inset. The X is 32
+ * px tall at 12 px from the top, so its middle is at 28 px: the heading's
+ * 20 px line starts 6 px lower to share that middle.
+ */
 .tour h2 {
   margin: 0 0 6px;
-  padding-right: 36px;
+  padding: 6px 36px 0 8px;
   font-size: 15px;
+  line-height: 20px;
 }
 
 .tour p {
   margin: 0 0 10px;
+  padding: 0 8px;
 }
 
 /* The buttons sit 12 px from the edge, so their corners are concentric with the card's; the main one on the right. */
@@ -1170,6 +1179,7 @@ body:has(#search.fullscreen) .welcome {
 
 .tour-count {
   margin-right: auto;
+  padding-left: 8px;
   white-space: nowrap;
   color: var(--muted);
   font-size: 12px;

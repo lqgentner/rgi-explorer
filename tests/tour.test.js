@@ -348,7 +348,8 @@ test("the text runs to the card's padding; only the heading keeps clear of the X
   for (const selector of ["welcome", "tour"]) {
     const rule = new RegExp(`\\n\\.${selector} \\{[^}]*\\}`).exec(css)?.[0] ?? "";
     assert.match(rule, /padding: 12px;/, `.${selector} padding`);
-    assert.match(css, new RegExp(`\\.${selector} h2 \\{[^}]*padding-right: 36px;`), `.${selector} h2 clears the X`);
+    assert.match(css, new RegExp(`\\.${selector} h2 \\{[^}]*padding: \\d+px 36px 0 8px;`), `.${selector} h2 clears the X, inset 8 px more than the buttons`);
+    assert.match(css, new RegExp(`\\.${selector} p \\{[^}]*padding: 0 8px;`), `.${selector} text inset 8 px more than the buttons`);
   }
   assert.match(css, /\.welcome \.btn \{[^}]*margin: 8px 0 0 auto;/, "Take the tour sits on the right");
 });
