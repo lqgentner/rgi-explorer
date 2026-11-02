@@ -295,9 +295,28 @@ test("the status line height is published as --status-h on mount and refresh", (
   assert.equal(read(), "70px");
 });
 
-test("the credits run as one text, so a long line wraps inside a group, not between groups", () => {
+test("on desktop the scale and the credits sit in two columns, top-aligned, and the phone keeps its layout", () => {
   const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
-  const desktop = css.slice(0, css.indexOf("@media (max-width: 640px)"));
-  assert.doesNotMatch(desktop, /(^|\n)\.credits\s*\{[^}]*display:\s*flex/);
+  const phoneAt = css.indexOf("@media (max-width: 640px)");
+  const desktop = css.slice(0, phoneAt);
+  const columns = /\n@media \(min-width: 641px\) \{\n  #status \{\s*display:\s*flex;\s*align-items:\s*flex-start;\s*\}[^@]*?\n\}\n/.exec(desktop);
+  assert.ok(columns, "a desktop-only rule lays out #status as a row, top-aligned");
+  assert.match(columns[0], /\.scale\s*\{\s*flex:\s*none;\s*\}/, "the scale keeps its width");
+  assert.match(columns[0], /\.credits-box\s*\{\s*min-width:\s*0;\s*\}/, "the credits column narrows and wraps");
+  /* Outside that block nothing turns #status into a flex row, so the phone's credits box lays out as before. */
+  const rest = desktop.slice(0, columns.index) + desktop.slice(columns.index + columns[0].length) + css.slice(phoneAt);
+  assert.doesNotMatch(rest, /#status\s*\{[^}]*display:\s*(inline-)?flex/);
+  assert.doesNotMatch(desktop, /(^|\n)\.credits\s*\{[^}]*display:\s*flex/, "the credits stay one text");
   assert.match(desktop, /(^|\n)\.credits-button\s*\{\s*display:\s*none;/, "the info button is the phone's");
+});
+
+test("no space separates the credit groups, so the credits wrap inside a group, not between groups", () => {
+  const root = document.createElement("div");
+  const rgiMap = { map: new FakeMap({ center: [8, 46.48], zoom: 11 }), onMove: () => {} };
+  mountStatus(root, rgiMap, catalog, () => ({ base: "imagery", terrain: false }));
+  const list = root.querySelector(".credits");
+  assert.ok(list.children.length > 1);
+  assert.equal(list.childNodes.length, list.children.length, "no text nodes between the groups");
+  const box = root.querySelector(".credits-box");
+  assert.deepEqual([...root.children], [root.querySelector(".scale"), box], "the scale, then the credits column");
 });

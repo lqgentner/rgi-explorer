@@ -796,7 +796,6 @@ button:focus-visible {
   align-items: center;
   gap: 6px;
   margin-right: 12px;
-  vertical-align: top;
   height: 16px;
 }
 
@@ -808,11 +807,24 @@ button:focus-visible {
 }
 
 /*
- * The scale and the credits run as one text, which wraps inside a group rather
- * than between groups.
+ * On desktop the scale and the credits sit in two columns, the scale level
+ * with the credits' first line, so wrapped credits stay in their own column.
+ * The credits run as one text, and no space separates their groups, so a long
+ * line wraps inside a group rather than between groups.
  */
-.credits-box {
-  display: inline;
+@media (min-width: 641px) {
+  #status {
+    display: flex;
+    align-items: flex-start;
+  }
+
+  .scale {
+    flex: none;
+  }
+
+  .credits-box {
+    min-width: 0;
+  }
 }
 
 .credits-button {
