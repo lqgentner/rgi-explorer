@@ -3,9 +3,10 @@
 import { ATTRIBUTE_COLUMNS, GROUP_TITLES, missingAttributes, nonEmpty, overviewRows } from "./columns.js";
 import { renderHypsometry } from "./hypsometry.js";
 import { CARD_COLUMNS, readRow } from "./parquet.js";
-import { esriCrop, findCropSource } from "./photo.js";
+import { commonsThumb, esriCrop, findCropSource } from "./photo.js";
 import { mountStrip } from "./strip.js";
 import { PHONE, h, icon, popover } from "./ui.js";
+import { openViewer } from "./viewer.js";
 
 const TABS = [
   { id: "overview", label: "Overview" },
@@ -15,6 +16,8 @@ const SHOWN_LINKS = 3;
 /* The imagery crop's pixel size, and the rows at its top that something covers. */
 const CROP = { size: [816, 400], top: 0 };
 const IMAGERY_CREDIT = "Esri, Vantor, Earthstar Geographics";
+/* The width of the Commons thumbnail the viewer shows. */
+const VIEWER_PHOTO_WIDTH = 1600;
 const isHttp = (url) => /^https?:\/\//i.test(url ?? "");
 
 /** The first-order region code inside an RGI glacier or complex ID, such as "11" in RGI2000-v7.0-G-11-02596. */
@@ -173,6 +176,27 @@ export function photoItem(photo, { alt, onError }) {
   return { key: photo.page, src: photo.src, alt, credit, onError };
 }
 
+/** The viewer item of the imagery crop of `bbox`: framed on its own at the viewer's size, nothing covering it. */
+export const imageryViewerItem = (bbox, alt) => ({
+  alt,
+  large: (size) => esriCrop(bbox, ...size, 0),
+  credit: (size) => imageryCredit(bbox, size, 0),
+});
+
+/** The viewer item of a Commons photo: a larger thumbnail and the full credit. */
+function photoViewerItem(photo, alt) {
+  const credit = () => {
+    const parts = [
+      photo.author,
+      photo.license ? link(photo.licenseUrl, photo.license) : null,
+      photo.source,
+      isHttp(photo.page) ? h("a", { href: photo.page, target: "_blank", rel: "noopener noreferrer" }, "View on Commons") : null,
+    ].filter(Boolean);
+    return h("div", {}, ...parts.flatMap((part, i) => (i ? [" · ", part] : [part])));
+  };
+  return { alt, thumb: photo.src, large: () => commonsThumb(photo.file ?? "", VIEWER_PHOTO_WIDTH), credit };
+}
+
 /**
  * Mounts the card into `root` and returns `{ open(glacier), close() }`.
  * `glacier` is `{ rgiId, row?, props? }`. On the phone, with `ctx.band`, the
@@ -217,7 +241,10 @@ export function mountCard(root, ctx) {
     onUseData: () => ctx.onUseData?.(glacierNow()),
     onZoom: () => ctx.onZoom?.(current.props.bbox ?? current.props),
   });
-  const strip = mountStrip(photo, { label: "Glacier images", onOpen: () => {} });
+  const strip = mountStrip(photo, {
+    label: "Glacier images",
+    onOpen: (index, button) => openViewer(viewerItems(), index, { onClose: (i) => strip.show(i), returnFocus: button }),
+  });
   const empty = placeholder();
 
   function selectTab(id, focus = false) {
@@ -344,19 +371,34 @@ export function mountCard(root, ctx) {
    * the photos as they arrive. A crop that fails leaves the photos alone, or
    * a plain block when there are none; a photo that fails drops out.
    */
+  const IMAGERY_ALT = "Satellite imagery of the glacier";
+  const photoAlt = () => `Photo of ${head.querySelector(".card-title")?.textContent ?? ""}`;
+
+  /** What the strip shows, in order: the crop unless it failed, then the photos that loaded. */
+  function shownImages() {
+    const { photos, cropFailed, failed } = current.photos;
+    const { bbox } = current.props;
+    return {
+      bbox: bbox && !cropFailed ? bbox : null,
+      photos: (photos ?? []).filter((p) => !failed.has(p.page)),
+    };
+  }
+
   function renderPhotoArea() {
     const mine = current;
-    const { photos, cropFailed, failed } = mine.photos;
-    const { bbox } = mine.props;
-    const title = head.querySelector(".card-title")?.textContent ?? "";
-    const shown = (photos ?? []).filter((p) => !failed.has(p.page));
-    const items = [
-      ...(bbox && !cropFailed ? [imageryItem(bbox, { crop: ctx.crop, alt: "Satellite imagery of the glacier", onError: cropFailedFor(mine) })] : []),
-      ...shown.map((p) => photoItem(p, { alt: `Photo of ${title}`, onError: photoFailedFor(mine, p) })),
-    ];
-    strip.update(items);
-    if (cropFailed && !shown.length) photo.append(empty);
+    const { bbox, photos } = shownImages();
+    strip.update([
+      ...(bbox ? [imageryItem(bbox, { crop: ctx.crop, alt: IMAGERY_ALT, onError: cropFailedFor(mine) })] : []),
+      ...photos.map((p) => photoItem(p, { alt: photoAlt(), onError: photoFailedFor(mine, p) })),
+    ]);
+    if (mine.photos.cropFailed && !photos.length) photo.append(empty);
     else empty.remove();
+  }
+
+  /** The viewer's items, in the strip's order. */
+  function viewerItems() {
+    const { bbox, photos } = shownImages();
+    return [...(bbox ? [imageryViewerItem(bbox, IMAGERY_ALT)] : []), ...photos.map((p) => photoViewerItem(p, photoAlt()))];
   }
 
   const cropFailedFor = (mine) => () => {

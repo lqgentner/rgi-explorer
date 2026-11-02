@@ -4,10 +4,11 @@
  * place; one of the two is open at a time.
  */
 
-import { cardFrame, imageryItem, infoButton, keyGrid, placeholder, regionOfId } from "./card.js";
+import { cardFrame, imageryItem, imageryViewerItem, infoButton, keyGrid, placeholder, regionOfId } from "./card.js";
 import { mountStrip } from "./strip.js";
 import { GROUP_TITLES, complexRows, formatArea } from "./columns.js";
 import { PHONE, h } from "./ui.js";
+import { openViewer } from "./viewer.js";
 
 const AREA_UNIT = "km²";
 const READ_FAILED = "The complex could not be read.";
@@ -34,7 +35,13 @@ export function mountComplexCard(root, ctx) {
     onUseData: () => ctx.onUseData?.({ kind: "complex", rgiId: current.id, o1region: regionCode() }),
     onZoom: () => ctx.onZoom?.(current.props?.bbox ?? null),
   });
-  const strip = mountStrip(photo, { label: "Complex image", onOpen: () => {} });
+  const strip = mountStrip(photo, {
+    label: "Complex image",
+    onOpen: (index, button) => {
+      const bbox = current?.props?.bbox;
+      if (bbox) openViewer([imageryViewerItem(bbox, "Satellite imagery of the complex")], 0, { onClose: (i) => strip.show(i), returnFocus: button });
+    },
+  });
   const empty = placeholder();
   /* The crop is framed per layout, so a change of layout re-frames it in place. */
   PHONE.addEventListener("change", () => {

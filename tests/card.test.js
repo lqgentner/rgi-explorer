@@ -564,3 +564,25 @@ test("the desktop arrows are centred between the search bar and the credit row",
     assert.ok(top.includes(`var(${name})`), `${name} in ${top}`);
   }
 });
+
+test("a click on an image opens the viewer there, and closing shows that image in the strip", async () => {
+  const { root, card } = setup({ photos: async () => PHOTOS });
+  await card.open({ rgiId: IDS[0], props: WITH_BBOX });
+  await settle();
+  const opener = tilesOf(root)[1].querySelector(".strip-open");
+  opener.focus();
+  click(opener);
+  const viewer = document.querySelector("dialog.viewer");
+  assert.ok(viewer.open || viewer.hasAttribute("open"));
+  assert.equal(viewer.querySelector(".viewer-slide.current .photo-count").textContent, "2 / 3");
+  assert.equal(viewer.querySelector(".viewer-slide.current img").getAttribute("src"), PHOTOS[0].src, "the strip's thumbnail stands in");
+  const credit = viewer.querySelector(".viewer-slide.current .viewer-credit");
+  assert.match(credit.textContent, /Author 1/);
+  assert.match(credit.textContent, /Wikidata Q1 · P18/);
+  assert.equal(credit.querySelector(`a[href="${PHOTOS[0].page}"]`)?.textContent, "View on Commons");
+  viewer.dispatchEvent(new window.KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+  viewer.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  assert.equal(root.querySelector(".photo-next").hidden, true, "the strip shows the third image");
+  assert.equal(document.activeElement, opener);
+  card.close();
+});

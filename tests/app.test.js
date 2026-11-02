@@ -139,6 +139,22 @@ test("the photo lookup waits for the map, reads the outline pieces and fills the
   assert.match($("#card .photo img:not(.photo-crop)").getAttribute("src"), /^https:\/\/thumb\.wikimedia\.org\//);
 });
 
+test("the imagery's viewer frames its own crop and asks identify for it", async () => {
+  const { viewerCropSize } = await load("js/viewer.js");
+  const { ESRI_EXPORT, ESRI_IDENTIFY } = await load("js/config.js");
+  const [w, hgt] = viewerCropSize(window.innerWidth, window.innerHeight);
+  click($("#card .strip-tile .strip-open"));
+  const viewer = $("dialog.viewer");
+  const img = await waitFor(() => viewer.querySelector(".viewer-slide.current img[src]"));
+  const src = new URL(img.getAttribute("src"));
+  assert.equal(src.origin + src.pathname, ESRI_EXPORT);
+  assert.equal(src.searchParams.get("size"), `${w},${hgt}`);
+  const identify = await waitFor(() => log.find(({ url }) => url.startsWith(ESRI_IDENTIFY) && new URL(url).searchParams.get("imageDisplay") === `${w},${hgt},96`));
+  assert.ok(identify, "the viewer's credit asks about its own extent and size");
+  viewer.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  assert.equal(viewer.open || viewer.hasAttribute("open"), false);
+});
+
 test("Use this data shows the exact Python snippet", () => {
   click(button($("#card"), "Use this data"));
   const dialog = $("dialog.usedata");
