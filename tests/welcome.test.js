@@ -10,7 +10,7 @@ const { window, document } = page;
 const { mountHelp, mountWelcome, welcomeTitle } = await load("js/welcome.js");
 
 const KEY = "rgi-explorer:welcome";
-const TITLE = "Explore the 274,531 glaciers of RGI\u00a07.0";
+const TITLE = "Explore the 274,531 glaciers of the Randolph Glacier Inventory\u00a07.0";
 const button = (root, label) => [...root.querySelectorAll("button")].find((b) => b.textContent === label);
 
 function welcome(extra = {}) {
@@ -25,7 +25,7 @@ beforeEach(() => window.localStorage.clear());
 
 test("the title names the glacier count and the version, or the version alone", () => {
   assert.equal(welcomeTitle(274531, "7.0"), TITLE);
-  assert.equal(welcomeTitle(null, "7.0"), "Explore the glaciers of RGI\u00a07.0");
+  assert.equal(welcomeTitle(null, "7.0"), "Explore the glaciers of the Randolph Glacier Inventory\u00a07.0");
 });
 
 test("on a first visit the welcome shows its heading, two lines, the user guide and the tour", () => {
@@ -91,7 +91,7 @@ test("show() brings the welcome back after it was seen", () => {
 
 test("a catalog without a count gives a heading without a number", () => {
   const { api } = welcome({ title: welcomeTitle(null, "7.0") });
-  assert.equal(api.node.querySelector("h2").textContent, "Explore the glaciers of RGI\u00a07.0");
+  assert.equal(api.node.querySelector("h2").textContent, "Explore the glaciers of the Randolph Glacier Inventory\u00a07.0");
 });
 
 test("the help button ends the desktop controls, calls onHelp, and moves beside the credits on the phone", () => {
@@ -120,4 +120,15 @@ test("links out of the explorer share the card's accent blue and icon size where
   const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
   assert.match(css, /\na\.external \{\s*color: var\(--accent\);\s*\}/);
   assert.match(css, /\na\.external \.icon \{\s*width: 0\.9em;/);
+});
+
+test("the welcome and the tour have concentric corners: the button radius plus 12 px of padding", async () => {
+  const fs = await import("node:fs");
+  const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
+  assert.match(css, /--card-radius: calc\(var\(--radius\) \+ 12px\);/);
+  for (const selector of ["welcome", "tour"]) {
+    const rule = new RegExp(`\\n\\.${selector} \\{[^}]*\\}`).exec(css)?.[0] ?? "";
+    assert.match(rule, /border-radius: var\(--card-radius\);/, `.${selector} radius`);
+    assert.match(rule, /padding: 12px /, `.${selector} padding`);
+  }
 });

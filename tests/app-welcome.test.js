@@ -33,7 +33,7 @@ async function pick(text, title) {
 test("a first visit shows the welcome with the glacier count, and help ends the controls", async () => {
   const welcome = await waitFor(() => $("#sidebar .welcome"));
   assert.equal(welcome.hidden, false);
-  assert.equal(welcome.querySelector("h2").textContent, "Explore the 274,531 glaciers of RGI\u00a07.0");
+  assert.equal(welcome.querySelector("h2").textContent, "Explore the 274,531 glaciers of the Randolph Glacier Inventory\u00a07.0");
   assert.equal($("#controls").lastElementChild, help());
 });
 

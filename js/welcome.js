@@ -26,9 +26,9 @@ function writeSeen() {
   }
 }
 
-/** The welcome's heading: the glacier count when the catalog gives one. "RGI 7.0" never breaks. */
+/** The welcome's heading: the glacier count when the catalog gives one. The version stays with its name. */
 export function welcomeTitle(count, version) {
-  const rgi = `RGI\u00a0${version}`;
+  const rgi = `the Randolph Glacier Inventory\u00a0${version}`;
   return count ? `Explore the ${formatInt(count)} glaciers of ${rgi}` : `Explore the glaciers of ${rgi}`;
 }
 
