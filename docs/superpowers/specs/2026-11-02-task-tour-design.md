@@ -197,10 +197,14 @@ viewer and 3D changes through new callbacks or events that the builder adds.
 
 These replace the matching points above.
 
-- **Placement on the phone:** every step sits at the top, under the search
-  bar, from 12 px on the left to clear of the round buttons on the right. It
-  no longer follows the sheet or the credits, so a swipe of the sheet moves
-  nothing. The last card sits there too.
+- **Placement on the phone:** search, 3D and the last card sit at the top,
+  under the search bar, from 12 px on the left to clear of the round buttons
+  on the right. The card steps (the card, Use this data) follow the sheet, as
+  the owner preferred: they ride on its edge above the credits, moved by the
+  same CSS variable as the sheet, so a swipe carries them in one motion, and
+  a sheet raised high leaves them under the search bar.
+- **The welcome on the phone** sits at the top under the search bar too, as
+  on the desktop, clear of the round buttons.
 - **"Close to continue the tour":** the message has no X of its own; it
   rings the close button of Use this data or the viewer, so the reader closes
   that and not the message. On the phone it waits at the bottom over the Use

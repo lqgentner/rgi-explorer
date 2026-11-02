@@ -1048,15 +1048,15 @@ button:focus-visible {
 }
 
 /*
- * On the phone the welcome sits above the whole status line, the help button
- * and the credits, which show at load: it must not hide the credits.
+ * On the phone the welcome sits at the top under the search, as on the
+ * desktop, clear of the round buttons on the right and of the credits below.
  */
 @media (max-width: 640px) {
   .welcome {
-    top: auto;
-    bottom: calc(var(--status-h, 0px) + 20px);
+    top: calc(12px + var(--search-h) + 12px);
+    bottom: auto;
     left: 12px;
-    right: 12px;
+    right: 64px;
     width: auto;
   }
 }
@@ -1125,6 +1125,22 @@ button:focus-visible {
     left: 12px;
     right: 64px;
     width: auto;
+  }
+
+  /*
+   * The card steps ride on the sheet's edge, above the credits, from the same
+   * variable the sheet moves by, so a swipe carries them along in one motion;
+   * raised high, the sheet leaves them under the search. 100% is the
+   * popover's own height.
+   */
+  .tour[data-dock="sheet"] {
+    top: 0;
+    translate: 0 max(calc(12px + var(--search-h) + 12px), calc(100dvh - var(--sheet-visible, 160px) - var(--status-h, 0px) - 20px - 100%));
+    transition: translate 220ms ease-out;
+  }
+
+  body:has(#sheet.dragging) .tour[data-dock="sheet"] {
+    transition: none;
   }
 
   .tour.covering {

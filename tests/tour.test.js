@@ -331,16 +331,34 @@ test("the app hears each step the tour enters, once, so it can reveal the step's
   assert.deepEqual(calls.steps, ["find", "card", "data", "terrain"]);
 });
 
-test("on the phone the popover sits at the top under the search, by CSS, whatever it points at", () => {
+test("on the phone search, 3D and the last card sit at the top; the card steps dock to the sheet's edge", () => {
   tour.start();
   page.setPhone(true);
   assert.equal(popup().style.top, "");
   assert.equal(popup().style.left, "");
+  assert.equal(popup().dataset.dock, undefined, "search: at the top, under the search bar");
   panelKind = "glacier";
   tour.refresh();
-  assert.equal(popup().style.top, "", "the card step stays at the top too, so a swipe of the sheet moves nothing");
+  assert.equal(popup().dataset.dock, "sheet", "the card step rides on the sheet");
+  assert.equal(popup().style.top, "");
+  button("Skip").click();
+  assert.equal(popup().dataset.dock, "sheet", "Use this data rides on the sheet too");
+  tour.cover("useData", true);
+  assert.equal(popup().dataset.dock, undefined, "the cover message has its own place");
+  tour.cover("useData", false);
+  assert.equal(popup().dataset.dock, undefined, "3D: at the top again");
+  page.setPhone(false);
+  assert.equal(popup().dataset.dock, undefined, "the desktop places by script");
   const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
   assert.match(css, /@media \(max-width: 640px\) \{\s*\.tour \{\s*top: calc\(12px \+ var\(--search-h\) \+ 12px\);\s*left: 12px;\s*right: 64px;\s*width: auto;/);
+  assert.match(css, /\.tour\[data-dock="sheet"\] \{[^}]*translate: 0 max\(calc\(12px \+ var\(--search-h\) \+ 12px\), calc\(100dvh - var\(--sheet-visible, 160px\) - var\(--status-h, 0px\) - 20px - 100%\)\);/,
+    "it rides on the sheet's edge, above the credits, from the same variable the sheet moves by");
+  assert.match(css, /body:has\(#sheet\.dragging\) \.tour\[data-dock="sheet"\] \{\s*transition: none;/, "a drag moves it frame by frame, as it moves the sheet");
+});
+
+test("on the phone the welcome sits at the top under the search, clear of the round buttons", () => {
+  const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
+  assert.match(css, /@media \(max-width: 640px\) \{\s*\.welcome \{\s*top: calc\(12px \+ var\(--search-h\) \+ 12px\);\s*bottom: auto;\s*left: 12px;\s*right: 64px;\s*width: auto;/);
 });
 
 test("the text runs to the card's padding; only the heading keeps clear of the X", () => {

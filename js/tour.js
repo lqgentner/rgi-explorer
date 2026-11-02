@@ -139,13 +139,20 @@ export function mountTour(root, { anchor, panel, terrainOn, onTakeMe, onStep, on
 
   function place() {
     if (!node || covered) return;
-    /* On the phone style.css holds it at the top, under the search: a swipe of the sheet or new credits move nothing. */
+    /*
+     * On the phone style.css places it: the card steps dock to the sheet's
+     * edge and follow a swipe frame by frame; the others sit at the top,
+     * under the search.
+     */
     if (PHONE.matches) {
+      if (step === "card" || step === "data") node.dataset.dock = "sheet";
+      else delete node.dataset.dock;
       node.dataset.side = "top";
       node.style.top = "";
       node.style.left = "";
       return;
     }
+    delete node.dataset.dock;
     const at = step === "done" ? anchor("done") : ringed;
     if (!at) return;
     const sides = step === "done" ? [PHONE.matches ? "above" : "below"] : STEPS[step].sides;
@@ -205,6 +212,7 @@ export function mountTour(root, { anchor, panel, terrainOn, onTakeMe, onStep, on
     else delete node.dataset.cover;
     /* No X of its own: the ring points at the close button that continues the tour. */
     if (covered) {
+      delete node.dataset.dock;
       ring(anchor(covered === "useData" ? "useDataClose" : "viewerClose"));
       node.style.top = "";
       node.style.left = "";
