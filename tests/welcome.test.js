@@ -114,3 +114,10 @@ test("the help button ends the desktop controls, calls onHelp, and moves beside 
   page.setPhone(false);
   assert.equal(desktop.lastElementChild, help, "back across the breakpoint it ends the controls again");
 });
+
+test("links out of the explorer share the card's accent blue and icon size wherever they sit", async () => {
+  const fs = await import("node:fs");
+  const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
+  assert.match(css, /\na\.external \{\s*color: var\(--accent\);\s*\}/);
+  assert.match(css, /\na\.external \.icon \{\s*width: 0\.9em;/);
+});

@@ -1590,8 +1590,12 @@ table.members .num {
   color: var(--accent);
 }
 
-.row-value a.external .icon,
-.info-popover a.external .icon {
+/* A link out of the explorer, in the card, a popover or the welcome: accent blue, visited or not. */
+a.external {
+  color: var(--accent);
+}
+
+a.external .icon {
   width: 0.9em;
   height: 0.9em;
   margin-left: 0.2em;
