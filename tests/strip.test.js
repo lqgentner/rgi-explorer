@@ -37,7 +37,16 @@ test("a tile per item in order, with a counter only from two images", () => {
   assert.deepEqual(tiles().map((t) => t.dataset.key), ["a", "b", "c"]);
   assert.deepEqual([...photo.querySelectorAll(".photo-count")].map((n) => n.textContent), ["1 / 3", "2 / 3", "3 / 3"]);
   assert.equal(photo.querySelector(".strip").getAttribute("aria-label"), "Glacier images");
-  assert.equal(tiles()[1].querySelector(".strip-open").getAttribute("aria-label"), "Open image 2 of 3");
+  assert.equal(tiles()[1].querySelector(".strip-open").getAttribute("aria-label"), "Image b, image 2 of 3");
+});
+
+test("a screen reader hears what an image shows, and its place only when there are several", () => {
+  const { strip, tiles } = mount();
+  strip.update([{ ...item("a"), alt: "Satellite imagery of the glacier" }]);
+  assert.equal(tiles()[0].querySelector(".strip-open").getAttribute("aria-label"), "Satellite imagery of the glacier");
+  strip.update([{ ...item("a"), alt: "Satellite imagery of the glacier" }, { ...item("b"), alt: "Photo of Grosser Aletsch Gletscher" }]);
+  assert.deepEqual(tiles().map((t) => t.querySelector(".strip-open").getAttribute("aria-label")),
+    ["Satellite imagery of the glacier, image 1 of 2", "Photo of Grosser Aletsch Gletscher, image 2 of 2"]);
 });
 
 test("an update keeps an unchanged key's tile and image and appends new ones", () => {

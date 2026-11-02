@@ -83,7 +83,8 @@ export function mountStrip(photo, { label, onOpen }) {
       /* The first image is in view at once; the rest load as they near it. */
       if (i === 0) entry.img.removeAttribute("loading");
       else entry.img.setAttribute("loading", "lazy");
-      entry.button.setAttribute("aria-label", `Open image ${i + 1} of ${items.length}`);
+      /* The label replaces the image's alt, so it carries what the image shows, then its place. */
+      entry.button.setAttribute("aria-label", items.length > 1 ? `${item.alt}, image ${i + 1} of ${items.length}` : item.alt);
       entry.count?.remove();
       entry.count = items.length > 1 ? h("span", { class: "photo-count" }, `${i + 1} / ${items.length}`) : null;
       if (entry.count) entry.tile.append(entry.count);
