@@ -35,6 +35,8 @@ export function mountStrip(photo, { label, onOpen }) {
   const tiles = new Map();
   let order = [];
   let index = 0;
+  /* The image an arrow's smooth scroll is heading to; until it gets there, the scroll does not choose the shown image. */
+  let aiming = null;
 
   const clamp = (i) => Math.max(0, Math.min(order.length - 1, i));
 
@@ -100,6 +102,7 @@ export function mountStrip(photo, { label, onOpen }) {
   function show(i, { smooth = false } = {}) {
     if (!order.length) return;
     index = clamp(i);
+    aiming = smooth ? index : null;
     refreshArrows();
     const tile = tiles.get(order[index]).tile;
     const left = tile.offsetLeft + tile.offsetWidth / 2 - strip.clientWidth / 2;
@@ -120,12 +123,21 @@ export function mountStrip(photo, { label, onOpen }) {
         const d = Math.abs(tile.offsetLeft + tile.offsetWidth / 2 - centre);
         if (d < distance) [best, distance] = [i, d];
       });
+      /* On an arrow's way, the images it passes are not shown: the arrows would flip back and forth. */
+      if (aiming !== null) {
+        if (best === aiming) aiming = null;
+        return;
+      }
       if (best === index) return;
       index = best;
       refreshArrows();
     },
     { passive: true },
   );
+  /* The scroll ended, or the person took over: the scroll chooses again. */
+  for (const type of ["scrollend", "pointerdown", "touchstart", "wheel"]) {
+    strip.addEventListener(type, () => (aiming = null), { passive: true });
+  }
 
   prev.addEventListener("click", () => show(index - 1, { smooth: true }));
   next.addEventListener("click", () => show(index + 1, { smooth: true }));

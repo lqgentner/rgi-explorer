@@ -189,3 +189,33 @@ test("buttonAt returns the open button of image i", () => {
   assert.equal(strip.buttonAt(1), tiles()[1].querySelector(".strip-open"));
   assert.equal(strip.buttonAt(5), null);
 });
+
+test("an arrow's smooth scroll does not flip the arrows back on its way", () => {
+  const { photo, strip, tiles } = mount();
+  const scroller = photo.querySelector(".strip");
+  scroller.scrollTo = () => {};
+  strip.update([item("a"), item("b"), item("c")]);
+  tiles().forEach((tile, i) => {
+    Object.defineProperty(tile, "offsetLeft", { configurable: true, get: () => i * 100 });
+    Object.defineProperty(tile, "offsetWidth", { configurable: true, get: () => 100 });
+  });
+  Object.defineProperty(scroller, "clientWidth", { configurable: true, get: () => 100 });
+  const scroll = (left) => {
+    scroller.scrollLeft = left;
+    scroller.dispatchEvent(new window.Event("scroll"));
+  };
+  const prev = photo.querySelector(".photo-prev");
+  click(photo.querySelector(".photo-next"));
+  assert.equal(strip.index, 1);
+  scroll(10);
+  assert.equal(strip.index, 1, "the first image is still nearest early in the scroll");
+  assert.equal(prev.hidden, false);
+  click(photo.querySelector(".photo-next"));
+  assert.equal(strip.index, 2, "from the target");
+  scroll(120);
+  assert.equal(strip.index, 2);
+  scroll(200);
+  scroller.dispatchEvent(new window.Event("pointerdown"));
+  scroll(0);
+  assert.equal(strip.index, 0, "a swipe leads again");
+});

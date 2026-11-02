@@ -25,8 +25,14 @@ let closeButton = null;
 let credit = null;
 let controls = null;
 let count = null;
+/* Tells a screen reader what the shown image is, and its place, as it changes. */
+let status = null;
 /* The phone's background: two blurred layers behind the track, cross-faded, so a swipe does not move it. */
 let backdrops = [];
+/* The picture the background should show; a layer fades in only once this has loaded. */
+let wanted = null;
+/* The slide an arrow's smooth scroll is heading to: until it gets there, the scroll does not choose the current image. */
+let aiming = null;
 /** The open viewer: { items, slides, srcs, credits, index, loaded, onClose, returnFocus }. */
 let state = null;
 
@@ -86,17 +92,25 @@ function load(i) {
 }
 
 /*
- * Fade the background to a blur of `src`, the file already loaded, so it
- * costs no download of its own. The hidden layer takes the new picture and
- * fades in over the shown one.
+ * Fade the background to a blur of `src`, the slide's own file, so it costs
+ * no download of its own. The hidden layer takes the new picture and, once
+ * it has loaded, fades in on top; until then the shown colours stay.
  */
 function backdrop(src) {
+  if (!src || src === wanted) return;
+  wanted = src;
   const shown = backdrops.find((layer) => layer.classList.contains("on"));
-  if (!src || shown?.getAttribute("src") === src) return;
-  const next = backdrops.find((layer) => layer !== shown);
-  next.src = src;
-  next.classList.add("on");
-  shown?.classList.remove("on");
+  if (shown?.getAttribute("src") === src) return;
+  backdrops.find((layer) => layer !== shown).src = src;
+}
+
+/* A layer's picture has loaded: if it is still the one wanted, it goes on top and fades in. The other fades out after it (style.css). */
+function reveal(layer) {
+  if (!state || layer.getAttribute("src") !== wanted || layer.classList.contains("on")) return;
+  const other = backdrops.find((l) => l !== layer);
+  dialog.insertBefore(layer, track);
+  layer.classList.add("on");
+  other.classList.remove("on");
 }
 
 function scrollTo(i, smooth) {
@@ -120,6 +134,8 @@ function go(i, { scroll = true, smooth = false } = {}) {
   if (focused === next && next.disabled) (prev.disabled ? closeButton : prev).focus();
   else if (focused === prev && prev.disabled) (next.disabled ? closeButton : next).focus();
   count.textContent = `${index + 1} / ${state.items.length}`;
+  const { alt } = state.items[index];
+  status.textContent = state.items.length > 1 ? `${alt}, image ${index + 1} of ${state.items.length}` : alt;
   load(index);
   /* The neighbours' thumbnails are already loaded by the strip: show them, so a swipe never reveals an empty slide. */
   for (const j of [index - 1, index + 1]) {
@@ -128,19 +144,23 @@ function go(i, { scroll = true, smooth = false } = {}) {
   }
   credit.replaceChildren(state.credits[index]);
   backdrop(state.srcs[index]);
+  aiming = scroll && smooth ? index : null;
   if (scroll) scrollTo(index, smooth);
 }
 
 function build() {
   closeButton = h("button", { type: "button", class: "icon-button viewer-close", "aria-label": "Close" }, icon("x"));
-  track = h("div", { class: "viewer-track" });
+  /* Not a Tab stop: Chromium would otherwise focus the scroller and ring the whole screen. */
+  track = h("div", { class: "viewer-track", tabindex: "-1" });
   prev = h("button", { type: "button", class: "icon-button viewer-prev", "aria-label": "Previous image" }, icon("chevron-left"));
   next = h("button", { type: "button", class: "icon-button viewer-next", "aria-label": "Next image" }, icon("chevron-right"));
   credit = h("div", { class: "viewer-credit" });
-  count = h("span", { class: "viewer-count" });
+  count = h("span", { class: "viewer-count", "aria-hidden": "true" });
+  status = h("span", { class: "viewer-status visually-hidden", "aria-live": "polite" });
   controls = h("div", { class: "viewer-controls" }, prev, count, next);
-  const dock = h("div", { class: "viewer-dock" }, credit, controls);
+  const dock = h("div", { class: "viewer-dock" }, credit, controls, status);
   backdrops = [0, 1].map(() => h("img", { class: "viewer-backdrop", alt: "", "aria-hidden": "true" }));
+  for (const layer of backdrops) layer.addEventListener("load", () => reveal(layer));
   dialog = h("dialog", { class: "viewer", "aria-label": "Images" }, ...backdrops, track, dock, closeButton);
   document.body.append(dialog);
 
@@ -152,6 +172,7 @@ function build() {
   });
 
   closeButton.addEventListener("click", close);
+  /* The next step starts from state.index, which is already the target of a scroll still on its way. */
   prev.addEventListener("click", () => go(state.index - 1, { smooth: true }));
   next.addEventListener("click", () => go(state.index + 1, { smooth: true }));
   dialog.addEventListener("keydown", (event) => {
@@ -180,10 +201,19 @@ function build() {
         const d = Math.abs(figure.offsetLeft - track.scrollLeft);
         if (d < distance) [best, distance] = [i, d];
       });
+      /* On an arrow's way, the slides it passes are not current: the counter and credit would flip back and forth. */
+      if (aiming !== null) {
+        if (best === aiming) aiming = null;
+        return;
+      }
       if (best !== state.index) go(best, { scroll: false });
     },
     { passive: true },
   );
+  /* The scroll ended, or the person took over: the scroll chooses again. */
+  for (const type of ["scrollend", "pointerdown", "touchstart", "wheel"]) {
+    track.addEventListener(type, () => (aiming = null), { passive: true });
+  }
   /* The layouts size the slides alike, but the viewport changed: centre the current one again. */
   PHONE.addEventListener("change", () => {
     if (state) scrollTo(state.index, false);
@@ -201,6 +231,10 @@ export function openViewer(items, index, { onClose, returnFocus } = {}) {
   if (isOpen()) hide();
   const slides = items.map((item) => {
     const img = h("img", { class: "viewer-image", alt: item.alt });
+    /* The picture's shape, so style.css draws any file in it, the thumbnail too, as large as fits: nothing jumps when the large one comes. */
+    img.addEventListener("load", () => {
+      if (img.naturalWidth && img.naturalHeight) img.style.setProperty("--ar", String(img.naturalWidth / img.naturalHeight));
+    });
     const figure = h("figure", { class: "viewer-slide" }, h("div", { class: "viewer-stage" }, img));
     return { figure, img };
   });
@@ -208,6 +242,8 @@ export function openViewer(items, index, { onClose, returnFocus } = {}) {
     layer.classList.remove("on");
     layer.removeAttribute("src");
   }
+  wanted = null;
+  aiming = null;
   controls.hidden = items.length < 2;
   track.replaceChildren(...slides.map((s) => s.figure));
   state = {

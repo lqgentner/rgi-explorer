@@ -244,6 +244,16 @@ button:focus-visible {
   display: none !important;
 }
 
+/* Read by screen readers, not shown. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 /* Layers control, desktop */
 
 #layers {
@@ -1638,6 +1648,8 @@ dialog.viewer::backdrop {
   place-items: center;
   height: 100%;
   padding: 72px 80px var(--dock-room);
+  /* The image sizes itself against this room: 100cqw by 100cqh. */
+  container-type: size;
 }
 
 /* An image with nothing loaded yet shows nothing, not a broken-image icon. */
@@ -1645,9 +1657,17 @@ dialog.viewer::backdrop {
   visibility: hidden;
 }
 
+/*
+ * As large as fits, at the shape js/viewer.js reads from the loaded picture
+ * (--ar), whatever file is in it: the thumbnail stands in at the large file's
+ * size, so nothing jumps when that arrives. Until a picture has loaded,
+ * --ar is unset, the width falls back to auto and the max- limits fit it.
+ */
 .viewer-image {
   position: relative;
   display: block;
+  aspect-ratio: var(--ar, auto);
+  width: min(100cqw, 100cqh * var(--ar));
   max-width: 100%;
   max-height: 100%;
   border-radius: var(--radius);
@@ -2158,6 +2178,7 @@ dialog.usedata::backdrop {
   }
 
   .viewer-image {
+    aspect-ratio: auto;
     width: 100%;
     max-height: 100%;
     object-fit: contain;
@@ -2177,11 +2198,13 @@ dialog.usedata::backdrop {
     filter: blur(90px) saturate(1.5) brightness(0.4);
     transform: scale(1.4);
     opacity: 0;
-    transition: opacity 400ms ease-out;
+    /* The outgoing layer waits for the incoming one, on top, to fade in: the background never dims between them. */
+    transition: opacity 400ms ease-out 400ms;
   }
 
   .viewer-backdrop.on {
     opacity: 1;
+    transition-delay: 0s;
   }
 
   :is(.viewer-prev, .viewer-next) {

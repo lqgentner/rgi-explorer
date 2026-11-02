@@ -168,7 +168,7 @@ test("on the desktop a click outside the image closes the viewer; the image, the
   assert.equal(isOpen(), false, "on the desktop the area around the image closes it");
 });
 
-test("the phone's background is one blurred layer that stays put and follows the shown image", async () => {
+test("the phone's background is one blurred layer that stays put and follows the shown image, once its picture has loaded", async () => {
   const { list } = items();
   openViewer(list, 1, {});
   const layers = [...dialog().querySelectorAll("img.viewer-backdrop")];
@@ -178,16 +178,101 @@ test("the phone's background is one blurred layer that stays put and follows the
     assert.equal(layer.getAttribute("aria-hidden"), "true");
   }
   const shown = () => dialog().querySelectorAll("img.viewer-backdrop.on");
+  const loading = (src) => layers.find((layer) => layer.getAttribute("src") === src);
+  const loaded = (src) => loading(src).dispatchEvent(new window.Event("load"));
+  assert.equal(shown().length, 0, "nothing fades in before its picture has loaded");
+  loaded("https://thumb/1.jpg");
   assert.equal(shown().length, 1);
   assert.equal(shown()[0].getAttribute("src"), "https://thumb/1.jpg", "the stand-in first");
   await settle();
-  assert.equal(shown()[0].getAttribute("src"), "https://big/1.jpg", "then the large file");
+  assert.equal(shown()[0].getAttribute("src"), "https://thumb/1.jpg", "the large file's URL alone changes nothing");
+  loaded("https://big/1.jpg");
+  assert.equal(shown().length, 1);
+  assert.equal(shown()[0].getAttribute("src"), "https://big/1.jpg", "then the large file, once loaded");
   const before = shown()[0];
   key(dialog(), "ArrowRight");
+  assert.equal(shown()[0], before, "the previous colours stay until the next picture has loaded");
+  loaded("https://thumb/2.jpg");
   assert.equal(shown().length, 1);
   assert.notEqual(shown()[0], before, "the other layer fades in");
   assert.equal(shown()[0].getAttribute("src"), "https://thumb/2.jpg");
+  assert.equal(shown()[0].nextElementSibling, dialog().querySelector(".viewer-track"), "the incoming layer lies on top");
   closeIfOpen();
+});
+
+test("on the phone the outgoing background fades only after the incoming one, so the background never dims", () => {
+  const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
+  const phone = [...css.matchAll(/@media \(max-width: 640px\)\s*{([\s\S]*?)\n}/g)].map((m) => m[1]).join("\n");
+  assert.match(phone, /\.viewer-backdrop\s*{[^}]*transition:\s*opacity 400ms ease-out 400ms/);
+  assert.match(phone, /\.viewer-backdrop\.on\s*{[^}]*transition-delay:\s*0s/);
+});
+
+test("an arrow's smooth scroll does not flip the counter back on its way, and a second press starts from its target", () => {
+  const { list } = items(["https://big/0.jpg", "https://big/1.jpg", "https://big/2.jpg", "https://big/3.jpg"]);
+  openViewer(list, 0, {});
+  const track = dialog().querySelector(".viewer-track");
+  const slides = [...track.querySelectorAll(".viewer-slide")];
+  slides.forEach((slide, i) => Object.defineProperty(slide, "offsetLeft", { configurable: true, get: () => i * 140 }));
+  Object.defineProperty(track, "clientWidth", { configurable: true, get: () => 100 });
+  const scroll = (left) => {
+    track.scrollLeft = left;
+    track.dispatchEvent(new window.Event("scroll"));
+  };
+  key(dialog(), "ArrowRight");
+  assert.equal(count(), "2 / 4");
+  scroll(20);
+  assert.equal(count(), "2 / 4", "the old slide is still nearest early in the scroll");
+  assert.equal(dialog().querySelector(".viewer-prev").disabled, false);
+  key(dialog(), "ArrowRight");
+  assert.equal(count(), "3 / 4", "from the target, not from where the scroll is");
+  scroll(160);
+  assert.equal(count(), "3 / 4");
+  scroll(280);
+  assert.equal(count(), "3 / 4");
+  /* Once there, or once the person takes over, the scroll leads again. */
+  track.dispatchEvent(new window.Event("pointerdown"));
+  scroll(0);
+  assert.equal(count(), "1 / 4");
+  closeIfOpen();
+});
+
+test("on the desktop the stand-in is drawn at the large file's size: the image takes its shape from what loads", () => {
+  const { list } = items();
+  openViewer(list, 1, {});
+  const img = current().querySelector(".viewer-image");
+  Object.defineProperty(img, "naturalWidth", { configurable: true, get: () => 640 });
+  Object.defineProperty(img, "naturalHeight", { configurable: true, get: () => 427 });
+  img.dispatchEvent(new window.Event("load"));
+  assert.ok(Math.abs(Number(img.style.getPropertyValue("--ar")) - 640 / 427) < 1e-6);
+  const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
+  const rule = (sel) => [...css.matchAll(new RegExp(`(^|\\n)\\s*${sel}\\s*{([^}]*)}`, "g"))].map((m) => m[2]).join("\n");
+  assert.match(rule("\\.viewer-stage"), /container-type:\s*size/);
+  assert.match(rule("\\.viewer-image"), /width:\s*min\(100cqw,\s*100cqh \* var\(--ar\)\)/, "as large as fits, whatever file is in it");
+  closeIfOpen();
+});
+
+test("the track is no Tab stop of its own, so no ring goes round the whole screen", () => {
+  const { list } = items();
+  openViewer(list, 0, {});
+  assert.equal(dialog().querySelector(".viewer-track").getAttribute("tabindex"), "-1");
+  closeIfOpen();
+});
+
+test("a screen reader hears what each image shows, and its place, as it changes", () => {
+  const { list } = items();
+  openViewer(list, 0, {});
+  const status = dialog().querySelector(".viewer-status");
+  assert.equal(status.getAttribute("aria-live"), "polite");
+  assert.equal(status.textContent, "Image 0, image 1 of 3");
+  key(dialog(), "ArrowRight");
+  assert.equal(status.textContent, "Image 1, image 2 of 3");
+  closeIfOpen();
+  openViewer(items().list.slice(0, 1), 0, {});
+  assert.equal(status.textContent, "Image 0", "one image has no place to tell");
+  closeIfOpen();
+  const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
+  assert.match(css, /\.visually-hidden\s*{[^}]*clip-path:\s*inset\(50%\)/);
+  assert.ok(status.classList.contains("visually-hidden"));
 });
 
 test("the neighbours show their thumbnails at once, so a swipe never reveals an empty slide", () => {
