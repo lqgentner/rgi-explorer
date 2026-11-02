@@ -431,3 +431,17 @@ test("the ring on a focused search input survives the search's own focus style",
   const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
   assert.match(css, /#search input\.tour-target,\s*#search input\.tour-target:focus \{\s*outline: 3px solid var\(--accent\);/);
 });
+
+test("on the desktop the card's ring is a frame above the photo and the sticky tabs, fixed while the card scrolls", () => {
+  const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
+  const desktop = /\n@media \(min-width: 641px\) \{\n  #card\.tour-target \{\s*outline: none;\s*\}\n\n  #card\.tour-target::after \{([^}]*)\}/.exec(css);
+  assert.ok(desktop, "the outline, which the card's positioned children paint over, gives way to a pseudo-element");
+  const frame = desktop[1];
+  assert.match(frame, /content: "";/);
+  assert.match(frame, /position: fixed;/, "fixed: the open card has no translate, so it holds still as the card scrolls");
+  assert.match(frame, /inset: 0 auto 0 0;/);
+  assert.match(frame, /width: var\(--sidebar-w\);/);
+  assert.match(frame, /z-index: 10;/, "above the photo and the sticky tabs");
+  assert.match(frame, /border: 3px solid var\(--accent\);/);
+  assert.match(frame, /pointer-events: none;/);
+});

@@ -1231,6 +1231,29 @@ body:has(#search.fullscreen) .welcome {
   outline-offset: -3px;
 }
 
+/*
+ * On the desktop the card's photo and sticky tabs are positioned, so they
+ * paint over its outline. The ring is a frame above them instead, fixed to the
+ * sidebar while the card scrolls: the open card has no translate, so fixed
+ * means the viewport.
+ */
+@media (min-width: 641px) {
+  #card.tour-target {
+    outline: none;
+  }
+
+  #card.tour-target::after {
+    content: "";
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: var(--sidebar-w);
+    z-index: 10;
+    box-sizing: border-box;
+    border: 3px solid var(--accent);
+    pointer-events: none;
+  }
+}
+
 /* The search bar keeps its ring while focused, over its own "no outline" focus style. */
 #search input.tour-target,
 #search input.tour-target:focus {
