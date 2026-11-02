@@ -145,7 +145,7 @@ test("the imagery's viewer frames its own crop and asks identify for it", async 
   const [w, hgt] = viewerCropSize(window.innerWidth, window.innerHeight);
   click($("#card .strip-tile .strip-open"));
   const viewer = $("dialog.viewer");
-  const img = await waitFor(() => viewer.querySelector(".viewer-slide.current img[src]"));
+  const img = await waitFor(() => viewer.querySelector(".viewer-slide.current .viewer-image[src]"));
   const src = new URL(img.getAttribute("src"));
   assert.equal(src.origin + src.pathname, ESRI_EXPORT);
   assert.equal(src.searchParams.get("size"), `${w},${hgt}`);

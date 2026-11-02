@@ -1,8 +1,10 @@
 /*
  * The image viewer: a modal dialog that shows the strip's images whole, one
  * at a time. Each image's large file and credit are fetched only when it is
- * shown, once. Swipe, the arrow keys or the arrows (desktop only) move
- * between images; Escape and ✕ close it.
+ * shown, once. The credit and ‹ n / N › sit in one dock fixed under the
+ * images and ✕ in the corner, so no control moves from image to image. Swipe,
+ * the arrow keys or the arrows (desktop only) move between images; Escape, ✕
+ * and, on the desktop, a click outside the image close it.
  */
 
 import { PHONE, h, icon } from "./ui.js";
@@ -30,7 +32,10 @@ let track = null;
 let prev = null;
 let next = null;
 let closeButton = null;
-/** The open viewer: { items, slides, index, size, loaded, onClose, returnFocus }. */
+let credit = null;
+let controls = null;
+let count = null;
+/** The open viewer: { items, slides, credits, index, size, loaded, onClose, returnFocus }. */
 let state = null;
 
 const isOpen = () => Boolean(dialog && (dialog.open || dialog.hasAttribute("open")));
@@ -67,9 +72,14 @@ function load(i) {
   if (mine.loaded.has(i)) return;
   mine.loaded.add(i);
   const item = mine.items[i];
-  const { img, caption } = mine.slides[i];
-  if (item.thumb) img.src = item.thumb;
-  caption.replaceChildren(item.credit(mine.size));
+  const { img, blur } = mine.slides[i];
+  /* The phone's background is a blur of the same file, so it costs no download of its own. */
+  const setSrc = (src) => {
+    img.src = src;
+    blur.src = src;
+  };
+  if (item.thumb) setSrc(item.thumb);
+  mine.credits[i] = item.credit(mine.size);
   let answer;
   try {
     answer = item.large(mine.size);
@@ -78,7 +88,7 @@ function load(i) {
   }
   Promise.resolve(answer)
     .then((url) => {
-      if (url && state === mine) img.src = url;
+      if (url && state === mine) setSrc(url);
     })
     .catch(() => {});
 }
@@ -96,10 +106,16 @@ function go(i, { scroll = true, smooth = false } = {}) {
   const index = Math.max(0, Math.min(state.items.length - 1, i));
   state.index = index;
   state.slides.forEach(({ figure }, j) => figure.classList.toggle("current", j === index));
-  const many = state.items.length > 1;
-  prev.hidden = !many || index === 0;
-  next.hidden = !many || index === state.items.length - 1;
+  /* Disabled, not hidden, at the ends: the controls keep their places. */
+  const focused = document.activeElement;
+  prev.disabled = index === 0;
+  next.disabled = index === state.items.length - 1;
+  /* A disabled arrow would drop focus to the page: hand it to the other arrow, or ✕. */
+  if (focused === next && next.disabled) (prev.disabled ? closeButton : prev).focus();
+  else if (focused === prev && prev.disabled) (next.disabled ? closeButton : next).focus();
+  count.textContent = `${index + 1} / ${state.items.length}`;
   load(index);
+  credit.replaceChildren(state.credits[index]);
   if (scroll) scrollTo(index, smooth);
 }
 
@@ -108,8 +124,19 @@ function build() {
   track = h("div", { class: "viewer-track" });
   prev = h("button", { type: "button", class: "icon-button viewer-prev", "aria-label": "Previous image" }, icon("chevron-left"));
   next = h("button", { type: "button", class: "icon-button viewer-next", "aria-label": "Next image" }, icon("chevron-right"));
-  dialog = h("dialog", { class: "viewer", "aria-label": "Images" }, track, closeButton, prev, next);
+  credit = h("div", { class: "viewer-credit" });
+  count = h("span", { class: "viewer-count" });
+  controls = h("div", { class: "viewer-controls" }, prev, count, next);
+  const dock = h("div", { class: "viewer-dock" }, credit, controls);
+  dialog = h("dialog", { class: "viewer", "aria-label": "Images" }, track, dock, closeButton);
   document.body.append(dialog);
+
+  /* On the desktop, a click around the image closes, as on the page behind it. The phone swipes there. */
+  track.addEventListener("click", (event) => {
+    if (!state || PHONE.matches) return;
+    if (event.target.closest(".viewer-image")) return;
+    close();
+  });
 
   closeButton.addEventListener("click", close);
   prev.addEventListener("click", () => go(state.index - 1, { smooth: true }));
@@ -154,17 +181,18 @@ export function openViewer(items, index, { onClose, returnFocus } = {}) {
   if (!items.length) return;
   if (!dialog) build();
   if (isOpen()) hide();
-  const slides = items.map((item, i) => {
-    const img = h("img", { alt: item.alt });
-    const caption = h("figcaption", { class: "viewer-credit" });
-    const count = items.length > 1 ? h("span", { class: "photo-count" }, `${i + 1} / ${items.length}`) : null;
-    const figure = h("figure", { class: "viewer-slide" }, h("div", { class: "viewer-stage" }, img), caption, count);
-    return { figure, img, caption };
+  const slides = items.map((item) => {
+    const blur = h("img", { class: "viewer-blur", alt: "", "aria-hidden": "true" });
+    const img = h("img", { class: "viewer-image", alt: item.alt });
+    const figure = h("figure", { class: "viewer-slide" }, h("div", { class: "viewer-stage" }, blur, img));
+    return { figure, img, blur };
   });
+  controls.hidden = items.length < 2;
   track.replaceChildren(...slides.map((s) => s.figure));
   state = {
     items,
     slides,
+    credits: [],
     index: 0,
     size: viewerCropSize(window.innerWidth, window.innerHeight),
     loaded: new Set(),

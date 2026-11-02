@@ -19,6 +19,9 @@
   /* Corners: round on the outside (buttons, the phone's images), smaller on boxes of text. */
   --radius: 16px;
   --tile-radius: 12px;
+  /* What darkens the page behind a pane or dialog: light for panes, strong behind the image viewer. */
+  --scrim: rgb(32 33 36 / 40%);
+  --scrim-strong: rgb(32 33 36 / 70%);
   /* The search bar's place, which the desktop photo's arrows are centred against. */
   --search-top: 16px;
   --search-h: 48px;
@@ -684,7 +687,7 @@ button:focus-visible {
   position: fixed;
   inset: 0;
   z-index: 5;
-  background: rgb(0 0 0 / 40%);
+  background: var(--scrim);
   touch-action: none;
 }
 
@@ -1572,11 +1575,14 @@ table.members .num {
 }
 
 /*
- * The image viewer: the strip's images whole, over a dark backdrop that
- * covers the viewport, one per snap of its own track. Its arrows are the
- * desktop's; the phone swipes.
+ * The image viewer. On the desktop the image floats at its own shape over the
+ * strong scrim; on the phone it fills the width over a blur of its own
+ * colours. Under it, one dock fixed to the bottom holds the credit, which
+ * wraps upwards, and ‹ n / N ›; ✕ is fixed in the corner. No control moves
+ * from image to image.
  */
 dialog.viewer {
+  --dock-room: 160px;
   inset: 0;
   width: 100vw;
   height: 100dvh;
@@ -1586,7 +1592,8 @@ dialog.viewer {
   padding: 0;
   overflow: hidden;
   border: 0;
-  background: rgb(0 0 0 / 92%);
+  /* The dialog covers the viewport, so its own background is the scrim. */
+  background: var(--scrim-strong);
   color: #fff;
 }
 
@@ -1596,13 +1603,13 @@ dialog.viewer:focus-visible {
 }
 
 dialog.viewer::backdrop {
-  background: rgb(0 0 0 / 60%);
+  background: none;
 }
 
 .viewer-track {
+  position: absolute;
+  inset: 0;
   display: flex;
-  width: 100%;
-  height: 100%;
   overflow-x: auto;
   overflow-y: hidden;
   overscroll-behavior: contain;
@@ -1616,33 +1623,60 @@ dialog.viewer::backdrop {
 
 .viewer-slide {
   position: relative;
-  display: flex;
   flex: 0 0 100%;
-  flex-direction: column;
   height: 100%;
   margin: 0;
+  overflow: hidden;
   scroll-snap-align: start;
 }
 
+/* The image as large as fits above the dock, at its own shape; around it, a click closes. */
 .viewer-stage {
-  flex: 1;
-  min-height: 0;
-  padding: 56px 16px 0;
-}
-
-.viewer-stage img {
-  display: block;
-  width: 100%;
+  display: grid;
+  /* Definite tracks, so the image's max-height resolves against the room left. */
+  grid-template: minmax(0, 100%) / minmax(0, 100%);
+  place-items: center;
   height: 100%;
-  object-fit: contain;
+  padding: 72px 80px var(--dock-room);
 }
 
-/* The full credit, under the image. The strip's credit chip sits in it plainly. */
+.viewer-image {
+  position: relative;
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: var(--radius);
+  box-shadow: 0 12px 40px rgb(0 0 0 / 45%);
+}
+
+.viewer-blur {
+  display: none;
+}
+
+.viewer-dock {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 0 24px calc(24px + env(safe-area-inset-bottom));
+  pointer-events: none;
+}
+
+.viewer-dock > * {
+  pointer-events: auto;
+}
+
+/* The full credit, centred, as long as it needs: it wraps, never cut. */
 .viewer-credit {
-  padding: 12px 16px calc(16px + env(safe-area-inset-bottom));
-  color: rgb(255 255 255 / 85%);
-  font-size: 12px;
-  line-height: 18px;
+  max-width: 960px;
+  color: rgb(255 255 255 / 90%);
+  font-size: 13px;
+  line-height: 19px;
   text-align: center;
 }
 
@@ -1661,50 +1695,45 @@ dialog.viewer::backdrop {
   line-height: inherit;
 }
 
-.viewer-slide .photo-count {
-  top: 20px;
-  right: auto;
-  bottom: auto;
-  left: 16px;
-  background: none;
-  color: rgb(255 255 255 / 85%);
-  font-size: 12px;
+.viewer-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.viewer-count {
+  min-width: 64px;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
 }
 
 .viewer-close,
 .viewer-prev,
 .viewer-next {
-  position: absolute;
-  z-index: 1;
-  width: 40px;
-  height: 40px;
-  background: rgb(255 255 255 / 15%);
+  width: 44px;
+  height: 44px;
+  background: rgb(255 255 255 / 14%);
   color: #fff;
 }
 
+.viewer-prev:disabled,
+.viewer-next:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
 .viewer-close {
-  top: 12px;
-  right: 12px;
-}
-
-.viewer-prev,
-.viewer-next {
-  top: 50%;
-  transform: translateY(-50%);
-}
-
-.viewer-prev {
-  left: 16px;
-}
-
-.viewer-next {
+  position: absolute;
+  top: 16px;
   right: 16px;
+  z-index: 2;
 }
 
 @media (hover: hover) {
   .viewer-close:hover,
-  .viewer-prev:hover,
-  .viewer-next:hover {
+  .viewer-prev:not(:disabled):hover,
+  .viewer-next:not(:disabled):hover {
     background: rgb(255 255 255 / 25%);
   }
 }
@@ -1748,7 +1777,7 @@ dialog.usedata {
 }
 
 dialog.usedata::backdrop {
-  background: rgb(32 33 36 / 40%);
+  background: var(--scrim);
 }
 
 .usedata h2 {
@@ -2105,7 +2134,39 @@ dialog.usedata::backdrop {
     display: none;
   }
 
-  /* The phone's viewer swipes, as its strip does. */
+  /*
+   * The phone's viewer: the image fills the width, and behind it a blur so
+   * strong that only its colours remain, so nothing is black. It swipes, as
+   * the strip does: no arrows.
+   */
+  dialog.viewer {
+    background: #202124;
+  }
+
+  .viewer-stage {
+    position: relative;
+    padding: 64px 0 var(--dock-room);
+  }
+
+  .viewer-image {
+    width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .viewer-blur {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    filter: blur(90px) saturate(1.5) brightness(0.7);
+    transform: scale(1.4);
+  }
+
   :is(.viewer-prev, .viewer-next) {
     display: none;
   }

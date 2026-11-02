@@ -574,9 +574,9 @@ test("a click on an image opens the viewer there, and closing shows that image i
   click(opener);
   const viewer = document.querySelector("dialog.viewer");
   assert.ok(viewer.open || viewer.hasAttribute("open"));
-  assert.equal(viewer.querySelector(".viewer-slide.current .photo-count").textContent, "2 / 3");
-  assert.equal(viewer.querySelector(".viewer-slide.current img").getAttribute("src"), PHOTOS[0].src, "the strip's thumbnail stands in");
-  const credit = viewer.querySelector(".viewer-slide.current .viewer-credit");
+  assert.equal(viewer.querySelector(".viewer-dock .viewer-count").textContent, "2 / 3");
+  assert.equal(viewer.querySelector(".viewer-slide.current .viewer-image").getAttribute("src"), PHOTOS[0].src, "the strip's thumbnail stands in");
+  const credit = viewer.querySelector(".viewer-dock .viewer-credit");
   assert.match(credit.textContent, /Author 1/);
   assert.match(credit.textContent, /Wikidata Q1 · P18/);
   assert.equal(credit.querySelector(`a[href="${PHOTOS[0].page}"]`)?.textContent, "View on Commons");
