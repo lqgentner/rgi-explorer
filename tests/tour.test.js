@@ -356,8 +356,8 @@ test("on the phone search, 3D and the last card sit at the top; the card steps d
   assert.equal(popup().dataset.dock, undefined, "the desktop places by script");
   const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
   assert.match(css, /@media \(max-width: 640px\) \{\s*\.tour \{\s*top: calc\(12px \+ var\(--search-h\) \+ 12px\);\s*left: 12px;\s*right: 64px;\s*width: auto;/);
-  assert.match(css, /\.tour\[data-dock="button"\] \{[^}]*translate: 0 max\(calc\(12px \+ var\(--search-h\) \+ 12px\), calc\(100dvh - var\(--sheet-visible, 160px\) - 8px - 100%\)\);/,
-    "it rides 8 px above the sheet's edge, over the credits, from the same variable the sheet moves by");
+  assert.match(css, /\.tour\[data-dock="button"\] \{[^}]*translate: 0 max\(calc\(12px \+ var\(--search-h\) \+ 12px\), calc\(100dvh - var\(--sheet-visible, 160px\) - 12px - 100%\)\);/,
+    "it rides 12 px above the sheet's edge, as the credits do, from the same variable the sheet moves by");
   assert.match(css, /body:has\(#sheet\.dragging\) \.tour\[data-dock\] \{\s*transition: none;/, "a drag moves it frame by frame, as it moves the sheet");
   assert.match(css, /\.tour\[data-dock="sheet"\],\s*\.tour\[data-dock="button"\] \{/, "at compact the button step rides above the sheet's edge like the card step");
   assert.match(css, /#sheet:not\(\[data-level="compact"\]\) ~ \.tour\[data-dock="button"\] \{\s*translate: 0 calc\(100dvh - var\(--sheet-visible, 160px\) \+ var\(--tour-below, 140px\)\);/,

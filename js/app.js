@@ -647,8 +647,12 @@ function wire(catalog, rgiMap, regions) {
     );
   }
 
-  /** Open a complex's panel in place of any glacier card and select it; `fit`, ALWAYS or IF_NEEDED, fits the map to it. */
-  function openComplex(complexId, fit) {
+  /*
+   * Open a complex's panel in place of any glacier card and select it; `fit`,
+   * ALWAYS or IF_NEEDED, fits the map to it. The reader's open folds the phone's
+   * credits; a shared link's, `fromLink`, leaves them showing.
+   */
+  function openComplex(complexId, fit, { fromLink = false } = {}) {
     if (shown) {
       shown = null;
       fitting = null;
@@ -673,6 +677,7 @@ function wire(catalog, rgiMap, regions) {
     complexCard.open(complexId);
     if (PHONE.matches) setSheetLevel("compact");
     welcome.dismiss();
+    if (!fromLink) status.fold();
     tour.refresh();
   }
 
@@ -689,8 +694,8 @@ function wire(catalog, rgiMap, regions) {
     tour.refresh();
   }
 
-  /** Open a glacier's card and select it; `fit`, ALWAYS or IF_NEEDED, fits the map to its bbox. */
-  function openGlacier(glacier, fit) {
+  /** Open a glacier's card and select it; `fit`, ALWAYS or IF_NEEDED, fits the map to its bbox. `fromLink` as for a complex. */
+  function openGlacier(glacier, fit, { fromLink = false } = {}) {
     /* A page holds one of the two, also while a shared complex is still being read. */
     state.complex = null;
     if (shownComplex) {
@@ -710,6 +715,7 @@ function wire(catalog, rgiMap, regions) {
     card.open(glacier);
     if (PHONE.matches) setSheetLevel("compact");
     welcome.dismiss();
+    if (!fromLink) status.fold();
     tour.refresh();
   }
 
@@ -756,7 +762,7 @@ function wire(catalog, rgiMap, regions) {
           return;
         }
         /* The sender's view stays; without one the glacier is fitted, wherever the opening view is. */
-        openGlacier({ rgiId, row }, !hadView && ALWAYS);
+        openGlacier({ rgiId, row }, !hadView && ALWAYS, { fromLink: true });
       },
       (error) => console.warn("glacier index:", error.message),
     );
@@ -773,7 +779,7 @@ function wire(catalog, rgiMap, regions) {
           save();
           return;
         }
-        openComplex(complexId, !hadView && ALWAYS);
+        openComplex(complexId, !hadView && ALWAYS, { fromLink: true });
       },
       (error) => console.warn("complex:", error.message),
     );

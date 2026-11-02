@@ -1135,7 +1135,8 @@ button:focus-visible {
   }
 
   /*
-   * The card steps ride 8 px above the sheet's edge, over the credits, from the same
+   * The card steps ride 12 px above the sheet's edge, over the credits and level with
+   * their foot, from the same
    * variable the sheet moves by, so a swipe carries them along in one motion;
    * raised high, the sheet leaves them under the search. 100% is the
    * popover's own height.
@@ -1143,7 +1144,7 @@ button:focus-visible {
   .tour[data-dock="sheet"],
   .tour[data-dock="button"] {
     top: 0;
-    translate: 0 max(calc(12px + var(--search-h) + 12px), calc(100dvh - var(--sheet-visible, 160px) - 8px - 100%));
+    translate: 0 max(calc(12px + var(--search-h) + 12px), calc(100dvh - var(--sheet-visible, 160px) - 12px - 100%));
     transition: translate 220ms ease-out;
   }
 

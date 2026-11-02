@@ -213,8 +213,11 @@ These replace the matching points above.
   The text and the buttons run to the card's 12 px padding; only the heading
   keeps clear of the X.
 - **3D notice:** removed from the explorer.
-- **The card steps at compact** sit 8 px above the sheet's edge, over the
-  credits, whatever the credits' height.
+- **The card steps at compact** sit 12 px above the sheet's edge, over the
+  credits and level with their foot, whatever the credits' height.
+- **The phone's credits** fold when the reader opens a glacier or a complex,
+  by a map click, a search pick or "Take me to a glacier", as they fold on the
+  first drag of the map. A shared link's glacier leaves them showing.
 - **"Take me to a glacier"** finds the sample's row from its row group, as
   the complexes do, without the search index.
 - **Use this data on the phone** rides with its button: above the sheet's

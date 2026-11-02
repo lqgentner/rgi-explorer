@@ -247,7 +247,8 @@ export function mountStatus(root, rgiMap, catalog, getState) {
    * One set of nodes for both layouts; style.css decides how they show. The
    * phone hides the scale bar and folds the credits into the info button: they
    * show at load and fold on the first drag of the map, as MapLibre's compact
-   * attribution does, and the button unfolds them again in place.
+   * attribution does, or when the reader first opens a glacier, whichever comes
+   * first; the button unfolds them again in place.
    */
   const info = h(
     "button",
@@ -265,7 +266,13 @@ export function mountStatus(root, rgiMap, catalog, getState) {
     setOpen(false);
     info.focus();
   });
-  rgiMap.map.once("dragstart", () => setOpen(false));
+  let folded = false;
+  const fold = () => {
+    if (folded) return;
+    folded = true;
+    setOpen(false);
+  };
+  rgiMap.map.once("dragstart", fold);
   root.append(scale, box);
 
   /* Redraw the scale and publish the status line's height, which the desktop controls sit above. */
@@ -286,6 +293,7 @@ export function mountStatus(root, rgiMap, catalog, getState) {
   if (typeof ResizeObserver === "function") new ResizeObserver(publishHeight).observe(root);
 
   return {
+    fold,
     refresh() {
       lookUpTerrain();
       drawCredits();

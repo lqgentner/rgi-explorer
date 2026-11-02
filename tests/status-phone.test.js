@@ -36,6 +36,20 @@ test("the credits show at load in the info button's box, and fold on the first d
   assert.ok(!box.classList.contains("open"));
 });
 
+test("the reader opening a glacier folds the credits as the first drag does, and only once", () => {
+  const root = document.createElement("div");
+  const map = new FakeMap({ zoom: 5 });
+  const status = mountStatus(root, { map, onMove() {} }, catalog, () => ({ base: "standard", terrain: false }));
+  const box = root.querySelector(".credits-box");
+  status.fold();
+  assert.ok(!box.classList.contains("open"));
+  assert.equal(box.querySelector("button.credits-button").getAttribute("aria-expanded"), "false");
+  box.querySelector("button.credits-button").click();
+  status.fold();
+  map.fire("dragstart");
+  assert.ok(box.classList.contains("open"), "credits the reader unfolded stay open");
+});
+
 test("the phone hides the zoom buttons, which are drawn for a change of layout", () => {
   const root = document.createElement("div");
   mountZoom(root, { map: new FakeMap() });
