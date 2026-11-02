@@ -91,6 +91,19 @@ test("area keeps two decimals below 10 km²", () => {
   assert.equal(row({ area_km2: 0.5 }, "key", "Area").value, "0.50 km²");
 });
 
+test("area shows at most four significant digits", () => {
+  assert.equal(formatArea(81.347), "81.3");
+  assert.equal(formatArea(999.94), "999.9");
+  assert.equal(formatArea(1000), "1,000");
+  assert.equal(formatArea(7724.3), "7,724");
+  assert.equal(row({ area_km2: 7724.3 }, "key", "Area").value, "7,724 km²");
+});
+
+test("area picks its decimals after rounding, so a carry adds no digit", () => {
+  assert.equal(formatArea(9.996), "10.0");
+  assert.equal(formatArea(999.96), "1,000");
+});
+
 test("dates, integers and coordinates format", () => {
   const day = "2003-08-13";
   assert.equal(formatDate(new Date(Date.UTC(2003, 7, 13))), day);

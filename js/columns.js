@@ -110,8 +110,15 @@ export function formatDate(value) {
 
 export const formatInt = (value) => INTEGER.format(value);
 
-/** An area: two decimals below 10 km², one from 10 km² up. */
-export const formatArea = (value) => (value < 10 ? HUNDREDTH : TENTH).format(value);
+/**
+ * An area in at most four significant digits, so that it fits on one line:
+ * two decimals below 10 km², one below 1,000 km², none from there up. The
+ * bounds sit half a last digit lower, so 9.996 shows "10.0", not "10.00".
+ */
+export function formatArea(value) {
+  const size = Math.abs(value);
+  return (size < 9.995 ? HUNDREDTH : size < 999.95 ? TENTH : INTEGER).format(value);
+}
 
 export const formatDegrees = (value) => `${TENTH.format(value)}°`;
 
