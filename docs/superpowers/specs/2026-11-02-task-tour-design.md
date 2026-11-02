@@ -213,3 +213,8 @@ These replace the matching points above.
   The text and the buttons run to the card's 12 px padding; only the heading
   keeps clear of the X.
 - **3D notice:** removed from the explorer.
+- **Use this data on the phone** rides with its button: above the sheet's
+  edge at compact, like the card step, and just under the button once the
+  sheet is raised, so the button stays in view.
+- **The welcome's text** is one paragraph: "Search for a glacier or click
+  one on the map. New to RGI? Read the user guide."

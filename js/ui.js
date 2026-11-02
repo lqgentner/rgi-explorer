@@ -54,9 +54,13 @@ export function h(tag, props = {}, ...children) {
   return node;
 }
 
-/* A link out of the explorer: the icon says it opens a new tab. */
-export const externalLink = (href, text) =>
-  h("a", { class: "external", href, target: "_blank", rel: "noopener noreferrer", title: "Opens in a new tab" }, text, icon("external-link"));
+/* A link out of the explorer: the icon says it opens a new tab, and stays on the line of the link's last word. */
+export function externalLink(href, text) {
+  const words = String(text);
+  const cut = words.lastIndexOf(" ") + 1;
+  const tail = h("span", { class: "nowrap" }, words.slice(cut), icon("external-link"));
+  return h("a", { class: "external", href, target: "_blank", rel: "noopener noreferrer", title: "Opens in a new tab" }, words.slice(0, cut), tail);
+}
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 /* Lucide's sprite holds every icon as a symbol named like the icon. */

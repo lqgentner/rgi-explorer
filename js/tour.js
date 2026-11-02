@@ -145,7 +145,8 @@ export function mountTour(root, { anchor, panel, terrainOn, onTakeMe, onStep, on
      * under the search.
      */
     if (PHONE.matches) {
-      if (step === "card" || step === "data") node.dataset.dock = "sheet";
+      if (step === "card") node.dataset.dock = "sheet";
+      else if (step === "data") dockToButton();
       else delete node.dataset.dock;
       node.dataset.side = "top";
       node.style.top = "";
@@ -165,6 +166,18 @@ export function mountTour(root, { anchor, panel, terrainOn, onTakeMe, onStep, on
     node.dataset.side = spot.side;
     node.style.top = `${spot.top}px`;
     node.style.left = `${spot.left}px`;
+  }
+
+  /*
+   * Use this data rides with its button: above the sheet's edge at compact,
+   * under the button once the sheet is raised, so the button stays in view.
+   * The button's place in the sheet only changes with the sheet's level.
+   */
+  function dockToButton() {
+    node.dataset.dock = "button";
+    const sheet = anchor("panel")?.getBoundingClientRect();
+    const button = ringed?.getBoundingClientRect();
+    if (sheet && button) node.style.setProperty("--tour-below", `${Math.round(button.bottom - sheet.top + GAP - 4)}px`);
   }
 
   /* Move on while a step's condition already holds, and back when its panel is gone. */

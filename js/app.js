@@ -503,8 +503,10 @@ function wire(catalog, rgiMap, regions) {
       if (event.target.closest?.("button.info, table.members tr")) used();
     });
   }
+  /* A new level also moves the card's header, which the Use this data step sits under. */
   new window.MutationObserver(() => {
     if (el("sheet").dataset.level && el("sheet").dataset.level !== "compact") used();
+    tour.refresh();
   }).observe(el("sheet"), { attributes: true, attributeFilter: ["data-level"] });
 
   /* The desktop sidebar holds the panels, the phone's sheet its band and body; see cardFrame. */

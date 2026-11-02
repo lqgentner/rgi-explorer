@@ -37,10 +37,14 @@ test("on a first visit the welcome shows its heading, two lines, the user guide 
   const heading = node.querySelector("h2");
   assert.equal(heading.textContent, TITLE);
   assert.equal(node.getAttribute("aria-labelledby"), heading.id);
-  assert.ok(node.textContent.includes("Search for a glacier or click one on the map."));
-  assert.ok(node.textContent.includes("New to RGI? "));
+  const lines = node.querySelectorAll("p");
+  assert.equal(lines.length, 1, "one paragraph, to save a line on the phone");
+  assert.equal(lines[0].textContent, "Search for a glacier or click one on the map. New to RGI? Read the user guide.");
   const link = node.querySelector("a");
   assert.equal(link.textContent, "Read the user guide");
+  const tail = link.querySelector(".nowrap");
+  assert.equal(tail?.textContent, "guide", "the last word and the icon stay on one line");
+  assert.ok(tail.querySelector("svg.icon"));
   assert.equal(link.href, "https://rgidata.org/user_guide/");
   assert.equal(link.target, "_blank");
   assert.equal(link.rel, "noopener noreferrer");

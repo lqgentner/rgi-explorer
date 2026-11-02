@@ -45,8 +45,8 @@ export function mountWelcome(root, { title, autoShow, onTour }) {
     "section",
     { class: "welcome", "aria-labelledby": "welcome-title", hidden: true },
     h("h2", { id: "welcome-title" }, title),
-    h("p", {}, "Search for a glacier or click one on the map."),
-    h("p", {}, "New to RGI? ", externalLink(USER_GUIDE, "Read the user guide")),
+    /* One paragraph, to save a line on the phone. */
+    h("p", {}, "Search for a glacier or click one on the map. New to RGI? ", externalLink(USER_GUIDE, "Read the user guide"), "."),
     tour,
     close,
   );

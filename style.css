@@ -250,6 +250,11 @@ button:focus-visible {
   display: none !important;
 }
 
+/* Words that keep to one line, such as a link's last word and its icon. */
+.nowrap {
+  white-space: nowrap;
+}
+
 /* Read by screen readers, not shown. */
 .visually-hidden {
   position: absolute;
@@ -1133,13 +1138,19 @@ button:focus-visible {
    * raised high, the sheet leaves them under the search. 100% is the
    * popover's own height.
    */
-  .tour[data-dock="sheet"] {
+  .tour[data-dock="sheet"],
+  .tour[data-dock="button"] {
     top: 0;
     translate: 0 max(calc(12px + var(--search-h) + 12px), calc(100dvh - var(--sheet-visible, 160px) - var(--status-h, 0px) - 20px - 100%));
     transition: translate 220ms ease-out;
   }
 
-  body:has(#sheet.dragging) .tour[data-dock="sheet"] {
+  /* Use this data, with the sheet raised: under its button, which tour.js measures from the sheet's top. */
+  #sheet:not([data-level="compact"]) ~ .tour[data-dock="button"] {
+    translate: 0 calc(100dvh - var(--sheet-visible, 160px) + var(--tour-below, 140px));
+  }
+
+  body:has(#sheet.dragging) .tour[data-dock] {
     transition: none;
   }
 

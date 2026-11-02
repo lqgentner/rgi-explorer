@@ -341,8 +341,11 @@ test("on the phone search, 3D and the last card sit at the top; the card steps d
   tour.refresh();
   assert.equal(popup().dataset.dock, "sheet", "the card step rides on the sheet");
   assert.equal(popup().style.top, "");
+  targets.phonePanel.getBoundingClientRect = () => rect(0, 300, 390, 844);
+  targets.useData.getBoundingClientRect = () => rect(16, 390, 150, 426);
   button("Skip").click();
-  assert.equal(popup().dataset.dock, "sheet", "Use this data rides on the sheet too");
+  assert.equal(popup().dataset.dock, "button", "Use this data rides with its button");
+  assert.equal(popup().style.getPropertyValue("--tour-below"), `${426 - 300 + 8}px`, "the button's bottom, from the sheet's top, plus the gap");
   tour.cover("useData", true);
   assert.equal(popup().dataset.dock, undefined, "the cover message has its own place");
   tour.cover("useData", false);
@@ -351,9 +354,12 @@ test("on the phone search, 3D and the last card sit at the top; the card steps d
   assert.equal(popup().dataset.dock, undefined, "the desktop places by script");
   const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
   assert.match(css, /@media \(max-width: 640px\) \{\s*\.tour \{\s*top: calc\(12px \+ var\(--search-h\) \+ 12px\);\s*left: 12px;\s*right: 64px;\s*width: auto;/);
-  assert.match(css, /\.tour\[data-dock="sheet"\] \{[^}]*translate: 0 max\(calc\(12px \+ var\(--search-h\) \+ 12px\), calc\(100dvh - var\(--sheet-visible, 160px\) - var\(--status-h, 0px\) - 20px - 100%\)\);/,
+  assert.match(css, /\.tour\[data-dock="button"\] \{[^}]*translate: 0 max\(calc\(12px \+ var\(--search-h\) \+ 12px\), calc\(100dvh - var\(--sheet-visible, 160px\) - var\(--status-h, 0px\) - 20px - 100%\)\);/,
     "it rides on the sheet's edge, above the credits, from the same variable the sheet moves by");
-  assert.match(css, /body:has\(#sheet\.dragging\) \.tour\[data-dock="sheet"\] \{\s*transition: none;/, "a drag moves it frame by frame, as it moves the sheet");
+  assert.match(css, /body:has\(#sheet\.dragging\) \.tour\[data-dock\] \{\s*transition: none;/, "a drag moves it frame by frame, as it moves the sheet");
+  assert.match(css, /\.tour\[data-dock="sheet"\],\s*\.tour\[data-dock="button"\] \{/, "at compact the button step rides above the sheet's edge like the card step");
+  assert.match(css, /#sheet:not\(\[data-level="compact"\]\) ~ \.tour\[data-dock="button"\] \{\s*translate: 0 calc\(100dvh - var\(--sheet-visible, 160px\) \+ var\(--tour-below, 140px\)\);/,
+    "with the sheet raised it sits under the button, so the button stays in view");
 });
 
 test("on the phone the welcome sits at the top under the search, clear of the round buttons", () => {
