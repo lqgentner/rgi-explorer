@@ -140,8 +140,9 @@ export function lockAxis(dx, dy) {
 
 /**
  * A drag's recent positions along y. `speed(time)` is its speed at a release
- * at `time` in px/ms, positive upward; no time between samples reads as a
- * flick. A finger held still sends no moves, so after a pause it is 0.
+ * at `time` in px/ms, positive upward. Samples at one instant, which coalesced
+ * moves can send, count as 1 ms apart, so they read as a fast flick that
+ * scrolls. A finger held still sends no moves, so after a pause it is 0.
  */
 export function dragSpeed() {
   const samples = [];
@@ -153,7 +154,7 @@ export function dragSpeed() {
     speed(time) {
       const last = samples.at(-1);
       const first = samples.find((sample) => time - sample.time <= SPEED_MS) ?? last;
-      return last ? (first.y - last.y) / (last.time - first.time) || 0 : 0;
+      return last ? (first.y - last.y) / (last.time - first.time || 1) : 0;
     },
   };
 }

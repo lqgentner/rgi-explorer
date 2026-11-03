@@ -45,29 +45,29 @@ export function rowGroupOf(handle, row) {
 }
 
 /**
- * The row group whose statistics for `column` span `key`, or -1. A file sorted
- * by that column names at most one group, so one row is found without reading
- * the column across the file.
+ * The row groups that may hold `key` in `column`: those whose statistics span
+ * it, and those without statistics. A file sorted by that column names at
+ * most one, so one row is found without reading the column across the file.
  */
-export function groupOfKey(handle, column, key) {
-  return handle.metadata.row_groups.findIndex((group) => {
-    const chunk = group.columns.find((c) => c.meta_data?.path_in_schema?.join(".") === column);
-    const stats = chunk?.meta_data?.statistics;
-    return stats?.min_value !== undefined && stats.min_value <= key && key <= stats.max_value;
+export function groupsOfKey(handle, column, key) {
+  return handle.metadata.row_groups.flatMap((group, i) => {
+    const stats = group.columns.find((c) => c.meta_data?.path_in_schema?.join(".") === column)?.meta_data?.statistics;
+    const known = stats?.min_value !== undefined && stats?.max_value !== undefined;
+    return !known || (stats.min_value <= key && key <= stats.max_value) ? [i] : [];
   });
 }
 
 /**
- * The row of `key` in `column`, or null. Only the row groups whose statistics
- * span `key` are read: one in a file sorted by that column.
+ * The row of `key` in `column`, or null. The groups that may hold it are read
+ * in parallel, `columns` with them, which must include `column`; readRow then
+ * finds the row's values in the cache.
  */
-export async function findRow(handle, column, key) {
-  for (const [group, meta] of handle.metadata.row_groups.entries()) {
-    const stats = meta.columns.find((c) => c.meta_data?.path_in_schema?.join(".") === column)?.meta_data?.statistics;
-    if (stats?.min_value === undefined || key < stats.min_value || key > stats.max_value) continue;
-    const { [column]: keys } = await readColumns(handle, [column], group);
-    const at = keys.indexOf(key);
-    if (at !== -1) return handle.groups[group].start + at;
+export async function findRow(handle, column, key, columns = [column]) {
+  const groups = groupsOfKey(handle, column, key);
+  const reads = await Promise.all(groups.map((group) => readColumns(handle, columns, group)));
+  for (const [i, read] of reads.entries()) {
+    const at = read[column].indexOf(key);
+    if (at !== -1) return handle.groups[groups[i]].start + at;
   }
   return null;
 }

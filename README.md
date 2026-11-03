@@ -1,7 +1,9 @@
 # RGI Explorer
 
 A static web map to explore the Randolph Glacier Inventory (RGI) 7.0. It reads
-the cloud-native mirror published at `https://data.source.coop/lqgentner/rgi/`.
+the [cloud-native RGI mirror on Source Cooperative](https://source.coop/lqgentner/rgi)
+directly, with no download. Its STAC catalog is
+[`catalog.json`](https://data.source.coop/lqgentner/rgi/catalog.json).
 
 RGI Explorer and the RGI mirror are unofficial and not endorsed by the RGI
 Consortium.
@@ -16,9 +18,9 @@ npm run serve    # http://localhost:8000/
 npm test
 ```
 
-The catalog may not be published yet. Serve a local copy under `/catalog/`.
-The first directory that holds a file wins, so a catalog tree and a staging
-tree of data files work together:
+The page reads the published catalog by default. To try a catalog before it is
+published, serve a local copy under `/catalog/`. The first directory that holds
+a file wins, so a catalog tree and a staging tree of data files work together:
 
 ```sh
 npm run serve -- --catalog-dir ../rgi-catalog/catalog --catalog-dir ../rgi-catalog/staging

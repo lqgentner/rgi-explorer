@@ -12,6 +12,7 @@
 import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
+import { pipeline } from "node:stream";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 
@@ -56,9 +57,11 @@ function real(target) {
 
 const isFile = (target) => fs.statSync(target, { throwIfNoEntry: false })?.isFile() ?? false;
 
+/* A path's decoded text, or null when it is malformed or holds a NUL, which the file system refuses. */
 function decode(text) {
   try {
-    return decodeURIComponent(text);
+    const decoded = decodeURIComponent(text);
+    return decoded.includes("\0") ? null : decoded;
   } catch {
     return null;
   }
@@ -71,7 +74,7 @@ function decode(text) {
  */
 function catalogTarget(dirs, clean) {
   const name = decode(clean.slice(MOUNT.length))?.replace(/^\/+/, "");
-  if (name === undefined) return null;
+  if (name === undefined || name === null) return null;
   for (const dir of dirs) {
     const target = real(path.resolve(dir, name));
     if (!inside(dir, target)) return null;
@@ -131,9 +134,8 @@ function send(req, res, file, clean) {
     res.end();
     return;
   }
-  fs.createReadStream(file, { start, end })
-    .on("error", () => res.destroy())
-    .pipe(res);
+  /* pipeline closes the file too when the browser cancels the request, as a pan cancels tile reads. */
+  pipeline(fs.createReadStream(file, { start, end }), res, () => {});
 }
 
 /**
@@ -146,35 +148,50 @@ export function createServer({ webDir, catalogDirs = [], log = false }) {
   const dirs = catalogDirs.map((dir) => real(path.resolve(dir)));
   return http.createServer((req, res) => {
     if (log) res.on("finish", () => console.log(`${req.method} ${req.url} ${res.statusCode}`));
-    if (req.method !== "GET" && req.method !== "HEAD") {
-      res.writeHead(501, { Allow: "GET, HEAD" });
+    try {
+      handle(req, res, root, dirs);
+    } catch (error) {
+      /* One bad request must not stop the server. */
+      console.error(`${req.method} ${req.url}:`, error.message);
+      if (res.headersSent) res.destroy();
+      else {
+        res.writeHead(500, { "Content-Type": "text/plain" });
+        res.end("Server error");
+      }
+    }
+  });
+}
+
+/* Answer one GET or HEAD request from the web root or the catalog mounts. */
+function handle(req, res, root, dirs) {
+  if (req.method !== "GET" && req.method !== "HEAD") {
+    res.writeHead(501, { Allow: "GET, HEAD" });
+    res.end();
+    return;
+  }
+  const clean = req.url.split("?", 1)[0].split("#", 1)[0];
+  if (clean.startsWith(MOUNT)) {
+    const target = catalogTarget(dirs, clean);
+    if (target) send(req, res, target, clean);
+    else notFound(res);
+    return;
+  }
+  const target = webTarget(root, clean);
+  const stat = target && fs.statSync(target, { throwIfNoEntry: false });
+  if (stat?.isDirectory()) {
+    /* As a static host does: a directory's address ends with a slash, and its index.html answers. */
+    if (!clean.endsWith("/")) {
+      res.writeHead(301, { Location: `${clean}/${req.url.slice(clean.length)}` });
       res.end();
       return;
     }
-    const clean = req.url.split("?", 1)[0].split("#", 1)[0];
-    if (clean.startsWith(MOUNT)) {
-      const target = catalogTarget(dirs, clean);
-      if (target) send(req, res, target, clean);
-      else notFound(res);
-      return;
-    }
-    const target = webTarget(root, clean);
-    const stat = target && fs.statSync(target, { throwIfNoEntry: false });
-    if (stat?.isDirectory()) {
-      /* As a static host does: a directory's address ends with a slash, and its index.html answers. */
-      if (!clean.endsWith("/")) {
-        res.writeHead(301, { Location: `${clean}/${req.url.slice(clean.length)}` });
-        res.end();
-        return;
-      }
-      const index = path.join(target, "index.html");
-      if (isFile(index)) send(req, res, index, clean);
-      else notFound(res);
-      return;
-    }
-    if (stat?.isFile()) send(req, res, target, clean);
+    const index = path.join(target, "index.html");
+    if (isFile(index)) send(req, res, index, clean);
     else notFound(res);
-  });
+    return;
+  }
+  if (stat?.isFile()) send(req, res, target, clean);
+  else notFound(res);
 }
 
 function main() {

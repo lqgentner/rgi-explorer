@@ -9,7 +9,7 @@ import * as hyparquet from "hyparquet";
 
 globalThis.hyparquet = hyparquet;
 
-const { CARD_COLUMNS, SEARCH_COLUMNS, findRow, groupOfKey, openParquet, readColumns, readRow, rowGroupOf } =
+const { CARD_COLUMNS, SEARCH_COLUMNS, findRow, groupsOfKey, openParquet, readColumns, readRow, rowGroupOf } =
   await import("../js/parquet.js");
 
 /* The fixtures that scripts/make_fixture_parquet.py writes. */
@@ -170,11 +170,11 @@ test("cache keys keep a group and its columns apart", async () => {
 
 test("finds the row group of a key from the column statistics", async () => {
   const h = await openParquet(await hyparquet.asyncBufferFromFile(complexes));
-  assert.equal(groupOfKey(h, "rgi_id", "RGI2000-v7.0-C-03-00002"), 0);
-  assert.equal(groupOfKey(h, "rgi_id", "RGI2000-v7.0-C-11-01323"), 1);
-  assert.equal(groupOfKey(h, "rgi_id", "RGI2000-v7.0-C-01-00001"), -1);
-  assert.equal(groupOfKey(h, "rgi_id", "RGI2000-v7.0-C-19-00001"), -1);
-  assert.equal(groupOfKey(h, "no_such_column", "x"), -1);
+  assert.deepEqual(groupsOfKey(h, "rgi_id", "RGI2000-v7.0-C-03-00002"), [0]);
+  assert.deepEqual(groupsOfKey(h, "rgi_id", "RGI2000-v7.0-C-11-01323"), [1]);
+  assert.deepEqual(groupsOfKey(h, "rgi_id", "RGI2000-v7.0-C-01-00001"), []);
+  assert.deepEqual(groupsOfKey(h, "rgi_id", "RGI2000-v7.0-C-19-00001"), []);
+  assert.deepEqual(groupsOfKey(h, "no_such_column", "x"), h.groups.map((_, i) => i), "no statistics: any group may hold it");
 });
 
 test("findRow reads only the groups whose statistics span the key", async () => {
@@ -185,6 +185,24 @@ test("findRow reads only the groups whose statistics span the key", async () => 
   assert.equal(await findRow(handle, "rgi_id", "RGI2000-v7.0-G-11-00001"), ids.indexOf("RGI2000-v7.0-G-11-00001"));
   assert.equal(await findRow(handle, "rgi_id", "RGI2000-v7.0-G-11-00009"), null, "spanned but absent");
   assert.equal(await findRow(handle, "rgi_id", "RGI2000-v7.0-G-19-00001"), null, "outside every group");
+});
+
+test("findRow reads every group of a file without statistics", async () => {
+  const handle = await open();
+  for (const group of handle.metadata.row_groups) for (const column of group.columns) delete column.meta_data.statistics;
+  const ids = (await readColumns(handle, ["rgi_id"])).rgi_id;
+  assert.equal(await findRow(handle, "rgi_id", "RGI2000-v7.0-G-17-04760"), ids.indexOf("RGI2000-v7.0-G-17-04760"));
+  assert.equal(await findRow(handle, "rgi_id", "RGI2000-v7.0-G-19-00001"), null);
+});
+
+test("findRow reads the columns asked with the key, so readRow needs no other read", async () => {
+  const buffer = counting(await hyparquet.asyncBufferFromFile(complexes));
+  const handle = await openParquet(buffer);
+  const columns = ["rgi_id", "area_km2"];
+  const row = await findRow(handle, "rgi_id", "RGI2000-v7.0-C-11-01323", columns);
+  const calls = buffer.calls;
+  assert.equal((await readRow(handle, row, columns)).rgi_id, "RGI2000-v7.0-C-11-01323");
+  assert.equal(buffer.calls, calls);
 });
 
 test("the glaciers fixture names each glacier's complex", async () => {

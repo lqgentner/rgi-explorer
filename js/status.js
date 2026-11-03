@@ -103,14 +103,16 @@ export function imageryContributors(contributors, { west, south, east, north }, 
 
 let coverage = null;
 /*
- * Each coverage tile's entries, by "z/x/y". PMTiles caches the directories
- * but not the tiles, so a move with terrain on would fetch them again. A
- * failed read is forgotten.
+ * Each coverage tile's entries, by "z/x/y", the latest MAX_CACHED_TILES.
+ * PMTiles caches the directories but not the tiles, so a move with terrain on
+ * would fetch them again. A failed read is forgotten.
  */
+const MAX_CACHED_TILES = 256;
 const entries = new Map();
 function coverageEntries({ z, x, y }) {
   const key = `${z}/${x}/${y}`;
   if (!entries.has(key)) {
+    if (entries.size >= MAX_CACHED_TILES) entries.delete(entries.keys().next().value);
     const read = coverage.getZxy(z, x, y).then((tile) => (tile ? JSON.parse(new TextDecoder().decode(tile.data)) : {}));
     read.catch(() => entries.delete(key));
     entries.set(key, read);

@@ -11,7 +11,7 @@ import { mountComplexCard } from "./complexcard.js";
 import { resolveCatalogUrl, SAMPLE_GLACIER, TIMEOUT_MS } from "./config.js";
 import { mountLayers, mountTerrain, mountZoom } from "./layers.js";
 import { createMap, fetchLiberty } from "./map.js";
-import { findRow, groupOfKey, openParquet, readColumns, readRow, rowGroupOf, SEARCH_COLUMNS } from "./parquet.js";
+import { findRow, openParquet, readColumns, readRow, rowGroupOf, SEARCH_COLUMNS } from "./parquet.js";
 import { findPhotos } from "./photo.js";
 import { buildGlacierIndex } from "./search.js";
 import { mountSearch } from "./searchbox.js";
@@ -162,8 +162,9 @@ function glacierFile(url, regionNames) {
 
 /**
  * The complexes GeoParquet, opened on first use. The file is sorted by ID, so a
- * complex's row group comes from the ID statistics and one group is read. The
- * panel, the fit and the map share that read through readColumns' cache.
+ * complex's row group comes from the ID statistics and one group is read, as
+ * for a glacier. The panel, the fit and the map share that read through
+ * readColumns' cache.
  */
 function complexFile(url) {
   const open = retrying(() => openParquet(url));
@@ -171,11 +172,8 @@ function complexFile(url) {
     /** The complex's row, null when the file does not hold it; rejects when the file cannot be read. */
     async read(complexId) {
       const handle = await open();
-      const group = groupOfKey(handle, "rgi_id", complexId);
-      if (group === -1) return null;
-      const columns = await readColumns(handle, COMPLEX_COLUMNS, group);
-      const at = columns.rgi_id.indexOf(complexId);
-      return at === -1 ? null : Object.fromEntries(COMPLEX_COLUMNS.map((name) => [name, columns[name][at]]));
+      const row = await findRow(handle, "rgi_id", complexId, COMPLEX_COLUMNS);
+      return row === null ? null : readRow(handle, row, COMPLEX_COLUMNS);
     },
   };
 }

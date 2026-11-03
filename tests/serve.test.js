@@ -149,6 +149,13 @@ describe("path containment", () => {
     assert.equal((await get("/catalog/%zz")).status, 404);
   });
 
+  test("a NUL in the path is missing, and the server keeps serving", async () => {
+    /* The file system throws on a NUL instead of answering that nothing is there. */
+    assert.equal((await get("/a%00b")).status, 404);
+    assert.equal((await get("/catalog/a%00b")).status, 404);
+    assert.equal((await get("/index.html")).status, 200);
+  });
+
   test("an escape is rejected for a range request too", async () => {
     await assertBlocked("/catalog/../secret.txt", "Range: bytes=0-3\r\n");
   });

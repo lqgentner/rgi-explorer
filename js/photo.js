@@ -350,10 +350,14 @@ async function gather(glacier, rings, { fetch, signal }) {
  */
 export async function findPhotos(glacier, rings, { fetch = globalThis.fetch, signal, timeoutMs = TIMEOUT_MS } = {}) {
   if (!glacier?.props?.bbox) return [];
-  const guard = withTimeout(signal, timeoutMs);
-  const stopped = new Promise((resolve) => {
-    if (guard.aborted) resolve([]);
-    guard.addEventListener("abort", () => resolve([]), { once: true });
-  });
-  return Promise.race([gather(glacier, rings ?? [], { fetch, signal: guard }).catch(() => []), stopped]);
+  try {
+    const guard = withTimeout(signal, timeoutMs);
+    const stopped = new Promise((resolve) => {
+      if (guard.aborted) resolve([]);
+      guard.addEventListener("abort", () => resolve([]), { once: true });
+    });
+    return await Promise.race([gather(glacier, rings ?? [], { fetch, signal: guard }).catch(() => []), stopped]);
+  } catch {
+    return [];
+  }
 }
