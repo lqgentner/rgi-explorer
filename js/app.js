@@ -15,7 +15,7 @@ import { findRow, openParquet, readColumns, readRow, rowGroupOf, SEARCH_COLUMNS 
 import { findPhotos } from "./photo.js";
 import { buildGlacierIndex } from "./search.js";
 import { mountSearch } from "./searchbox.js";
-import { initSheet, popupPadding, setSheetLevel } from "./sheet.js";
+import { initSheet, onLevel, popupPadding, setSheetLevel } from "./sheet.js";
 import { parseState, writeState } from "./state.js";
 import { mountStatus } from "./status.js";
 import { mountTour } from "./tour.js";
@@ -480,21 +480,22 @@ function wire(catalog, rgiMap, regions) {
       if (event.target.closest?.("button.info, table.members tr")) used();
     });
   }
-  /* A new level also moves the card's header, which the Use this data step sits under. */
-  const levels = new window.MutationObserver(() => {
-    if (el("sheet").dataset.level && el("sheet").dataset.level !== "compact") used();
-    tour.refresh();
-  });
-  levels.observe(el("sheet"), { attributes: true, attributeFilter: ["data-level"] });
   /*
-   * A panel opens on the phone at its top, at `level`. The height is the
-   * page's choice, not the reader's use of the card.
+   * Only the reader's raise counts. The page sets levels too: on opening a
+   * panel, across the breakpoint, and for Use this data, which counts on
+   * neither layout. A new level also moves the card's header, which the Use
+   * this data step sits under; the tour re-anchors in a microtask, since
+   * onStep() itself lowers the sheet.
    */
+  onLevel((level, byReader) => {
+    if (byReader && level !== "compact") used();
+    queueMicrotask(() => tour.refresh());
+  });
+  /* A panel opens on the phone at its top, at `level`. */
   function openSheet(level) {
     if (!PHONE.matches) return;
     el("sheet-body").scrollTop = 0;
     setSheetLevel(level);
-    levels.takeRecords();
   }
 
   /* The desktop sidebar holds the panels, the phone's sheet its band and body; see cardFrame. */

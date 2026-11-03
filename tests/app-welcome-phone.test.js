@@ -97,3 +97,18 @@ test("a search pick opens the sheet to the middle, which is not the reader's use
   assert.ok(button($(".tour"), "Skip"));
   assert.equal(button($(".tour"), "Next"), undefined);
 });
+
+test("crossing the breakpoint is not the reader's use of the card, a tap on the photo strip is", async () => {
+  page.setPhone(false);
+  await settle();
+  assert.equal(title(), "The glacier card");
+  assert.equal($("#sheet").dataset.level, "full", "on the desktop the sheet carries the full level");
+  assert.ok(button($(".tour"), "Skip"));
+  assert.equal(button($(".tour"), "Next"), undefined);
+  page.setPhone(true);
+  await settle();
+  assert.equal($("#sheet").dataset.level, "compact");
+  assert.ok(button($(".tour"), "Skip"));
+  click($("#sheet"));
+  await waitFor(() => button($(".tour"), "Next"));
+});

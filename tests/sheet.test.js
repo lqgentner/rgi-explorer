@@ -9,7 +9,8 @@ import { test } from "node:test";
 
 import { load, loadPage } from "./helpers/browser.js";
 
-const { window, document } = await loadPage({ phone: true });
+const page = await loadPage({ phone: true });
+const { window, document } = page;
 const el = (id) => document.getElementById(id);
 
 /* jsdom lays nothing out: the sheet is 500 px tall and its body starts 90 px from its top. */
@@ -19,7 +20,7 @@ stub(el("sheet"), "offsetHeight", 500);
 stub(el("sheet-body"), "offsetTop", 90);
 stub(el("sheet-body"), "scrollTop", 0);
 
-const { FLICK, LEVELS, MIDDLE_CUT, PEEK_PX, initSheet, popupPadding, setSheetLevel, sheetLevel, snapTarget } =
+const { FLICK, LEVELS, MIDDLE_CUT, PEEK_PX, initSheet, onLevel, popupPadding, setSheetLevel, sheetLevel, snapTarget } =
   await load("js/sheet.js");
 const { GLIDE_MS, LOCK_PX, lockAxis } = await load("js/ui.js");
 initSheet();
@@ -247,4 +248,32 @@ test("the middle sheet cuts through the second row of the key numbers once they 
   setSheetLevel("middle");
   assert.equal(visible(), "432px", "while another tab hides them the height stays");
   grid.remove();
+});
+
+test("onLevel tells the reader's drag, handle and tap from the page's own moves", () => {
+  const seen = [];
+  onLevel((level, byReader) => seen.push([level, byReader]));
+  // A press elsewhere ends the swallowing of an earlier drag's click.
+  pointer(el("map"), "pointerdown", 0);
+  setSheetLevel("compact");
+  click(el("sheet"));
+  el("sheet-handle").click();
+  const band = el("sheet-band");
+  pointer(band, "pointerdown", 200, { time: 0 });
+  pointer(band, "pointermove", 600, { time: 1000 });
+  pointer(band, "pointerup", 600, { time: 1300 });
+  pull(500, 300);
+  setSheetLevel("full", { byReader: true });
+  page.setPhone(false);
+  page.setPhone(true);
+  assert.deepEqual(seen, [
+    ["compact", false],
+    ["middle", true],
+    ["full", true],
+    ["compact", true],
+    ["middle", true],
+    ["full", true],
+    ["full", false],
+    ["compact", false],
+  ], "the breakpoint moves the sheet, not the reader");
 });
