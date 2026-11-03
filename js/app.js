@@ -348,22 +348,28 @@ function wire(catalog, rgiMap, regions) {
     autoShow: !state.glacier && !state.complex,
     onTour: () => tour.start(),
   });
-  /* The one of a selector's nodes that shows: the glacier card and the complex panel are both mounted. */
-  const visible = (selector) => [...document.querySelectorAll(selector)].find((node) => !node.closest("[hidden]")) ?? null;
+  /*
+   * The tour finds its controls by their data-tour names alone, so a class or
+   * a label can change. `tourAt` reads one; `visible` the one of its nodes that
+   * shows: the glacier card and the complex panel are both mounted.
+   */
+  const TOUR = (...names) => names.map((name) => `[data-tour="${name}"]`).join(" ");
+  const tourAt = (...names) => document.querySelector(TOUR(...names));
+  const visible = (...names) => [...document.querySelectorAll(TOUR(...names))].find((node) => !node.closest("[hidden]")) ?? null;
   const ANCHORS = {
-    search: () => el("search"),
+    search: () => tourAt("search"),
     /* The bar alone: on the phone the search grows to the full screen, which a ring would frame whole. */
-    searchBar: () => el("search").querySelector("input"),
-    panel: () => (PHONE.matches ? el("sheet") : el("card")),
-    useData: () => visible(PHONE.matches ? '#sheet [data-tour="use-data"]' : '#card [data-tour="use-data"]'),
+    searchBar: () => tourAt("search-bar"),
+    panel: () => tourAt(PHONE.matches ? "sheet" : "card"),
+    useData: () => visible(PHONE.matches ? "sheet" : "card", "use-data"),
     /* The picture that opens the desktop's drawer, or the phone's round button that opens the pane. */
-    layers: () => document.querySelector(PHONE.matches ? "#layers .layers-open" : "#layers .layers-thumb"),
+    layers: () => tourAt(PHONE.matches ? "layers-phone" : "layers-desktop"),
     /* The last card sits beside the controls on the desktop, at the top on the phone. */
-    done: () => el("status"),
+    done: () => tourAt("status"),
     /* While Use this data or the viewer covers the tour, the ring points at the close button that continues it. */
-    useDataClose: () => visible(".usedata-close"),
-    viewerClose: () => document.querySelector(".viewer-close"),
-    layersClose: () => document.querySelector('.layers-pane button[aria-label="Close"]'),
+    useDataClose: () => visible("use-data-close"),
+    viewerClose: () => tourAt("viewer-close"),
+    layersClose: () => tourAt("layers-close"),
   };
   const tour = mountTour(document.body, {
     anchor: (name) => ANCHORS[name](),

@@ -159,7 +159,7 @@ function go(i, { scroll = true, smooth = false } = {}) {
 }
 
 function build() {
-  closeButton = h("button", { type: "button", class: "icon-button viewer-close", "aria-label": "Close" }, icon("x"));
+  closeButton = h("button", { type: "button", class: "icon-button viewer-close", "aria-label": "Close", dataset: { tour: "viewer-close" } }, icon("x"));
   /* Not a Tab stop: Chromium would otherwise focus the scroller and ring the whole screen. */
   track = h("div", { class: "viewer-track", tabindex: "-1" });
   prev = h("button", { type: "button", class: "icon-button viewer-prev", "aria-label": "Previous image" }, icon("chevron-left"));

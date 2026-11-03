@@ -32,6 +32,7 @@ const text = () => $(".tour p").textContent;
 
 test("on the phone the card step asks to swipe up, raising the sheet counts, and the breakpoint swaps it", async () => {
   click(button($(".welcome"), "Take the tour"));
+  assert.deepEqual(ringed(), [$("#search input")], "the ring is on the bar, not the full screen search");
   click(button($(".tour"), "Take me to a glacier"));
   await waitFor(() => $(".tour") && title() === "The glacier card");
   assert.deepEqual(ringed(), [$("#sheet")]);
@@ -43,7 +44,22 @@ test("on the phone the card step asks to swipe up, raising the sheet counts, and
 
   assert.notEqual($("#sheet").dataset.level, "compact");
   click(button($(".tour"), "Next"));
-  click(button($(".tour"), "Skip"));
+  assert.equal(title(), "Use this data");
+  const [useData] = ringed();
+  assert.equal(useData.dataset.tour, "use-data");
+  assert.ok($("#sheet").contains(useData), "the ring is on the button in the sheet's band");
+  assert.equal(useData.closest("[hidden]"), null);
+
+  /* The viewer and Use this data cover the tour; the ring moves to the close button of each. */
+  click($("#sheet .strip-open"));
+  assert.ok($(".tour").classList.contains("covering"));
+  assert.deepEqual(ringed(), [$("dialog.viewer .viewer-close")]);
+  click($("dialog.viewer .viewer-close"));
+  assert.deepEqual(ringed(), [useData]);
+  click(useData);
+  assert.ok($(".tour").classList.contains("covering"));
+  assert.deepEqual(ringed(), [$(".usedata-pane:not([hidden]) .usedata-close")], "the ring points at the pane's close button");
+  click($(".usedata-pane:not([hidden]) .usedata-close"));
   assert.equal(title(), "Layers");
   assert.equal($("#sheet").dataset.level, "compact", "the sheet lowers so the Layers button shows");
   assert.deepEqual(ringed(), [$("#layers .layers-open")], "the ring is on the round button");

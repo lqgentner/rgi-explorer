@@ -77,10 +77,19 @@ test("the tour moves on as the reader acts: a glacier, the card, Use this data, 
   assert.equal(useData.dataset.tour, "use-data");
   assert.equal(useData.closest("[hidden]"), null, "the ring is on the card's own, visible button");
 
+  /* The viewer covers the tour too, and its close button carries the ring until it closes. */
+  click($("#card .strip-open"));
+  assert.ok($(".tour").classList.contains("covering"));
+  assert.deepEqual(ringed(), [$("dialog.viewer .viewer-close")]);
+  click($("dialog.viewer .viewer-close"));
+  assert.equal(title(), "Use this data");
+  assert.deepEqual(ringed(), [useData]);
+
   click(useData);
   assert.ok(usedataOpen());
   assert.ok($(".tour").classList.contains("covering"));
   assert.ok($(".tour").textContent.includes("Close to continue the tour"));
+  assert.deepEqual(ringed(), [$('dialog.usedata button[aria-label="Close"]')], "the ring points at the dialog's close button");
   click($('dialog.usedata button[aria-label="Close"]'));
   assert.equal(title(), "Layers");
   assert.deepEqual(ringed(), [$("#layers .layers-thumb")]);

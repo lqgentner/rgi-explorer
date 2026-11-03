@@ -173,7 +173,7 @@ export function mountUseData(root, { catalog, sheet = root, onToggle }) {
 
   const closeButton = h(
     "button",
-    { type: "button", class: "icon-button usedata-close", "aria-label": "Close" },
+    { type: "button", class: "icon-button usedata-close", "aria-label": "Close", dataset: { tour: "use-data-close" } },
     icon("x"),
   );
   const body = h("div", { class: "usedata-body" });

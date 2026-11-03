@@ -64,18 +64,18 @@
   <body>
     <!-- The sidebar comes first, so Tab reaches the search before the map. -->
     <aside id="sidebar">
-      <div id="search"></div>
-      <div id="card" hidden></div>
+      <div id="search" data-tour="search"></div>
+      <div id="card" data-tour="card" hidden></div>
     </aside>
     <div id="map"></div>
     <div id="layers"></div>
     <div id="controls"></div>
-    <div id="status"></div>
+    <div id="status" data-tour="status"></div>
     <!-- The polite live region holds only short notices and startup errors. -->
     <div id="notice" class="notice" role="status" aria-live="polite"></div>
     <!-- The phone's bottom sheet. The band holds the handle and the card's header,
          which the compact sheet shows; the body holds the photo and the tabs. -->
-    <div id="sheet" hidden>
+    <div id="sheet" data-tour="sheet" hidden>
       <div id="sheet-band">
         <button type="button" id="sheet-handle" aria-controls="sheet-body"
                 aria-expanded="false"></button>

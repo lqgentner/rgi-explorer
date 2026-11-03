@@ -37,6 +37,7 @@ export function mountSearch(root, { onPick, loadGlacierIndex, regions, view }) {
     "aria-expanded": "false",
     autocomplete: "off",
     placeholder: "Search glaciers, regions and places",
+    dataset: { tour: "search-bar" },
   });
   const list = h("ul", { id: listId, role: "listbox", hidden: true });
   const closeButton = h(
