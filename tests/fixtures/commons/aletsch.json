@@ -1,0 +1,44 @@
+{
+ "batchcomplete": "",
+ "query": {
+  "pages": {
+   "110036665": {
+    "title": "File:Glacier d'Aletsch - 2021.jpg",
+    "imageinfo": [
+     {
+      "thumburl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b4/Glacier_d%27Aletsch_-_2021.jpg/960px-Glacier_d%27Aletsch_-_2021.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "descriptionurl": "https://commons.wikimedia.org/wiki/File:Glacier_d%27Aletsch_-_2021.jpg",
+      "extmetadata": {
+       "Artist": {
+        "value": "<a href=\"//commons.wikimedia.org/wiki/User:Espandero\" title=\"User:Espandero\">Christian David</a>"
+       },
+       "LicenseShortName": {
+        "value": "CC BY-SA 4.0"
+       },
+       "LicenseUrl": {
+        "value": "https://creativecommons.org/licenses/by-sa/4.0"
+       }
+      }
+     }
+    ]
+   },
+   "6222087": {
+    "title": "File:Oberaletsch.jpg",
+    "imageinfo": [
+     {
+      "thumburl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/51/Oberaletsch.jpg/960px-Oberaletsch.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "descriptionurl": "https://commons.wikimedia.org/wiki/File:Oberaletsch.jpg",
+      "extmetadata": {
+       "Artist": {
+        "value": "<a href=\"//commons.wikimedia.org/w/index.php?title=User:Jo_in_Riederalp&amp;action=edit&amp;redlink=1\" class=\"new\" title=\"User:Jo in Riederalp (page does not exist)\">Jo in Riederalp</a>"
+       },
+       "LicenseShortName": {
+        "value": "Public domain"
+       }
+      }
+     }
+    ]
+   }
+  }
+ }
+}

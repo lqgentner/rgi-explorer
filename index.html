@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- Hashes allow the two inline scripts below; page-assets.test.js checks them.
+         MapLibre may run its worker from a blob. Each data host is listed by name. -->
+    <meta http-equiv="Content-Security-Policy"
+          content="default-src 'self'; script-src 'self' 'sha256-z2jQvAgLi0GFMbcOty+feMaDR0K/DtAC9cra4nfKIjM=' 'sha256-DWKQrEMHzwPpL+gX7XQ/AJ00ymmgtL5GSVRQqg0o5ro='; style-src 'self'; img-src 'self' data: blob: https://data.source.coop https://tiles.openfreemap.org https://server.arcgisonline.com https://tiles.mapterhorn.com https://photon.komoot.io https://query.wikidata.org https://commons.wikimedia.org https://upload.wikimedia.org https://thumb.wikimedia.org; connect-src 'self' data: blob: https://data.source.coop https://tiles.openfreemap.org https://server.arcgisonline.com https://tiles.mapterhorn.com https://download.mapterhorn.com https://static.arcgis.com https://photon.komoot.io https://query.wikidata.org https://commons.wikimedia.org https://upload.wikimedia.org; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'none'" />
+    <title>RGI Explorer</title>
+    <meta name="description"
+          content="Explore the Randolph Glacier Inventory 7.0 on a map: every glacier outline, its attributes and its region." />
+
+    <!-- Use relative asset paths for Pages project subpaths. -->
+    <link rel="stylesheet" href="node_modules/maplibre-gl/dist/maplibre-gl.css" />
+    <link rel="stylesheet" href="style.css" />
+
+    <!-- Parse the import map before any module fetch. npm installs the libraries,
+         and scripts/stage-libraries.mjs copies each target's directory for Pages.
+         PMTiles needs the bare fflate mapping, and js/parquet.js the fzstd one. -->
+    <script type="importmap">
+      {
+        "imports": {
+          "maplibre-gl": "./node_modules/maplibre-gl/dist/maplibre-gl.mjs",
+          "pmtiles": "./node_modules/pmtiles/dist/esm/index.js",
+          "fflate": "./node_modules/fflate/esm/browser.js",
+          "hyparquet": "./node_modules/hyparquet/src/index.js",
+          "fzstd": "./node_modules/fzstd/esm/index.mjs",
+          "@leeoniya/ufuzzy": "./node_modules/@leeoniya/ufuzzy/dist/uFuzzy.mjs"
+        }
+      }
+    </script>
+
+    <!-- Fetch modules found only one or two imports deep in parallel with their
+         importers. page-assets.test.js requires every js/ module but app.js here. -->
+    <link rel="modulepreload" href="node_modules/fflate/esm/browser.js" />
+    <link rel="modulepreload" href="js/ui.js" />
+    <link rel="modulepreload" href="js/config.js" />
+    <link rel="modulepreload" href="js/state.js" />
+    <link rel="modulepreload" href="js/catalog.js" />
+    <link rel="modulepreload" href="js/parquet.js" />
+    <link rel="modulepreload" href="js/search.js" />
+    <link rel="modulepreload" href="js/photon.js" />
+    <link rel="modulepreload" href="js/searchbox.js" />
+    <link rel="modulepreload" href="js/styles.js" />
+    <link rel="modulepreload" href="js/previews.js" />
+    <link rel="modulepreload" href="js/viewpreview.js" />
+    <link rel="modulepreload" href="js/map.js" />
+    <link rel="modulepreload" href="js/layers.js" />
+    <link rel="modulepreload" href="js/compass.js" />
+    <link rel="modulepreload" href="js/status.js" />
+    <link rel="modulepreload" href="js/columns.js" />
+    <link rel="modulepreload" href="js/hypsometry.js" />
+    <link rel="modulepreload" href="js/photo.js" />
+    <link rel="modulepreload" href="js/strip.js" />
+    <link rel="modulepreload" href="js/viewer.js" />
+    <link rel="modulepreload" href="js/card.js" />
+    <link rel="modulepreload" href="js/complexcard.js" />
+    <link rel="modulepreload" href="js/sheet.js" />
+    <link rel="modulepreload" href="js/usedata.js" />
+    <link rel="modulepreload" href="js/tour.js" />
+    <link rel="modulepreload" href="js/welcome.js" />
+  </head>
+  <body>
+    <!-- The sidebar comes first, so Tab reaches the search before the map. -->
+    <aside id="sidebar">
+      <div id="search"></div>
+      <div id="card" hidden></div>
+    </aside>
+    <div id="map"></div>
+    <div id="layers"></div>
+    <div id="controls"></div>
+    <div id="status"></div>
+    <!-- The polite live region holds only short notices and startup errors. -->
+    <div id="notice" class="notice" role="status" aria-live="polite"></div>
+    <!-- The phone's bottom sheet. The band holds the handle and the card's header,
+         which the compact sheet shows; the body holds the photo and the tabs. -->
+    <div id="sheet" hidden>
+      <div id="sheet-band">
+        <button type="button" id="sheet-handle" aria-controls="sheet-body"
+                aria-expanded="false"></button>
+        <div id="sheet-head"></div>
+      </div>
+      <div id="sheet-body"></div>
+    </div>
+
+    <!-- Expose library globals before app.js so tests can substitute fakes. -->
+    <script type="module">
+      import * as maplibregl from "maplibre-gl";
+      import * as pmtiles from "pmtiles";
+      import * as hyparquet from "hyparquet";
+      Object.assign(globalThis, { maplibregl, pmtiles, hyparquet });
+    </script>
+    <script type="module" src="js/app.js"></script>
+  </body>
+</html>

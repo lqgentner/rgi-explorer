@@ -1,0 +1,20 @@
+{
+  "version": 8,
+  "name": "Liberty",
+  "sprite": "https://tiles.openfreemap.org/sprites/ofm_f384/ofm",
+  "glyphs": "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf",
+  "sources": {
+    "openmaptiles": { "type": "vector", "url": "https://tiles.openfreemap.org/planet" }
+  },
+  "layers": [
+    { "id": "background", "type": "background", "paint": { "background-color": "#f8f4f0" } },
+    { "id": "landcover_ice", "type": "fill", "source": "openmaptiles", "source-layer": "landcover", "filter": ["==", "class", "ice"], "paint": { "fill-color": "#ffffff" } },
+    { "id": "water", "type": "fill", "source": "openmaptiles", "source-layer": "water", "paint": { "fill-color": "#a0c8f0" } },
+    { "id": "road_major", "type": "line", "source": "openmaptiles", "source-layer": "transportation", "paint": { "line-color": "#ffffff" } },
+    { "id": "road_one_way_arrow", "type": "symbol", "source": "openmaptiles", "source-layer": "transportation", "layout": { "icon-image": "arrow" } },
+    { "id": "boundary", "type": "line", "source": "openmaptiles", "source-layer": "boundary", "paint": { "line-color": "#9e9cab" } },
+    { "id": "label_place", "type": "symbol", "source": "openmaptiles", "source-layer": "place", "layout": { "text-field": "{name}", "text-font": ["Noto Sans Regular"] } },
+    { "id": "label_poi", "type": "symbol", "source": "openmaptiles", "source-layer": "poi", "layout": { "text-field": "{name}", "text-font": ["Noto Sans Regular"] } },
+    { "id": "label_country", "type": "symbol", "source": "openmaptiles", "source-layer": "place", "layout": { "text-field": "{name}", "text-font": ["Noto Sans Bold"] } }
+  ]
+}

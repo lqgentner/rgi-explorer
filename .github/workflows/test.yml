@@ -1,0 +1,23 @@
+name: Tests
+
+# The deploy workflow calls this for main pushes, avoiding duplicate test runs.
+on:
+  pull_request:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # Node's major version comes from .node-version; npm's cache from package-lock.json.
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci
+      - run: npm test

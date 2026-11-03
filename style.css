@@ -1,0 +1,2635 @@
+:root {
+  --accent: #1a73e8;
+  --red: #d93025;
+  --surface: #fff;
+  --text: #202124;
+  --muted: #5f6368;
+  --line: #dadce0;
+  /* A hover, and a box of code, on white. */
+  --surface-2: #f1f3f4;
+  /* What an image shows until it loads, or when there is none. */
+  --image-placeholder: #9aa0a6;
+  --shadow: 0 1px 3px rgb(60 64 67 / 30%), 0 4px 8px 3px rgb(60 64 67 / 15%);
+  /* Controls over the map and the photo let what is behind them show through. */
+  --glass: rgb(255 255 255 / 72%);
+  --glass-blur: blur(6px);
+  --photo-glass: rgb(255 255 255 / 45%);
+  --space: #10141c;
+  --card-w: 408px;
+  /*
+   * The Layers control's size: 2 * 8 px padding + 56 px tile + 4 px + 14 px
+   * label, and the width of the map's controls, the compass's. The tour's
+   * desktop steps dock clear of both.
+   */
+  --tile: 56px;
+  --pad: 8px;
+  --label: 14px;
+  --layers-h: calc(2 * var(--pad) + var(--tile) + 4px + var(--label));
+  --controls-w: 54px;
+  /* The desktop sidebar's scrollbar, which js/app.js measures; 0 where scrollbars overlay. */
+  --scrollbar: 0px;
+  /* The sidebar's outer width: the content keeps --card-w, the scrollbar sits beyond it. */
+  --sidebar-w: calc(var(--card-w) + var(--scrollbar));
+  /* Corners: round on the outside (buttons, the phone's images), smaller on boxes of text. */
+  --radius: 16px;
+  /* A card holding buttons: their radius plus its 12 px padding, so the corners are concentric. */
+  --card-radius: calc(var(--radius) + 12px);
+  /* The phone sheet's close button: the band's 16 px margin from the top and the right, like the name and the buttons. */
+  --sheet-x-inset: 16px;
+  --tile-radius: 12px;
+  /* What darkens the page behind a pane or dialog: light for panes, strong behind the image viewer. */
+  --scrim: rgb(32 33 36 / 40%);
+  --scrim-strong: rgb(32 33 36 / 80%);
+  /* The search bar's place, which the desktop photo's arrows are centred against. */
+  --search-top: 16px;
+  --search-h: 48px;
+  /* The photo area, and the credit and counter chips along its bottom. */
+  --photo-h: 280px;
+  --credit-inset: 8px;
+  --credit-row: 20px;
+  --slide: 250ms ease-out;
+  --font: "Noto Sans", system-ui, sans-serif;
+  --mono: "Noto Sans Mono", ui-monospace, monospace;
+}
+
+@font-face {
+  font-family: "Noto Sans";
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  src: url("node_modules/@fontsource/noto-sans/files/noto-sans-latin-400-normal.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Noto Sans";
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+  src: url("node_modules/@fontsource/noto-sans/files/noto-sans-latin-600-normal.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Noto Sans Mono";
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  src: url("node_modules/@fontsource/noto-sans-mono/files/noto-sans-mono-latin-400-normal.woff2") format("woff2");
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--surface);
+  color: var(--text);
+  font: 400 14px/1.4 var(--font);
+}
+
+code,
+pre,
+kbd {
+  font-family: var(--mono);
+}
+
+/* Space, behind the transparent map canvas around the globe and its atmosphere. */
+#map {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(ellipse at center, #141a28, var(--space) 70%);
+}
+
+/* js/map.js draws the Standard thumbnail on this hidden map, off screen but laid out. */
+.picture-map {
+  position: fixed;
+  top: 0;
+  left: -10000px;
+  pointer-events: none;
+}
+
+
+.icon {
+  width: 1.25em;
+  height: 1.25em;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vertical-align: middle;
+}
+
+/*
+ * The search bar: a white card, as in Google Maps. Its top row holds the
+ * search icon, the input and Close; the results open below a rule in the same
+ * card.
+ */
+#search {
+  border-radius: 24px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+#search input {
+  display: block;
+  width: 100%;
+  height: var(--search-h);
+  margin: 0;
+  padding: 0 48px;
+  border: 0;
+  border-radius: 24px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 15px;
+  appearance: none;
+}
+
+#search input:focus {
+  outline: none;
+}
+
+#search input::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+
+/* The Close button replaces the browser's own clear control. */
+#search input::-webkit-search-cancel-button,
+#search input::-webkit-search-decoration {
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.search-icon {
+  position: absolute;
+  top: 14px;
+  left: 16px;
+  width: 20px;
+  height: 20px;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+#search ul {
+  list-style: none;
+  max-height: min(60dvh, 480px);
+  margin: 0;
+  padding: 8px 0 12px;
+  overflow-y: auto;
+  border-top: 1px solid var(--line);
+  border-radius: 0 0 24px 24px;
+}
+
+#search li {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 12px;
+  padding: 8px 16px;
+  cursor: pointer;
+}
+
+#search li .icon {
+  color: var(--muted);
+}
+
+#search li .subtitle {
+  grid-column: 2;
+  font-size: 0.85em;
+  color: var(--muted);
+}
+
+#search li[aria-selected="true"],
+#search li:hover {
+  background: #e8f0fe;
+}
+
+/* Shared control parts */
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+.icon-button,
+.round-button,
+.zoom-btn,
+.terrain-btn,
+.help-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  box-shadow: var(--shadow);
+}
+
+.icon-button {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  box-shadow: none;
+}
+
+/* Only a real hover: a tap leaves a sticky :hover behind on touch screens. */
+@media (hover: hover) {
+  .icon-button:hover,
+  .zoom-btn:hover,
+  .terrain-btn:hover,
+  .help-btn:hover {
+    background: var(--surface-2);
+  }
+}
+
+.round-button {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+}
+
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+/* Words that keep to one line, such as a link's last word and its icon. */
+.nowrap {
+  white-space: nowrap;
+}
+
+/* Read by screen readers, not shown. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Layers control, desktop */
+
+#layers {
+  position: fixed;
+  left: 16px;
+  bottom: calc(var(--status-h, 0px) + 16px);
+  z-index: 2;
+}
+
+/*
+ * The other base map's picture in a white card, with "Layers" along its
+ * bottom. Open, a white drawer with the RGI toggles slides out to the right
+ * from behind the card, and the bottom line names the map a click swaps to.
+ */
+.layers {
+  --grow-time: 200ms;
+  --ring-time: 120ms;
+  --fade-time: 150ms;
+  position: relative;
+  height: var(--layers-h);
+}
+
+.layers-thumb {
+  position: relative;
+  z-index: 2;
+  display: block;
+  width: var(--layers-h);
+  height: var(--layers-h);
+  padding: 4px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--surface);
+  color: inherit;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+}
+
+.layers-picture {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 8px;
+}
+
+.layers-picture img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform var(--grow-time) ease-out;
+}
+
+/*
+ * A dark gradient keeps the bottom line's white text readable on either map.
+ * It eases out over the whole picture, so it has no visible edge. It and the
+ * layers above it sit at z-index 1: the zoomed picture is a layer of its own
+ * and would otherwise paint over the gradient.
+ */
+.layers-picture::before,
+.layers-picture::after,
+.layers-badge,
+.layers-caption {
+  z-index: 1;
+}
+
+.layers-picture::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to top,
+    rgb(0 0 0 / 45%),
+    rgb(0 0 0 / 34%) 20%,
+    rgb(0 0 0 / 22%) 40%,
+    rgb(0 0 0 / 11%) 60%,
+    rgb(0 0 0 / 4%) 80%,
+    rgb(0 0 0 / 0%)
+  );
+}
+
+/* Open, hovering the picture zooms it a little and rings it, as a button of its own. */
+.layers-picture::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 0 rgb(60 64 67 / 0%);
+  transition: box-shadow var(--ring-time) ease-out;
+}
+
+/* Only a real hover: a tap leaves a sticky :hover behind on touch screens. */
+@media (hover: hover) {
+  .layers.open .layers-thumb:hover .layers-picture::after {
+    box-shadow: inset 0 0 0 4px rgb(60 64 67 / 60%);
+  }
+
+  .layers.open .layers-thumb:hover img {
+    transform: scale(1.06);
+  }
+}
+
+/* The bottom line: "Layers" closed, the other map's name open. */
+.layers-badge,
+.layers-caption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 14px;
+  transition: opacity var(--fade-time) ease-out;
+}
+
+.layers-badge .icon {
+  width: 14px;
+  height: 14px;
+}
+
+.layers-caption {
+  opacity: 0;
+}
+
+.layers.open .layers-badge {
+  opacity: 0;
+}
+
+.layers.open .layers-caption {
+  opacity: 1;
+}
+
+/*
+ * The drawer slides out by transform alone. Its frame starts 16 px under the
+ * card and clips only on the left, a clip that never animates, so the
+ * drawer hides behind the card and its shadow never pops.
+ */
+.layers-panel {
+  position: absolute;
+  top: 0;
+  left: calc(var(--layers-h) - 16px);
+  z-index: 1;
+  /* As wide as the drawer's content: shrunk to fit the card, its 1fr columns would keep to their minimum. */
+  width: max-content;
+  height: var(--layers-h);
+  clip-path: inset(-32px -32px -32px 0);
+}
+
+/*
+ * The toggles stand in equal columns as wide as the longest label, so
+ * "Glacier regions" keeps to one line, clear of its neighbour, and the
+ * previews stay evenly spaced. The drawer has no width of its own: its 1fr
+ * columns grow to the widest toggle.
+ */
+.layers-drawer {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(var(--tile), 1fr);
+  gap: 8px;
+  height: 100%;
+  padding: var(--pad) var(--pad) var(--pad) calc(16px + 16px);
+  border-radius: 0 12px 12px 0;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  transform: translateX(-100%);
+  visibility: hidden;
+  transition: transform var(--grow-time) ease-out, visibility 0s linear var(--grow-time);
+}
+
+.layers.open .layers-drawer {
+  transform: none;
+  visibility: visible;
+  transition: transform var(--grow-time) ease-out, visibility 0s;
+}
+
+/*
+ * With the sidebar open on a narrow window, the drawer would run under the
+ * zoom buttons. It opens upwards instead, as a column above the card.
+ */
+@media (min-width: 641px) and (max-width: 814px) {
+  body.card-open .layers-panel {
+    top: auto;
+    bottom: calc(var(--layers-h) - 16px);
+    left: 0;
+    width: var(--layers-h);
+    height: auto;
+    clip-path: inset(-32px -32px 0 -32px);
+  }
+
+  body.card-open .layers-drawer {
+    grid-auto-flow: row;
+    padding: var(--pad) var(--pad) calc(16px + 16px);
+    border-radius: 12px 12px 0 0;
+    transform: translateY(100%);
+  }
+
+  body.card-open .layers.open .layers-drawer {
+    transform: none;
+  }
+
+  /* Stacked, the column is narrower than "Glacier regions", which wraps under its preview. */
+  body.card-open .layers .layer-toggle {
+    white-space: normal;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .layers {
+    --grow-time: 0s;
+    --ring-time: 0s;
+    --fade-time: 0s;
+  }
+}
+
+/* The drawer's column sets the width. */
+.layers .layer-toggle {
+  width: auto;
+  font-size: 11px;
+  line-height: var(--label);
+  white-space: nowrap;
+}
+
+.layers .layer-preview {
+  width: var(--tile);
+  height: var(--tile);
+}
+
+/*
+ * A tile: a square picture with its name below. Hover and selection outline
+ * the square. The picture sits at the top, so a name that wraps to two lines
+ * hangs below it and the row's pictures stay level.
+ */
+.layer-toggle,
+.base-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 4px;
+  width: 76px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.layer-preview,
+.base-tile img {
+  width: 48px;
+  height: 48px;
+  border-radius: 6px;
+  object-fit: cover;
+}
+
+.layer-toggle:hover .layer-preview,
+.base-tile:hover img {
+  outline: 2px solid #9aa0a6;
+  outline-offset: -2px;
+}
+
+.layer-toggle[aria-pressed="true"] .layer-preview,
+.base-tile[aria-pressed="true"] img {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.layer-toggle:focus-visible,
+.base-tile:focus-visible {
+  outline: none;
+}
+
+.layer-toggle:focus-visible .layer-preview,
+.base-tile:focus-visible img {
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent);
+}
+
+.layer-toggle[aria-pressed="true"] .layer-name,
+.base-tile[aria-pressed="true"] .layer-name {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* Compass, 3D, zoom and notice */
+
+/*
+ * The controls centre on the compass. The 36 px buttons' corners leave a
+ * 14 px straight edge, as long as the compass's between its round ends.
+ */
+#controls {
+  position: fixed;
+  right: 16px;
+  bottom: calc(var(--status-h, 0px) + 16px);
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.terrain-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  font-weight: 600;
+}
+
+/* The help button ends the controls column, sized like 3D. */
+.help-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+}
+
+.help-btn .icon {
+  width: 20px;
+  height: 20px;
+}
+
+.zoom-control {
+  display: flex;
+  flex-direction: column;
+  border-radius: 11px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
+.zoom-btn {
+  width: 36px;
+  height: 36px;
+  box-shadow: none;
+}
+
+.zoom-btn + .zoom-btn {
+  border-top: 1px solid var(--line);
+}
+
+/*
+ * A 54 x 40 px capsule. Each arrow's button takes half of it, and the needle's
+ * is a 20 px disc over the middle, smaller than the needle so the arrows are
+ * easy to reach; a click outside the disc turns the map. The
+ * arrows draw over the buttons and let the pointer through to them.
+ */
+.compass {
+  position: relative;
+  display: flex;
+  width: var(--controls-w);
+  height: 40px;
+  border-radius: 20px;
+  overflow: hidden;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.compass button {
+  padding: 0;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+}
+
+.compass-turn {
+  flex: 1;
+  height: 40px;
+  background: none;
+}
+
+.compass-north {
+  position: absolute;
+  left: 17px;
+  top: 10px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface);
+}
+
+@media (hover: hover) {
+  .compass button:hover {
+    background: var(--surface-2);
+  }
+}
+
+/* Inside the capsule, which would clip an outline outside the button. */
+.compass button:focus-visible {
+  outline-offset: -2px;
+}
+
+.compass-arrows {
+  position: absolute;
+  inset: 0;
+  color: var(--text);
+  pointer-events: none;
+}
+
+.compass-arc {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.compass-head {
+  fill: currentColor;
+}
+
+/*
+ * The map's own easing animates the needle, so it has no transition. It is
+ * longer than its disc, and lets the pointer through so only the disc catches
+ * a click.
+ */
+.compass-needle {
+  display: block;
+  flex-shrink: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.needle-north {
+  fill: var(--red);
+}
+
+.needle-south {
+  fill: #bdc1c6;
+}
+
+/* Layers pane, phone */
+
+/* Behind the open pane: it darkens the page and takes the taps meant for it. */
+.layers-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  background: var(--scrim);
+  touch-action: none;
+}
+
+.layers-pane {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 5;
+  padding: 12px 16px 32px;
+  border-radius: 16px 16px 0 0;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.pane-section {
+  padding: 8px 0 20px;
+}
+
+/* A line parts the two sections. */
+.pane-section + .pane-section {
+  padding-top: 20px;
+  padding-bottom: 0;
+  border-top: 1px solid var(--line);
+}
+
+/* The first section's heading shares its row with the close button. */
+.pane-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.layers-pane h3 {
+  margin: 0 0 12px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.pane-header h3 {
+  margin: 0;
+}
+
+.pane-header + .tile-row {
+  margin-top: 12px;
+}
+
+.tile-row {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+}
+
+/* The phone's tiles, larger than the desktop drawer's. They narrow on a small screen. */
+.layers-pane .layer-toggle,
+.layers-pane .base-tile {
+  flex: 0 1 96px;
+  min-width: 0;
+  gap: 6px;
+  font-size: 14px;
+}
+
+.layers-pane .layer-preview,
+.layers-pane .base-tile img {
+  width: 72px;
+  height: 72px;
+  border-radius: 8px;
+}
+
+/* Status line */
+
+/* Over the map's bottom right corner, as wide as its text and at most the map's width. */
+#status {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+  max-width: 100%;
+  padding: 2px 8px;
+  border-top-left-radius: 8px;
+  background: var(--glass);
+  backdrop-filter: var(--glass-blur);
+  color: var(--text);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+#status a {
+  color: inherit;
+}
+
+.scale {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 12px;
+  height: 16px;
+}
+
+.scale-bar {
+  display: inline-block;
+  height: 6px;
+  border: 1px solid var(--muted);
+  border-top: 0;
+}
+
+/*
+ * On desktop the scale and the credits sit in two columns, the scale level
+ * with the credits' first line, so wrapped credits stay in their own column.
+ * The credits run as one text, and no space separates their groups, so a long
+ * line wraps inside a group rather than between groups.
+ */
+@media (min-width: 641px) {
+  #status {
+    display: flex;
+    align-items: flex-start;
+  }
+
+  .scale {
+    flex: none;
+  }
+
+  .credits-box {
+    min-width: 0;
+  }
+}
+
+.credits-button {
+  display: none;
+}
+
+/* Each group names what it credits: "Glaciers", "Basemap" and so on. */
+.credit-label {
+  margin-right: 4px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.credit-group + .credit-group::before {
+  content: "|";
+  margin: 0 8px;
+  color: var(--muted);
+}
+
+@media (max-width: 640px) {
+  #layers {
+    left: auto;
+    right: 12px;
+    top: 72px;
+    bottom: auto;
+  }
+
+  /* The desktop's picture and drawer. */
+  #layers .layers {
+    display: none;
+  }
+
+  #controls {
+    right: 12px;
+    top: 124px;
+    bottom: auto;
+  }
+
+  .terrain-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+  }
+
+  /*
+   * A round button under 3D with the needle alone. It shows while the map is
+   * turned or in 3D, and compass.js marks it idle otherwise.
+   */
+  .compass {
+    order: 1;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    transition: opacity 160ms ease-out, scale 160ms ease-out, visibility 160ms;
+  }
+
+  .compass-turn,
+  .compass-arrows {
+    display: none;
+  }
+
+  .compass .compass-north {
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  .compass[data-idle] {
+    opacity: 0;
+    scale: 0.6;
+    visibility: hidden;
+  }
+
+  .zoom-control {
+    display: none;
+  }
+
+  #status {
+    right: 12px;
+    bottom: 12px;
+    max-width: calc(100% - 24px);
+    padding: 0;
+    border-radius: 0;
+    background: none;
+    backdrop-filter: none;
+    font-size: 12px;
+  }
+
+  .scale {
+    display: none;
+  }
+
+  /*
+   * The info button, a round button like the others, sits in the bottom right
+   * corner and grows into the credits from there: open, the box holds the
+   * text to the button's left.
+   */
+  .credits-box {
+    display: block;
+    position: relative;
+    min-height: 44px;
+    border-radius: 22px;
+    background: var(--surface);
+    box-shadow: var(--shadow);
+  }
+
+  .credits-box.open {
+    padding: 6px 44px 6px 16px;
+    display: flex;
+    align-items: center;
+  }
+
+  .credits-box:not(.open) .credits {
+    display: none;
+  }
+
+  .credits-button {
+    display: inline-flex;
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 44px;
+    height: 44px;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 50%;
+    background: none;
+    color: var(--text);
+    cursor: pointer;
+  }
+
+  .credits-button .icon {
+    width: 24px;
+    height: 24px;
+  }
+
+  .credits-box:not(.open) {
+    width: 44px;
+  }
+
+  /*
+   * In the status line, above the credits' info button with its right edge
+   * aligned, so it rides up with the credits over the sheet and hides with
+   * them.
+   */
+  .help-btn {
+    display: flex;
+    width: 44px;
+    height: 44px;
+    margin: 0 0 8px auto;
+    border-radius: 50%;
+  }
+
+  .help-btn .icon {
+    width: 24px;
+    height: 24px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .compass {
+    transition: none;
+  }
+}
+
+/*
+ * The first-visit welcome. On the desktop it sits under the search box, where
+ * the card would open, and the search results draw over it.
+ */
+.welcome {
+  position: fixed;
+  top: calc(var(--search-top) + var(--search-h) + 12px);
+  left: 16px;
+  z-index: 3;
+  width: 376px;
+  padding: 12px;
+  border-radius: var(--card-radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.welcome[hidden] {
+  display: none;
+}
+
+/* As in the tour: the heading's first 22 px line shares the X's middle, 28 px down. */
+.welcome h2 {
+  margin: 0 0 8px;
+  padding: 5px 36px 0 8px;
+  font-size: 17px;
+  line-height: 22px;
+}
+
+.welcome p {
+  margin: 0 0 6px;
+  padding: 0 8px;
+  color: var(--muted);
+}
+
+/* Take the tour on the right, 12 px from the edges. */
+.welcome .btn {
+  display: flex;
+  margin: 8px 0 0 auto;
+}
+
+.welcome-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+}
+
+/*
+ * On the phone the welcome sits at the top under the search, as on the
+ * desktop, clear of the round buttons on the right and of the credits below.
+ */
+@media (max-width: 640px) {
+  .welcome {
+    top: calc(12px + var(--search-h) + 12px);
+    bottom: auto;
+    left: 12px;
+    right: 64px;
+    width: auto;
+  }
+}
+
+/*
+ * The guided tour: a popover beside its control, over the panels and the
+ * sheet, and a ring around the control. The ring draws inside the panels,
+ * which touch the viewport's edge.
+ */
+.tour {
+  position: fixed;
+  z-index: 7;
+  right: auto;
+  bottom: auto;
+  width: 320px;
+  max-width: calc(100vw - 16px);
+  padding: 12px;
+  border-radius: var(--card-radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.tour:focus {
+  outline: none;
+}
+
+/*
+ * The tour is a manual popover, in the top layer: undo the browser's popover
+ * box, which centres it with a border; place() sets top and left.
+ */
+.tour[popover] {
+  margin: 0;
+  border: 0;
+  color: inherit;
+  overflow: visible;
+}
+
+/* "Close to continue the tour", over Use this data or the viewer. */
+.tour.covering {
+  top: 12px;
+  left: 50%;
+  width: max-content;
+  max-width: calc(100% - 24px);
+  translate: -50% 0;
+}
+
+.tour.covering p {
+  margin: 0;
+  padding: 6px 8px;
+  font-weight: 600;
+}
+
+.inline-icon {
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.15em;
+}
+
+/*
+ * On the phone every step sits at the top, under the search and clear of the
+ * round buttons on the right, so neither the sheet nor the credits move it.
+ */
+@media (max-width: 640px) {
+  .tour {
+    top: calc(12px + var(--search-h) + 12px);
+    left: 12px;
+    right: 64px;
+    width: auto;
+  }
+
+  /*
+   * The card steps ride 12 px above the sheet's edge, over the credits and level with
+   * their foot, from the same
+   * variable the sheet moves by, so a swipe carries them along in one motion;
+   * raised high, the sheet leaves them under the search. 100% is the
+   * popover's own height.
+   */
+  .tour[data-dock="sheet"],
+  .tour[data-dock="button"] {
+    top: 0;
+    translate: 0 max(calc(12px + var(--search-h) + 12px), calc(100dvh - var(--sheet-visible, 160px) - 12px - 100%));
+    transition: translate 220ms ease-out;
+  }
+
+  /* Use this data, with the sheet raised: under its button, which tour.js measures from the sheet's top. */
+  #sheet:not([data-level="compact"]) ~ .tour[data-dock="button"] {
+    translate: 0 calc(100dvh - var(--sheet-visible, 160px) + var(--tour-below, 140px));
+  }
+
+  body:has(#sheet.dragging) .tour[data-dock] {
+    transition: none;
+  }
+
+  .tour.covering {
+    left: 50%;
+    right: auto;
+    width: max-content;
+  }
+
+  /* The phone's Use this data pane has its heading at the top; the message waits at the bottom, where the pane is empty. */
+  .tour.covering[data-cover="useData"] {
+    top: auto;
+    bottom: 24px;
+  }
+
+  /* The layers pane rises from the bottom: the message sits 12 px above it, as tall as tour.js measures it. */
+  .tour.covering[data-cover="layers"] {
+    top: auto;
+    bottom: calc(var(--tour-above, 340px) + 12px);
+  }
+}
+
+/*
+ * The phone's full-screen search covers the page and makes it inert; the tour
+ * and the welcome hide under it, out of reach of Tab and
+ * screen readers too.
+ */
+body:has(#search.fullscreen) .tour,
+body:has(#search.fullscreen) .welcome {
+  visibility: hidden;
+}
+
+/*
+ * The heading and text sit 8 px inside the buttons' 12 px inset. The X is 32
+ * px tall at 12 px from the top, so its middle is at 28 px: the heading's
+ * 20 px line starts 6 px lower to share that middle.
+ */
+.tour h2 {
+  margin: 0 0 6px;
+  padding: 6px 36px 0 8px;
+  font-size: 15px;
+  line-height: 20px;
+}
+
+.tour p {
+  margin: 0 0 10px;
+  padding: 0 8px;
+}
+
+/* The buttons sit 12 px from the edge, so their corners are concentric with the card's; the main one on the right. */
+.tour-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.tour-count {
+  margin-right: auto;
+  padding-left: 8px;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.tour-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+}
+
+.tour-target {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+#card.tour-target,
+#sheet.tour-target {
+  outline-offset: -3px;
+}
+
+/*
+ * On the desktop 3D and the last card dock beside the map's controls: their
+ * bottom stands on the same line as the controls', which a taller status line
+ * lifts, and they keep the controls' width and a 12 px gap clear of them.
+ */
+@media (min-width: 641px) {
+  .tour[data-dock="controls"] {
+    top: auto;
+    left: auto;
+    bottom: calc(var(--status-h, 0px) + 16px);
+    right: calc(16px + var(--controls-w) + 12px);
+  }
+}
+
+/*
+ * The layers step sits above the Layers control, which stands at the map
+ * area's left edge, so the drawer that opens beside it stays clear.
+ */
+@media (min-width: 641px) {
+  .tour[data-dock="layers"] {
+    top: auto;
+    right: auto;
+    left: 16px;
+    bottom: calc(var(--status-h, 0px) + 16px + var(--layers-h) + 12px);
+    transition: left var(--slide);
+  }
+
+  body.card-open .tour[data-dock="layers"] {
+    left: calc(var(--sidebar-w) + 16px);
+  }
+}
+
+/*
+ * With the sidebar open on a narrow window the drawer opens upwards as a
+ * column above the control: the step moves to the control's right instead,
+ * short of the zoom buttons.
+ */
+@media (min-width: 641px) and (max-width: 814px) {
+  body.card-open .tour[data-dock="layers"] {
+    bottom: calc(var(--status-h, 0px) + 16px);
+    left: calc(var(--sidebar-w) + 16px + var(--layers-h) + 12px);
+    width: auto;
+    max-width: calc(100vw - var(--sidebar-w) - 16px - var(--layers-h) - 12px - 12px - var(--controls-w) - 16px);
+  }
+}
+
+/*
+ * On the desktop the card's photo and sticky tabs are positioned, so they
+ * paint over its outline. The ring is a frame above them instead, fixed to the
+ * sidebar while the card scrolls: the open card has no translate, so fixed
+ * means the viewport.
+ */
+@media (min-width: 641px) {
+  #card.tour-target {
+    outline: none;
+  }
+
+  #card.tour-target::after {
+    content: "";
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: var(--sidebar-w);
+    z-index: 10;
+    box-sizing: border-box;
+    border: 3px solid var(--accent);
+    pointer-events: none;
+  }
+}
+
+/* The search bar keeps its ring while focused, over its own "no outline" focus style. */
+#search input.tour-target,
+#search input.tour-target:focus {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Sidebar and glacier card */
+
+#card {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 3;
+  width: var(--sidebar-w);
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+/*
+ * On desktop the sidebar slides in from the left and back out. It stays
+ * rendered while hidden, with the panel last opened still on it, so the slide
+ * out shows content; visibility keeps it out of reach of the pointer, Tab and
+ * screen readers once the slide ends. A panel the other replaced stays hidden.
+ */
+@media (min-width: 641px) {
+  #card {
+    transition: translate var(--slide), visibility var(--slide);
+  }
+
+  #card[hidden] {
+    display: block !important;
+    translate: calc(-100% - 16px) 0;
+    visibility: hidden;
+  }
+
+  #card[hidden] > .card.current[hidden] {
+    display: block !important;
+  }
+
+  #layers,
+  #status {
+    transition: left var(--slide), max-width var(--slide);
+  }
+
+  body.card-open #status {
+    max-width: calc(100% - var(--sidebar-w));
+  }
+
+  /* With the card open, the layer control sits at the map area's left edge. */
+  body.card-open #layers {
+    left: calc(var(--sidebar-w) + 16px);
+  }
+
+  /* The phone's parts: the round Layers button and the bottom sheet. */
+  #layers .layers-open,
+  #sheet {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #card,
+  #layers,
+  #status {
+    transition: none;
+  }
+}
+
+#search {
+  position: fixed;
+  top: var(--search-top);
+  left: 16px;
+  z-index: 4;
+  width: 376px;
+}
+
+.card {
+  position: relative;
+  padding-bottom: 24px;
+}
+
+.card .photo {
+  position: relative;
+  height: var(--photo-h);
+  overflow: hidden;
+  background: var(--image-placeholder);
+}
+
+/* Flat and light grey on the sheet's white band. */
+.card-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: var(--surface-2);
+}
+
+.card-close:hover {
+  background: #e8eaed;
+}
+
+.search-close,
+.search-clear,
+.search-back {
+  position: absolute;
+  top: 8px;
+}
+
+.search-close,
+.search-clear {
+  right: 8px;
+}
+
+/* Its arrow lies where the search icon did. */
+.search-back {
+  left: 10px;
+}
+
+/* The back and clear buttons show only in the phone's full screen search. */
+#search:not(.fullscreen) :is(.search-back, .search-clear) {
+  display: none;
+}
+
+.card-head {
+  padding: 12px 16px 0;
+}
+
+.card-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.card-subtitle {
+  margin: 2px 0 0;
+  color: var(--muted);
+}
+
+.card-subtitle > span {
+  display: block;
+}
+
+.card-actions {
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  white-space: nowrap;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--accent);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn .icon {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+.btn:hover {
+  background: var(--surface-2);
+}
+
+.btn.primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+.btn.primary:hover {
+  background: #1765cc;
+}
+
+.tabs {
+  display: flex;
+  border-bottom: 1px solid var(--line);
+}
+
+.tab {
+  flex: 1;
+  padding: 10px 0;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  background: var(--surface);
+  color: var(--muted);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tab[aria-selected="true"] {
+  border-bottom-color: var(--accent);
+  color: var(--accent);
+}
+
+.tabpanel {
+  padding: 12px 16px 0;
+}
+
+/* The complex panel has no tabs; its facts and groups take a tab panel's inset. */
+.complex-card > .complex-facts {
+  padding: 12px 16px 0;
+}
+
+.complex-card > .group {
+  padding: 0 16px;
+}
+
+.members-scroll {
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--tile-radius);
+}
+
+/*
+ * Fixed columns that fit the sidebar's width: a whole RGI ID, the area with
+ * its unit under the header, and the rest for the name, cut short with "…".
+ */
+table.members {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+table.members col.id {
+  width: 13.5em;
+}
+
+table.members col.num {
+  width: 5em;
+}
+
+table.members td.name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+table.members th,
+table.members td {
+  padding: 6px;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+}
+
+table.members th {
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  color: var(--muted);
+  font-weight: 600;
+}
+
+table.members tbody tr {
+  cursor: pointer;
+}
+
+table.members tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+table.members .num,
+table.members .link {
+  white-space: nowrap;
+}
+
+table.members .num {
+  text-align: right;
+}
+
+.key-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+/* A tile's info button sits in its bottom right corner, beside the value. */
+.key-tile {
+  position: relative;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--tile-radius);
+}
+
+.key-tile .row-label {
+  font-size: 12px;
+}
+
+.key-tile .info {
+  position: absolute;
+  /* Concentric with the corner: its centre sits on the inner curve's centre (radius less the 1px border), less half the 14px icon. */
+  right: calc(var(--tile-radius) - 1px - 7px);
+  bottom: calc(var(--tile-radius) - 1px - 7px);
+}
+
+.key-value {
+  padding-right: 16px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.group {
+  margin-top: 20px;
+}
+
+.group h3,
+.group summary {
+  margin: 0 0 5px;
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.group summary {
+  cursor: pointer;
+}
+
+/* A label, its value, and the info button in a column of its own on the right. */
+.row {
+  display: grid;
+  grid-template-columns: 9em 1fr auto;
+  gap: 2px 12px;
+  padding: 5px 0;
+  border-top: 1px solid var(--line);
+}
+
+.row > .info {
+  grid-column: 3;
+  align-self: start;
+  margin: 3px 0 0;
+}
+
+.row > .popover {
+  grid-column: 1 / -1;
+}
+
+.row-label {
+  color: var(--muted);
+}
+
+.row-value {
+  overflow-wrap: anywhere;
+}
+
+/*
+ * Popovers from js/ui.js sit over the page, below their button or above it when
+ * there is no room. Without anchor positioning the script sets top and left.
+ * The 8px gap matches POPOVER_GAP there.
+ */
+.popover {
+  width: max-content;
+  max-width: min(320px, calc(100vw - 16px));
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+/*
+ * It starts 10px left of its button, so the arrow clears its corner, and 8px
+ * off it, so the arrow's tip clears the button. Match POPOVER_SHIFT and POPOVER_GAP.
+ */
+.popover[popover] {
+  position: fixed;
+  inset: auto;
+  overflow: visible;
+}
+
+@supports (anchor-name: --a) {
+  .popover[popover] {
+    margin: 8px 0 8px -10px;
+    position-area: bottom span-right;
+    position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline;
+  }
+}
+
+/*
+ * A small arrow on the side facing the button, under its centre; js/ui.js sets
+ * both. It sits in the padding box, inside the popover's 1px border.
+ */
+.popover[data-side]::before {
+  position: absolute;
+  left: calc(var(--arrow-x, 16px) - 5px);
+  width: 8px;
+  height: 8px;
+  border: solid var(--line);
+  border-width: 1px 0 0 1px;
+  background: var(--surface);
+  content: "";
+}
+
+.popover[data-side="below"]::before {
+  top: -5px;
+  transform: rotate(45deg);
+}
+
+.popover[data-side="above"]::before {
+  bottom: -5px;
+  transform: rotate(225deg);
+}
+
+.info {
+  margin-left: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  line-height: 0;
+  vertical-align: middle;
+  cursor: pointer;
+}
+
+.info .icon {
+  width: 14px;
+  height: 14px;
+  stroke-width: 1.5;
+}
+
+.link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.row-value a,
+.info-popover a {
+  color: var(--accent);
+}
+
+/* A link out of the explorer, in the card, a popover or the welcome: accent blue, visited or not. */
+a.external {
+  color: var(--accent);
+}
+
+a.external .icon {
+  width: 0.9em;
+  height: 0.9em;
+  margin-left: 0.2em;
+  vertical-align: -0.1em;
+}
+
+.link-id {
+  display: block;
+}
+
+.show-more {
+  margin-top: 4px;
+}
+
+.info-popover p {
+  margin: 0;
+}
+
+.info-popover p + p {
+  margin-top: 6px;
+}
+
+/* The caption above the chart says what it shows; its info button keeps beside the text. */
+.hypso-caption {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  margin: 4px 0 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.hypso-caption .info {
+  flex: none;
+  margin-left: 0;
+}
+
+.hypsometry {
+  display: block;
+}
+
+.hypsometry .bar {
+  fill: var(--accent);
+}
+
+.hypso-range,
+.muted {
+  color: var(--muted);
+  text-align: center;
+}
+
+/*
+ * The image strip: the imagery crop, then the photos, one image per snap.
+ * On the desktop each image fills the photo area under the search bar; the
+ * phone insets them (see the phone's rules). The strip never shows a
+ * scrollbar of its own.
+ */
+.strip {
+  position: relative;
+  display: flex;
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  /* A sideways pan scrolls the strip; an up or down one still reaches the sheet. */
+  touch-action: pan-x pan-y pinch-zoom;
+}
+
+.strip::-webkit-scrollbar {
+  display: none;
+}
+
+.strip-tile {
+  position: relative;
+  flex: 0 0 100%;
+  height: 100%;
+  overflow: hidden;
+  scroll-snap-align: start;
+  background: var(--image-placeholder);
+}
+
+/* The whole image opens the viewer; the credit's links sit beside it. */
+.strip-open {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: zoom-in;
+}
+
+/* The tile clips anything outside it, so the keyboard ring is drawn inside. */
+.strip-open:focus-visible {
+  outline-offset: -3px;
+}
+
+.strip-open img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.photo-placeholder {
+  position: absolute;
+  inset: 0;
+}
+
+/*
+ * The photo arrows are faint glass, so the photo shows through. They show
+ * while the pointer or focus is on the photo, centred between the search
+ * bar's bottom edge and the top of the credit row.
+ */
+.photo-prev,
+.photo-next {
+  position: absolute;
+  z-index: 1;
+  top: calc((var(--search-top) + var(--search-h) + var(--photo-h) - var(--credit-inset) - var(--credit-row)) / 2);
+  transform: translateY(-50%);
+  background: var(--photo-glass);
+  backdrop-filter: var(--glass-blur);
+  box-shadow: 0 1px 2px rgb(60 64 67 / 20%);
+  transition: opacity 150ms ease-out;
+}
+
+/* Where there is hover, the arrows wait for it; a touch screen keeps them in view. */
+@media (hover: hover) {
+  .photo-prev,
+  .photo-next {
+    opacity: 0;
+  }
+
+  .photo:is(:hover, :focus-within) :is(.photo-prev, .photo-next) {
+    opacity: 1;
+  }
+}
+
+.photo-prev {
+  left: 8px;
+}
+
+.photo-next {
+  right: 8px;
+}
+
+.photo-prev:hover,
+.photo-next:hover {
+  background: var(--glass);
+}
+
+/*
+ * An image's credit floats inside its bottom left, set like the map's
+ * credits. It leaves room for the counter and wraps rather than cut the
+ * credit short; a photo's author takes at most one line, cut with "…".
+ */
+.photo-credit {
+  position: absolute;
+  left: var(--credit-inset);
+  bottom: var(--credit-inset);
+  max-width: calc(100% - 2 * var(--credit-inset) - 48px);
+  padding: 2px 8px;
+  border-radius: 8px;
+  background: var(--glass);
+  backdrop-filter: var(--glass-blur);
+  color: var(--text);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.photo-credit a {
+  color: inherit;
+}
+
+.credit-author {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
+}
+
+/* "2 / 5" in the bottom right, on the credit's line. */
+.photo-count {
+  position: absolute;
+  right: var(--credit-inset);
+  bottom: var(--credit-inset);
+  padding: 2px 8px;
+  border-radius: 8px;
+  background: rgb(32 33 36 / 62%);
+  color: #fff;
+  font-size: 11px;
+  line-height: 16px;
+}
+
+/*
+ * The image viewer. On the desktop the image floats at its own shape over the
+ * strong scrim; on the phone it fills the width over a blur of its own
+ * colours. Under it, one dock fixed to the bottom holds the credit, which
+ * wraps upwards, and ‹ n / N ›; ✕ is fixed in the corner. No control moves
+ * from image to image.
+ */
+dialog.viewer {
+  --dock-room: 128px;
+  inset: 0;
+  width: 100vw;
+  height: 100dvh;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  /* The dialog covers the viewport, so its own background is the scrim. */
+  background: var(--scrim-strong);
+  color: #fff;
+}
+
+dialog.viewer:focus,
+dialog.viewer:focus-visible {
+  outline: none;
+}
+
+dialog.viewer::backdrop {
+  background: none;
+}
+
+.viewer-track {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior: contain;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+.viewer-track::-webkit-scrollbar {
+  display: none;
+}
+
+.viewer-slide {
+  position: relative;
+  flex: 0 0 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  scroll-snap-align: start;
+}
+
+/* The image as large as fits above the dock, at its own shape; around it, a click closes. */
+.viewer-stage {
+  display: grid;
+  /* Definite tracks, so the image's max-height resolves against the room left. */
+  grid-template: minmax(0, 100%) / minmax(0, 100%);
+  place-items: center;
+  height: 100%;
+  padding: 72px 80px var(--dock-room);
+  /* The image sizes itself against this room: 100cqw by 100cqh. */
+  container-type: size;
+}
+
+/* Under an image of known shape, until it loads: the same size, so the image covers it exactly. */
+.viewer-stage::before {
+  content: "";
+  grid-area: 1 / 1;
+  aspect-ratio: var(--ar);
+  width: min(100cqw, 100cqh * var(--ar));
+  border-radius: var(--radius);
+  /* Solid, so the page behind the scrim does not show through it. */
+  background: #3c4043;
+}
+
+/* An image with nothing loaded yet shows nothing, not a broken-image icon. */
+.viewer-image:not([src]) {
+  visibility: hidden;
+}
+
+/*
+ * As large as fits, at the shape js/viewer.js reads from the loaded picture
+ * (--ar), whatever file is in it: the thumbnail stands in at the large file's
+ * size, so nothing jumps when that arrives. Until a picture has loaded,
+ * --ar is unset, the width falls back to auto and the max- limits fit it.
+ */
+.viewer-image {
+  position: relative;
+  grid-area: 1 / 1;
+  display: block;
+  aspect-ratio: var(--ar, auto);
+  width: min(100cqw, 100cqh * var(--ar));
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: var(--radius);
+  box-shadow: 0 12px 40px rgb(0 0 0 / 45%);
+}
+
+.viewer-backdrop {
+  display: none;
+}
+
+.viewer-dock {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 0 24px calc(24px + env(safe-area-inset-bottom));
+  pointer-events: none;
+}
+
+.viewer-dock > * {
+  pointer-events: auto;
+}
+
+/* The full credit, centred, as long as it needs: it wraps, never cut. */
+.viewer-credit {
+  max-width: 960px;
+  color: rgb(255 255 255 / 90%);
+  font-size: 13px;
+  line-height: 19px;
+  text-align: center;
+}
+
+.viewer-credit a {
+  color: #8ab4f8;
+}
+
+.viewer-credit .photo-credit {
+  position: static;
+  max-width: none;
+  padding: 0;
+  background: none;
+  backdrop-filter: none;
+  color: inherit;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+.viewer-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.viewer-count {
+  min-width: 64px;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.viewer-close,
+.viewer-prev,
+.viewer-next {
+  width: 44px;
+  height: 44px;
+  background: rgb(255 255 255 / 14%);
+  color: #fff;
+}
+
+.viewer-prev:disabled,
+.viewer-next:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.viewer-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 2;
+}
+
+@media (hover: hover) {
+  .viewer-close:hover,
+  .viewer-prev:not(:disabled):hover,
+  .viewer-next:not(:disabled):hover {
+    background: rgb(255 255 255 / 25%);
+  }
+}
+
+/* Short confirmations such as "Link copied". */
+.notice {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--status-h, 0px) + 16px);
+  z-index: 6;
+  transform: translateX(-50%);
+  padding: 8px 16px;
+  border-radius: 8px;
+  background: var(--text);
+  color: #fff;
+  box-shadow: var(--shadow);
+}
+
+.notice:empty {
+  display: none;
+}
+
+/* Use this data */
+
+/*
+ * Wide enough for the longest snippet line, 86 characters of 12.5px Noto Sans
+ * Mono at 8px each, without a scroll bar. The top stays put and the dialog
+ * grows downward, so a choice that changes its height leaves the choices in place.
+ */
+dialog.usedata {
+  --usedata-top: max(16px, 12vh);
+  width: min(760px, calc(100vw - 32px));
+  max-height: calc(100dvh - var(--usedata-top) - 16px);
+  margin: var(--usedata-top) auto auto;
+  padding: 12px 20px 20px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+
+dialog.usedata::backdrop {
+  background: var(--scrim);
+}
+
+.usedata h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.segmented {
+  margin: 12px 0 0;
+  padding: 0;
+  border: 0;
+}
+
+.segmented legend {
+  margin-bottom: 4px;
+  padding: 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.segments {
+  display: inline-flex;
+  flex-wrap: wrap;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.segment {
+  position: relative;
+}
+
+.segment + .segment {
+  border-left: 1px solid var(--line);
+}
+
+/* The radio stays focusable for the keyboard; its label draws the control. */
+.segment input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.segment span {
+  display: block;
+  padding: 6px 14px;
+  background: var(--surface);
+  font-weight: 600;
+}
+
+.segment input:checked + span {
+  background: var(--accent);
+  color: #fff;
+}
+
+.segment input:focus-visible + span {
+  outline: 2px solid var(--accent);
+  outline-offset: -4px;
+}
+
+.usedata pre {
+  margin: 12px 0 0;
+  padding: 12px;
+  overflow-x: auto;
+  border-radius: 8px;
+  background: var(--surface-2);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+/* The copy button sits under the snippet's bottom left. */
+.usedata-actions {
+  display: flex;
+  margin-top: 4px;
+}
+
+.usedata-steps {
+  margin: 12px 0 0;
+  padding-left: 1.4em;
+}
+
+.usedata-steps li + li {
+  margin-top: 4px;
+}
+
+.usedata-url {
+  margin-right: 8px;
+  overflow-wrap: anywhere;
+  font-size: 12.5px;
+}
+
+.icon-button.copy {
+  width: 28px;
+  height: 28px;
+  color: var(--muted);
+  vertical-align: middle;
+}
+
+.icon-button.copy .icon {
+  width: 16px;
+  height: 16px;
+}
+
+.usedata-filter p,
+.usedata-note {
+  margin: 12px 0 0;
+  color: var(--muted);
+}
+
+/* Phone: the search bar, the bottom sheet and the Use this data pane */
+
+@media (max-width: 640px) {
+  #search {
+    top: 12px;
+    left: 12px;
+    right: 12px;
+    width: auto;
+  }
+
+  /*
+   * Full screen: a white page fades in behind the search bar, which stays
+   * where it was, and the results run below it to the bottom. The bar's card
+   * passes to the input.
+   */
+  #search.fullscreen {
+    bottom: 0;
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    background: none;
+    box-shadow: none;
+  }
+
+  #search.fullscreen::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background: var(--surface);
+    animation: search-page-in 150ms ease-out;
+  }
+
+  @keyframes search-page-in {
+    from {
+      opacity: 0;
+    }
+  }
+
+  #search.fullscreen input {
+    flex: none;
+    background: var(--surface);
+    box-shadow: var(--shadow);
+  }
+
+  #search.fullscreen .search-icon,
+  #search.fullscreen .search-close {
+    display: none;
+  }
+
+  #search.fullscreen ul {
+    flex: 1;
+    min-height: 0;
+    max-height: none;
+    margin: 8px -12px 0;
+    border-top: 0;
+    border-radius: 0;
+  }
+
+  #card {
+    display: none;
+  }
+
+  /*
+   * A sheet docked to the bottom, compact, middle or full; js/sheet.js moves it
+   * between them through --sheet-visible, the px it shows. At full height it
+   * reaches the search bar's top. 160px is about the compact height with a
+   * one-line name, until the script measures.
+   */
+  #sheet {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 3;
+    height: calc(100dvh - 12px);
+    display: flex;
+    flex-direction: column;
+    /* Concentric with the close button: its 16 px radius plus its inset. */
+    border-radius: calc(var(--radius) + var(--sheet-x-inset)) calc(var(--radius) + var(--sheet-x-inset)) 0 0;
+    background: var(--surface);
+    box-shadow: var(--shadow);
+    transform: translateY(calc(100% - var(--sheet-visible, 160px)));
+    transition: transform 220ms ease-out, z-index 0s 220ms;
+  }
+
+  /*
+   * Full or in a drag, the sheet lies over the search bar: both sit at
+   * z-index 4, and the sheet comes later in the page. It drops back under
+   * once it has slid down, so the search's results stay above a lower sheet.
+   */
+  #sheet[data-level="full"],
+  #sheet.dragging {
+    z-index: 4;
+  }
+
+  #sheet[data-level="full"] {
+    transition: transform 220ms ease-out;
+  }
+
+  /*
+   * The compact sheet's body is inert, so a press on the photo's top lands on
+   * the sheet, which js/sheet.js drags; the browser must not pan it.
+   */
+  #sheet[data-level="compact"] {
+    touch-action: none;
+  }
+
+  /* The compact band keeps to the name and the actions. */
+  #sheet[data-level="compact"] .card-subtitle {
+    display: none;
+  }
+
+  /*
+   * The credits ride on the sheet's edge, as GLACE Viewer's do. They fade as
+   * the sheet rises from compact to middle, --sheet-rise from 0 to 1, and
+   * hide once it rests above compact.
+   */
+  #status {
+    transition: translate 220ms ease-out, opacity 220ms ease-out, visibility 220ms;
+  }
+
+  body.card-open #status {
+    translate: 0 calc(-1 * var(--sheet-visible, 160px));
+    opacity: calc(1 - var(--sheet-rise, 0));
+  }
+
+  body.card-open:has(#sheet:not([data-level="compact"]):not(.dragging)) #status {
+    visibility: hidden;
+  }
+
+  body:has(#sheet.dragging) #status {
+    transition: none;
+  }
+
+  #sheet.dragging {
+    transition: none;
+  }
+
+  /* The band drags the sheet; the body scrolls, and at its top a pull drags it. */
+  #sheet-band {
+    position: relative;
+    flex: none;
+    padding-top: 12px;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+  }
+
+  #sheet-body {
+    flex: 1;
+    overflow-y: auto;
+    padding-bottom: calc(16px + env(safe-area-inset-bottom));
+    touch-action: pan-y;
+    touch-action: pan-y pinch-zoom;
+    overscroll-behavior-y: contain;
+  }
+
+  /* A bar atop the band; js/sheet.js labels it. */
+  #sheet-handle {
+    display: block;
+    position: relative;
+    width: 36px;
+    height: 4px;
+    margin: -4px auto 4px;
+    padding: 0;
+    border: 0;
+    border-radius: 2px;
+    background: var(--line);
+    cursor: pointer;
+  }
+
+  #sheet-handle::after {
+    content: "";
+    position: absolute;
+    inset: -12px -20px -8px;
+  }
+
+  /*
+   * The name keeps clear of the ✕, which sits as far from the right edge as
+   * the actions from the left; the line below runs on under the ✕.
+   */
+  #sheet-head .card-head {
+    padding-top: 4px;
+  }
+
+  #sheet-head .card-title {
+    padding-right: 40px;
+  }
+
+  /*
+   * The grey disc, 32 px, sits in the band's 16 px margin from the top and
+   * the right, like the name and the buttons. Its middle, 32 px down, meets
+   * the middle of the name's capitals within a pixel. The sheet's corner is
+   * the disc's radius plus that margin, so the two are concentric.
+   */
+  #sheet-head .card-close {
+    top: var(--sheet-x-inset);
+    right: var(--sheet-x-inset);
+  }
+
+  /* The same space above the buttons, under the name or the area, as below them. */
+  #sheet-head .card-actions {
+    gap: 6px;
+    padding-top: 16px;
+    padding-bottom: 16px;
+  }
+
+  /*
+   * At compact the subtitle hides and the name's line ends the head. Its
+   * line box leaves 7 px under the baseline, so the buttons come 7 px closer:
+   * 16 px under the letters, as far as above the picture.
+   */
+  #sheet[data-level="compact"] #sheet-head .card-actions {
+    padding-top: 9px;
+  }
+
+  /* Three buttons with their icons fit across a 360px phone. */
+  .card-actions .btn {
+    gap: 4px;
+    padding: 6px 10px;
+  }
+
+  /*
+   * The phone's strip sits inside the card's 16px gutters with rounded
+   * images. Each is as wide as the gutters leave, so the 8px gap shows 8px of
+   * the next one; centre snapping keeps the shown one in the middle. No arrows:
+   * a swipe moves it.
+   */
+  .card .photo {
+    --photo-h: 180px;
+    background: none;
+  }
+
+  .card .strip {
+    gap: 8px;
+    padding: 0 16px;
+  }
+
+  .card .strip-tile {
+    border-radius: var(--radius);
+    scroll-snap-align: center;
+  }
+
+  .card .photo-placeholder {
+    left: 16px;
+    right: 16px;
+    border-radius: var(--radius);
+  }
+
+  .card :is(.photo-prev, .photo-next) {
+    display: none;
+  }
+
+  /*
+   * The phone's viewer: the image fills the width, and behind it a blur so
+   * strong that only its colours remain, so nothing is black. It swipes, as
+   * the strip does: no arrows.
+   */
+  dialog.viewer {
+    background: #202124;
+  }
+
+  /* A gap between images while swiping, where the blur shows through. */
+  .viewer-track {
+    gap: 16px;
+  }
+
+  .viewer-stage {
+    padding: 64px 0 var(--dock-room);
+  }
+
+  .viewer-stage::before,
+  .viewer-image {
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  /* The background stays put: two layers behind the track cross-fade to the shown image's colours. */
+  .viewer-backdrop {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    /* Dark enough that white text reads over an all-white glacier: white comes out #666, 5.7:1. */
+    filter: blur(90px) saturate(1.5) brightness(0.4);
+    transform: scale(1.4);
+    opacity: 0;
+    /* The outgoing layer waits for the incoming one, on top, to fade in: the background never dims between them. */
+    transition: opacity 400ms ease-out 400ms;
+  }
+
+  .viewer-backdrop.on {
+    opacity: 1;
+    transition-delay: 0s;
+  }
+
+  :is(.viewer-prev, .viewer-next) {
+    display: none;
+  }
+
+  /* Over the whole sheet, which opens all the way while it shows. */
+  .usedata-pane {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    overflow-y: auto;
+    padding: 12px 16px calc(24px + env(safe-area-inset-bottom));
+    border-radius: inherit;
+    background: var(--surface);
+  }
+
+  .notice {
+    bottom: auto;
+    top: 64px;
+  }
+}

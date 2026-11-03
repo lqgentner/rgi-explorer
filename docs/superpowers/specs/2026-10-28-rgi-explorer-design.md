@@ -29,7 +29,7 @@ GeoPandas or QGIS.
 ## Goals
 
 - A layout that feels instantly familiar because it follows Google Maps.
-- Search across every RGI glacier (by name and RGI ID), the RGI regions, and
+- Search across every RGI glacier (by name and RGI ID), the glacier regions, and
   OpenStreetMap places.
 - A glacier card that shows all the metadata RGI provides, in two tabs
   (Overview, Hypsometry), plus a photo when one exists.
@@ -54,7 +54,7 @@ These would make the project a failure even if everything technically works:
 
 - **Looking official.** The mirror is not endorsed by the RGI Consortium. The
   explorer must not use the RGI logo or anything that implies endorsement.
-  Credits say the explorer and the mirror are unofficial.
+  The README says the explorer and the mirror are unofficial.
 - **Two glacier datasets on one map.** The base map's own OSM glacier fills
   must be hidden so that RGI is the only glacier layer.
 - **Invented facts.** Every field description, unit, code label and
@@ -77,7 +77,8 @@ These would make the project a failure even if everything technically works:
 - **Content-Security-Policy.** Same-origin scripts and styles only. Each data
   host is listed explicitly: `data.source.coop`, `tiles.openfreemap.org`,
   `server.arcgisonline.com`, `tiles.mapterhorn.com`, `photon.komoot.io`,
-  `query.wikidata.org`, `commons.wikimedia.org`, `upload.wikimedia.org`.
+  `query.wikidata.org`, `commons.wikimedia.org`, `upload.wikimedia.org`, and
+  `download.mapterhorn.com` and `static.arcgis.com` for `connect-src` only.
   A test checks the policy offline, as glace-viewer's `page-assets.test.js`
   does.
 - **The explorer depends only on the published catalog**, never on
@@ -96,16 +97,17 @@ on purpose, and the first commit names them:
 - the CSP and its offline test;
 - `sw.js`, which serves JSON stale-while-revalidate;
 - the jsdom test helpers;
-- `js/sheet.js`, the phone bottom sheet with two snap heights and flick handling.
+- `js/sheet.js`, the phone bottom sheet with three snap heights and flick handling.
 
-Nothing raster-specific, and none of glace-viewer's visual style, is copied.
+Nothing raster-specific is copied. Of glace-viewer's visual style, only the
+globe projection and MapLibre's atmosphere around it are.
 
 ## The catalog contract
 
 One config value pins the catalog root:
 `https://data.source.coop/lqgentner/rgi/catalog.json`. A `?catalog=` URL
 parameter overrides it for development, for example to point at
-`rgi_catalog preview` running locally.
+`rgi_catalog preview` running locally. The credits stay the same.
 
 The explorer walks the STAC links from the root to the five RGI 7.0
 collections: `rgi-v7-0-glaciers`, `-regions`, `-complexes`, `-centerlines`
@@ -115,6 +117,7 @@ Paths are never hard-coded. Each collection's assets give:
 - `data`: the GeoParquet file.
 - `pmtiles` (role `visual`): one shared archive, `v7.0/rgi7.0.pmtiles`.
 - `style` (the `default` role wins): the MapLibre style for that collection.
+  The explorer draws with its own style instead (see The map).
 
 The **glaciers collection's `table:columns`** supply each column's
 description, unit and `classification:classes` (the code labels). The Overview
@@ -127,6 +130,7 @@ Measured from the staged 7.0-r1 files:
 | `glaciers` | 0–12 | every glacier attribute except `hypso_permille`, `rgi6_links` and `bbox` |
 | `glacier-labels` | 7–12 | `display_name`, `rgi_id`, `area_km2`, `label_minzoom` |
 | `regions`, `region-labels` | 0–12 | `o1region`, `o2region`, `full_name`, `level` |
+| `region-boundaries` | 0–12 | `level`: each border once, 1 where it bounds a first-order region |
 | `complexes` | 0–12 | `rgi_id`, `area_km2`, centre point |
 | `centerlines` | 8–12 | `rgi_id`, `segment_id`, `strahler_n`, `is_main`, … |
 | `intersects` (ice divides) | 10–12 | `rgi_id`, `rgi_g_id_1`, `rgi_g_id_2`, `length_m` |
@@ -147,44 +151,85 @@ PMTiles header and the GeoParquet footer, and fails if any of them changed shape
 
 ## Layout
 
-Visual style: a bright base map, solid white monochrome UI with no
-transparency, a blue accent (`#1a73e8` in the mockups) for the active tab,
+Visual style: a bright base map, a solid white monochrome UI, a blue accent (`#1a73e8` in the mockups) for the active tab,
 the primary button and the selected search result, and Noto Sans throughout.
-Shadows follow Google Maps' elevation style.
+Shadows follow Google Maps' elevation style. Only the controls that sit over
+the map or the photo are translucent (the status line, the photo's arrows,
+the credit chips and the "n / N" counter), so what is behind them shows
+through.
+Every ⓘ opens a popover next to its button, below it or above when there is
+no room. It floats over the page without moving anything, and a click
+elsewhere closes it.
 
 ### Desktop
 
 - **Search bar** at the top left, a white pill that floats over the
   sidebar when the sidebar is open.
 - **Sidebar** on the left, about 408 px wide, running the full window height.
-  It opens when a glacier is selected and closes with the ✕ in the search
-  bar.
-- **Layers control** at the bottom left of the map area. A thumbnail shows a
-  preview of the *other* base map, and clicking it swaps the base map. On
-  hover or click, a white panel grows out to the right from *behind* the
-  thumbnail and shows three toggles, each with a small preview tile:
-  - RGI regions, on by default;
+  It slides in from the left when a glacier is selected and slides out when
+  the ✕ in the search bar closes it.
+- **Layers control** at the bottom left of the map area. A white card shows
+  a preview of the *other* base map with Lucide's `layers-2` icon and the
+  word "Layers" in white along its bottom, over a gradient that darkens
+  towards the bottom. On hover or focus a white drawer with the three
+  toggles slides out to the right from behind the card, and the card keeps
+  its size. Open, the bottom line names the map a click swaps to, and
+  hovering the picture zooms it slightly and rings it in dark grey. On a touch screen the first tap opens the
+  control and a press elsewhere closes it. A mouse that leaves keeps it open
+  while keyboard focus is inside. Its accessible name starts with the visible
+  "Layers" ("Layers: show Imagery map") and it reports whether it is
+  expanded. When the sidebar is open and the window is narrower than 815 px,
+  the drawer would run under + / −, so it opens upwards as a column instead. Each toggle has a small static preview
+  tile drawn from the layer's real data at a fixed place (the Caucasus and
+  Middle East region and its two subregions, with finer dashes than the
+  map's; the Hardangerjøkulen complex's centerlines and intersects), in the
+  map's colors. It does not follow the view.
+  `scripts/make_layer_previews.py` cuts them from the GeoParquet files into
+  `js/previews.js`:
+  - Glacier regions (the GTN-G glacier regions), on by default;
   - Centerlines, off by default;
-  - Ice divides, off by default.
-- **3D button**, then **+ / −**, at the bottom right.
-- **Status line** under the map area. It holds a compact scale bar and the
-  credits, custom-built because MapLibre's controls are too large. The
-  sidebar covers it. When the map area is narrow, it wraps to two rows.
+  - Intersects, off by default.
+- **Compass**, then the **3D button** and **+ / −**, centred at the bottom
+  right (see `2026-11-01-compass-design.md`). The compass shows north, turns
+  the map with its arrows, and faces north out of 3D when its needle is
+  clicked. The buttons are 36 px with 11 px corners.
+- **Status line** over the map's bottom right corner, translucent and only
+  as wide as its text. It holds a compact scale bar and the credits,
+  custom-built because MapLibre's controls are too large. It never reaches
+  under the sidebar, and wraps when the map area is narrow.
 
 ### Phone
 
-- The search bar stretches across the top.
+- The search bar stretches across the top. A tap on it opens the search
+  full screen: the bar stays in place, with a back arrow in place of the
+  search icon and a ✕ that empties it, and the results fill the screen below. A pick, the back arrow or Escape returns
+  to the map.
 - Round **layer** and **3D** buttons sit at the top right, using Lucide's
   `layers-2` icon for the layers. There is no scale bar and no + / −, since
   the phone is touch only.
+- A round **compass** sits under the 3D button while the map is turned or
+  in 3D. A tap faces north and leaves 3D.
 - The **layer button** opens a bottom pane like Google Maps' "Map type" pane.
-  It has a header with ✕, a "Map type" row with Standard and Imagery tiles,
-  and an "RGI layers" row with the three toggle tiles. A selected tile has a
-  blue border.
+  Its "Map type" row, with ✕ beside the heading, holds the Standard and
+  Imagery tiles, and below a rule the "RGI layers" row holds the three toggle
+  tiles, all centred. A scrim darkens the page behind it, and a tap there
+  closes it. A selected tile's
+  square has a blue border drawn inside it, on the phone and the desktop.
 - **One bottom sheet** for the glacier card, with GLACE Viewer's behavior.
-  - Compact height: the name, the RGI ID, area and region, and "Use this
-    data".
-  - Pulled up all the way: the photo and both tabs.
+  - Compact height: the name, "Use this data" and the top of the photo.
+    A pick on the map opens the sheet here.
+  - Middle height: the RGI ID and region join the name, and the photo, the
+    tabs and the first row of key numbers show. The edge cuts through the
+    second row, so the reader sees there is more. A pick in search opens the
+    sheet here.
+  - Full height, up to the search bar's top: the photo and both tabs, which
+    scroll. A swipe up the body that reaches full height goes on to scroll it
+    in the same motion.
+  - The photo is an inset strip of images with rounded corners, inside the
+    card's 16px gutters, with a sliver of the next image. A swipe moves it
+    (see `2026-11-02-glacier-images-design.md`).
+  - The credits button rides on the sheet's edge, fades as the sheet rises
+    from compact to middle, and hides above compact.
 - The credits fold into an ⓘ button.
 
 ## The map
@@ -193,54 +238,85 @@ Shadows follow Google Maps' elevation style.
   (`https://tiles.openfreemap.org/styles/liberty`), loaded as is except that
   the explorer hides its `landcover_ice` layer.
 - **Imagery base map:** Esri World Imagery raster tiles, with Esri's credit.
-- **RGI layers** are drawn from `rgi7.0.pmtiles`, using the layers of the
-  catalog's own styles (`glaciers.json`, `regions.json`, `centerlines.json`,
-  `intersects.json`). They sit above the base map and below the base map's
-  labels. The glaciers style draws large glaciers as outlines and small ones
-  as dots at low zoom. Glacier labels and region labels come from the
-  archive.
-- **How far the explorer may change a catalog style.** It may change only
-  the plumbing:
-  - make the `pmtiles://` source URL absolute;
-  - move `glyphs` to OpenFreeMap's server and switch `text-font` from Open
-    Sans to Noto Sans (Regular, Bold and Italic map to the same weights),
-    because a map has one glyph server and Liberty's serves only Noto Sans;
-  - hide layers and add the selection layers.
-
-  It never changes a style's colors, filters or zoom ranges.
+  Liberty's borders and labels stay above it. The Liberty layers it covers
+  are switched off, so they neither draw nor fetch tiles; the background
+  stays and shows while the imagery loads.
+- **The map is a globe.** MapLibre's globe projection turns into Mercator as
+  the view zooms in. MapLibre's own atmosphere, as in glace-viewer, glows
+  around the globe against dark space.
+  The centre stops at the Mercator edge (±85.05°), where the tiles end, so
+  the globe never turns on a pole. The imagery picture in the layers card
+  keeps its export box inside the world, since Esri draws past an edge in
+  black.
+- **The opening view** without a view in the address turns the globe toward
+  the reader: the longitude of the browser's standard UTC offset and a rough
+  latitude for its time zone's area. The time zone never leaves the browser.
+  There is no IP lookup, which would send the address to a third party, and
+  no geolocation prompt.
+- **RGI layers** are drawn from `rgi7.0.pmtiles` with the explorer's own
+  style (`js/styles.js`), not the catalog's. They sit above the base map's fills
+  and lines and below its country borders and labels. Glaciers are opaque white with a grey outline,
+  so OSM water and woods mapped on the ice don't tint them, and small ones are dots at low zoom. Over imagery glaciers have no fill and a
+  white outline with a soft dark shadow, so the ice shows and the outline
+  stands out on snow, and the region outlines turn light. Regions are dashed outlines without a fill, drawn from
+  `region-boundaries`, which holds each border once. Glacier labels and
+  region labels come from the archive, in Noto Sans, the only fonts Liberty's
+  glyph server holds. A region label puts the region's code (`o1region` or
+  `o2region`) above its name, as the catalog's regions style does.
 - A toggle whose layer has no data at the current zoom (centerlines below 8,
-  ice divides below 10) stays usable. It shows "visible from zoom N".
+  intersects below 10) stays usable. In the phone's pane it shows "visible
+  from zoom N".
 - **Selecting a glacier:**
-  - draws its outline in red (`#d93025`), dashed and about 2.5 px wide;
+  - draws its outline in red (`#d93025`), dashed and about 2 px wide;
   - dims the rest of the map a little, the way Google Maps highlights an area;
   - fits the view to the glacier's bbox, padded so the sidebar or sheet
-    doesn't cover it.
+    doesn't cover it, with half the glacier's size free on every side and
+    no closer than zoom 15, so the map around it shows for orientation.
+    A pick on the map, in a panel or in search fits only when the glacier
+    isn't already well in view: when less than 80% of its bbox shows in the
+    map the panels leave open, when the bbox is under 24 px across, or when
+    it is larger than that open map. A shared link without a view always fits;
+    "Zoom to" always fits.
+  - keeps the map's bearing and tilt, so a turn the reader made stays.
 - **Clicking the map** selects the glacier under the pointer. Only glaciers
-  are selectable. Clicking empty map closes the card.
+  are selectable: a complex opens from search or from a glacier's card.
+  Clicking empty map closes the card or the complex panel.
+- **Selecting a complex** looks the same, for the whole complex, with its
+  member glaciers' outlines drawn again above it (see the complexes design).
 - **3D mode:**
   - the 3D button loads Mapterhorn terrain
     (`https://tiles.mapterhorn.com/tilejson.json`, terrarium, 512 px) and
     tilts the camera;
-  - a small notice in a map corner, closable with ✕, says the terrain is
-    newer than the RGI outlines and may not match them;
-  - closing the notice is remembered for the session.
+  - no notice about the terrain's age: the owner removed it (2026-11-02);
+  - tilting the map by hand past 5° turns 3D on where the reader left the
+    camera, and tilting it back flat turns 3D off and keeps the bearing.
 
 ## Search
 
 - One ranked list. The most likely match is at the top, and the list is not
   grouped. Each result has an icon and a subtitle naming its kind:
   - glacier (RGI ID and area);
-  - RGI region (its code);
-  - place (OSM type and country).
+  - glacier region or subregion (its code);
+  - place (OSM type, capitalised, and country; an OSM glacier reads
+    "Glacier (OSM)" to set it apart from RGI glaciers);
+  - glacier complex (its ID; see the complexes design,
+    `2026-10-30-glacier-complexes-design.md`).
 - **Glacier names and IDs.** The first focus of the search bar reads three
-  columns from all 24 row groups of the glaciers GeoParquet: `rgi_id`,
-  `display_name` and `glac_name`. That is about 0.6 MB over roughly 72 range
-  requests, using hyparquet. The explorer builds a fuzzy index from them in
+  columns from every row group of the glaciers GeoParquet: `rgi_id`,
+  `display_name` and `complex_id` (for finding complexes), about 0.4 MB on
+  the 7.0 file, using hyparquet. `glac_name` is not a name: it holds
+  placeholders such as "Unnamed_23", so a glacier without a `display_name`
+  is found and titled by its ID. The explorer builds a fuzzy index from them in
   the browser. Each match keeps its row position (row group and offset), so
   no lookup table is needed.
 - **Typing an RGI ID** (full, or the region-and-number part, for example
-  `11-02596`) puts that glacier first.
-- **RGI regions** come from the regions GeoParquet (`full_name`, codes), which
+  `11-02596`) puts that glacier first. A complex ID (`C-11-01323`) finds that
+  complex, and a bare `11-01323` lists the glacier and then the complex.
+- **The search bar names the open glacier or complex** (its title), however
+  it was opened: from search, the map, a link or another panel. Closing the
+  panel empties it. Someone typing in it keeps their text, and Escape puts
+  the name back.
+- **Glacier regions** come from the regions GeoParquet (`full_name`, codes), which
   is small. Picking one fits the region's bbox.
 - **OSM places** come from Photon (`photon.komoot.io`), queried with a
   debounce and biased towards the current view. Nominatim is not used,
@@ -263,10 +339,10 @@ Shadows follow Google Maps' elevation style.
 
 ### Header
 
-- **Photo area** at the top, about 200 px high on desktop (see Photo below).
+- **Photo area** at the top, about 280 px high on desktop (see Photo below).
 - **Name:** `display_name`. When that is empty, the RGI ID is the title.
-- **Subtitle:** the RGI ID and the first-order region name. It does not say
-  "Glacier", because only glaciers are selectable.
+- **Subtitle:** "Glacier", the RGI ID and the first-order region name, so the
+  card tells itself apart from the complex panel.
 - **Buttons:**
   - "Use this data", the primary button in blue;
   - "Zoom to";
@@ -287,9 +363,10 @@ From top to bottom:
    - source date;
    - same as RGI 6.0;
    - RGI 6.0 overlaps from `rgi6_links`;
-   - glacier complex (click to outline the whole complex);
+   - glacier complex (opens the complex panel; see the complexes design);
    - topography DEM;
-   - GLIMS ID (links to the GLIMS viewer).
+   - GLIMS ID (links to the GLIMS viewer in a new tab, marked with an
+     external-link icon).
 4. **Classification:**
    - primary class;
    - terminus type;
@@ -341,12 +418,23 @@ adapted because an RGI glacier has no OSM tags.
    geometry, so the point-in-polygon test is approximate at tile resolution.
 3. Collect each kept item's `P18` image and, as OSMapp does, files from its
    Commons category (`P373`).
-4. Show the hits as a carousel. Each image has an ⓘ that names its source
-   ("Wikidata Q204658 · P18") and links to the Commons file page.
-5. Show the author and license under the image. Both come from the Commons
-   API (`imageinfo` with `extmetadata`).
-6. With no hit, or on any error or timeout, show an Esri World Imagery crop
-   framed on the glacier's bbox, with Esri's credit.
+4. Show the hits in a strip after the imagery crop, which always comes
+   first (`2026-11-02-glacier-images-design.md`). Each image's credit always
+   shows, as a chip inside its bottom left: for a photo, "Author · License",
+   with the author linked to the Commons file page and the license to its
+   deed. A tap opens a viewer that shows the image whole, with its source
+   ("Wikidata Q204658 · P18") and a link to Commons.
+5. The author and license come from the Commons API (`imageinfo` with
+   `extmetadata`). A file's `Attribution`, when it names one, is the
+   credit it requires and replaces the `Artist`.
+6. Always show an Esri World Imagery crop framed on the glacier's bbox as
+   the strip's first image, with or without hits, with the line "Esri,
+   Vantor, Earthstar Geographics". The page asks World Imagery's `identify` about the bbox's
+   centre at the crop's extent and size, so only the metadata layer drawn at
+   the crop's scale answers. Its provider and capture date then replace the
+   line: "Esri, ©swisstopo, ©Planet, imaged 20 Aug 2023". On desktop
+   the search bar covers the photo's top, so the crop centres the glacier in
+   the rows below it.
 
 Expect few photos. Measured on 2026-10-28, 2,416 Wikidata items carry a
 GLIMS ID and 626 of them have an image. About 10,000 Wikidata glaciers have
@@ -362,7 +450,7 @@ A dialog, or a bottom pane on the phone, with two choices and a snippet with
 a Copy button:
 
 - **I work in:** Python or QGIS.
-- **Fetch:** this glacier, its region (`o1region`), or all of RGI.
+- **Fetch:** this glacier, its region (`o1region`), or all glaciers.
 
 The Python snippets use GeoPandas, because GeoPandas is more common in
 science than DuckDB:
@@ -374,7 +462,7 @@ url = "https://data.source.coop/lqgentner/rgi/v7.0/glaciers/rgi7.0-glaciers.parq
 gdf = gpd.read_parquet(url, filters=[("rgi_id", "==", "RGI2000-v7.0-G-11-02596")])
 ```
 
-- The region snippet filters on `o1region`. The all-RGI snippet reads the
+- The region snippet filters on `o1region`. The all-glaciers snippet reads the
   whole file and says how large it is.
 - **The QGIS variant** adds the GeoParquet file as an HTTP(S) vector source.
   It offers no PMTiles. The steps, as the author confirmed in QGIS's Data
@@ -389,7 +477,7 @@ gdf = gpd.read_parquet(url, filters=[("rgi_id", "==", "RGI2000-v7.0-G-11-02596")
   - For this glacier, the dialog includes a ready filter
     (`"rgi_id" = 'RGI2000-v7.0-G-11-02596'`) to paste into the layer's Query
     Builder (right-click the layer › Filter…).
-  - For a region, the filter is `"o1region" = '11'`. For all of RGI, there is
+  - For a region, the filter is `"o1region" = '11'`. For all glaciers, there is
     no filter, and the dialog states the file size.
   - The catalog README's QGIS route, the Portolan Registry plugin, does not
     apply. The plugin finds only registered catalogs, and this mirror stays
@@ -405,7 +493,8 @@ gdf = gpd.read_parquet(url, filters=[("rgi_id", "==", "RGI2000-v7.0-G-11-02596")
 
 ## URL state
 
-- `?glacier=<rgi_id>` opens that glacier's card.
+- `?glacier=<rgi_id>` opens that glacier's card, and `?complex=<rgi_id>`
+  opens a complex's panel. A glacier wins when both are given.
 - `#zoom/lat/lon` holds the view.
 - `?base=imagery` and `?layers=regions,centerlines,intersects` record the
   base map and toggles.
@@ -415,15 +504,30 @@ gdf = gpd.read_parquet(url, filters=[("rgi_id", "==", "RGI2000-v7.0-G-11-02596")
 
 ## Credits
 
-The status line, or the ⓘ on the phone, lists:
+The status line, or the ⓘ on the phone, lists the credits in groups, each
+named for what it draws:
 
-- © OpenStreetMap contributors;
-- OpenFreeMap;
-- Esri, when imagery is shown;
-- Mapterhorn, when 3D is on;
-- the RGI 7.0 Consortium citation and license from the catalog's metadata;
-- a note that RGI Explorer and the mirror are unofficial and not endorsed by
-  the RGI Consortium.
+- **Glaciers:** "RGI Consortium" and the year of the catalog's citation,
+  linked to the catalog's DOI, whose landing page names the license;
+- **Basemap:** © OpenStreetMap contributors, OpenFreeMap, © OpenMapTiles;
+- **Imagery:** "Powered by Esri", linked to esri.com, when imagery is
+  shown, as Esri asks of interactive maps; then the contributors in view,
+  best score first. Esri's list of contributors
+  (`static.arcgis.com/attribution/World_Imagery`, which Esri's own SDKs
+  read) is fetched once; each move keeps the contributors whose coverage
+  meets the view at Esri's tile level, one deeper than MapLibre's zoom.
+  Until it arrives, past 15 contributors, or with none in view, the
+  service's own sources follow instead: "Vantor, Earthstar Geographics, and
+  the GIS User Community". The card's crop is a static image, for which Esri
+  accepts the word "Esri" alone;
+- **Terrain:** © Mapterhorn, when 3D is on, then the producers of the
+  elevation sources in view, finest data first. After each move the page
+  reads them from Mapterhorn's coverage index
+  (`download.mapterhorn.com/coverage-index.pmtiles`, zooms 4 to 12), as
+  Mapterhorn's "attribute visible sources" example does. It reads at most 16
+  index tiles, at a coarser zoom for a wide view. Below zoom 4, past 15
+  sources, or when the index does not answer, © Mapterhorn stands alone and
+  links to its attribution page, which lists every source.
 
 Photo credits sit with the photo.
 
