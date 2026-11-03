@@ -1796,17 +1796,9 @@ a.external .icon {
 
 /* The caption above the chart says what it shows; its info button keeps beside the text. */
 .hypso-caption {
-  display: flex;
-  gap: 4px;
-  align-items: center;
   margin: 4px 0 8px;
   color: var(--muted);
   font-size: 13px;
-}
-
-.hypso-caption .info {
-  flex: none;
-  margin-left: 0;
 }
 
 .hypsometry {

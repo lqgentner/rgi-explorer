@@ -83,40 +83,14 @@ test("a low-zoom click renders at once, then the attribute read fills the rows",
   assert.ok(root.querySelector(".panel-hypsometry svg"));
 });
 
-const USER_GUIDE = "https://rgidata.org/user_guide/products/glacier_product.html#product-files";
-
-test("a caption and an info button with the catalog's description sit above the chart", async () => {
+test("a caption sits above the chart, without an info button", async () => {
   const { root, card } = setup();
   await card.open({ rgiId: IDS[0], row: 0 });
   const panel = root.querySelector(".panel-hypsometry");
   const caption = panel.querySelector(".hypso-caption");
-  assert.equal(caption.firstChild.textContent, "Share of the glacier's area in each 50 m elevation band.");
+  assert.equal(caption.textContent, "Share of the glacier's area in each 50 m elevation band.");
   assert.ok(caption.compareDocumentPosition(panel.querySelector("svg")) & window.Node.DOCUMENT_POSITION_FOLLOWING);
-  const info = caption.querySelector("button.info");
-  assert.equal(info.getAttribute("aria-label"), "About Hypsometry");
-  const popover = panel.querySelector(".popover");
-  assert.equal(popover.hidden, true);
-  click(info);
-  assert.equal(popover.hidden, false);
-  const [description, guide] = popover.querySelectorAll("p");
-  assert.equal(description.textContent, catalog.columns.get("hypso_permille").description);
-  assert.ok(guide.contains(popover.querySelector("a")));
-  const link = popover.querySelector("a");
-  assert.equal(link.href, USER_GUIDE);
-  assert.equal(link.textContent, "RGI 7.0 user guide");
-  assert.equal(link.target, "_blank");
-  assert.equal(link.rel, "noopener noreferrer");
-  assert.ok(link.querySelector("svg.icon use").getAttribute("href").endsWith("#external-link"));
-});
-
-test("without a catalog description the hypsometry info holds the user guide link alone", async () => {
-  const columns = new Map(catalog.columns);
-  columns.delete("hypso_permille");
-  const { root, card } = setup({ catalog: { ...catalog, columns } });
-  await card.open({ rgiId: IDS[0], row: 0 });
-  const popover = root.querySelector(".panel-hypsometry .popover");
-  assert.equal(popover.textContent, "RGI 7.0 user guide");
-  assert.equal(popover.querySelector("a").href, USER_GUIDE);
+  assert.equal(panel.querySelector("button.info, .popover"), null);
 });
 
 test("no caption while the hypsometry loads or when there is none", async () => {
