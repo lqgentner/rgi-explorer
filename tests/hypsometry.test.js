@@ -66,6 +66,15 @@ test("the minimum and maximum show below", () => {
   assert.equal(draw().querySelector(".hypso-range").textContent, "Min 1,578 m · Max 4,092 m");
 });
 
+test("an elevation that rounds to zero shows no minus sign", () => {
+  /* G-01-15261: zmin_m -0.355. G-01-07871: z0 -25, so the lowest tick is Math.ceil(-0.1) * 500 = -0. */
+  const el = draw({ ...ALETSCH, hypso_z0_m: -25, zmin_m: -0.3547835, zmean_m: -0.059 });
+  assert.match(el.querySelector(".hypso-range").textContent, /^Min 0 m · /);
+  assert.match(el.querySelector("svg").getAttribute("aria-label"), /mean 0 m/);
+  const ticks = [...el.querySelectorAll(".axis text.tick")].map((t) => t.textContent);
+  assert.ok(ticks.includes("0") && !ticks.some((t) => t === "-0"), String(ticks));
+});
+
 test("the chart has an accessible summary and elevation ticks", () => {
   const svg = draw().querySelector("svg");
   assert.equal(svg.getAttribute("viewBox").split(" ").length, 4);
