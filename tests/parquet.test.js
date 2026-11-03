@@ -12,7 +12,7 @@ import * as hyparquet from "hyparquet";
 
 globalThis.hyparquet = hyparquet;
 
-const { CARD_COLUMNS, SEARCH_COLUMNS, groupOfKey, openParquet, readColumns, readRow, rowGroupOf } =
+const { CARD_COLUMNS, SEARCH_COLUMNS, findRow, groupOfKey, openParquet, readColumns, readRow, rowGroupOf } =
   await import("../js/parquet.js");
 
 const SCRIPT = fileURLToPath(new URL("../scripts/make_fixture_parquet.py", import.meta.url));
@@ -186,6 +186,16 @@ test("finds the row group of a key from the column statistics", async () => {
   assert.equal(groupOfKey(h, "rgi_id", "RGI2000-v7.0-C-01-00001"), -1);
   assert.equal(groupOfKey(h, "rgi_id", "RGI2000-v7.0-C-19-00001"), -1);
   assert.equal(groupOfKey(h, "no_such_column", "x"), -1);
+});
+
+test("findRow reads only the groups whose statistics span the key", async () => {
+  const handle = await open();
+  /* The fixture is not sorted: G-11-00004 lies in the third group, inside the first group's range too. */
+  const ids = (await readColumns(handle, ["rgi_id"])).rgi_id;
+  assert.equal(await findRow(handle, "rgi_id", "RGI2000-v7.0-G-11-00004"), ids.indexOf("RGI2000-v7.0-G-11-00004"));
+  assert.equal(await findRow(handle, "rgi_id", "RGI2000-v7.0-G-11-00001"), ids.indexOf("RGI2000-v7.0-G-11-00001"));
+  assert.equal(await findRow(handle, "rgi_id", "RGI2000-v7.0-G-11-00009"), null, "spanned but absent");
+  assert.equal(await findRow(handle, "rgi_id", "RGI2000-v7.0-G-19-00001"), null, "outside every group");
 });
 
 test("the glaciers fixture names each glacier's complex", async () => {

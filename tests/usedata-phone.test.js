@@ -1,19 +1,16 @@
 /* "Use this data" on the phone: a pane in the sheet, not a dialog. */
 
 import assert from "node:assert/strict";
-import fs from "node:fs";
 import { test } from "node:test";
 
 import { load, loadPage } from "./helpers/browser.js";
+import { fixtureCatalog } from "./helpers/served.js";
 
-const ROOT = "https://data.source.coop/lqgentner/rgi/catalog.json";
-const DIR = new URL("./fixtures/catalog/", import.meta.url);
 
 const { document, window, setPhone } = await loadPage({ phone: true });
 const { loadCatalog } = await load("js/catalog.js");
 const { snippet, mountUseData } = await load("js/usedata.js");
-const catalog = await loadCatalog(ROOT, async (url) =>
-  JSON.parse(fs.readFileSync(new URL(url.slice(ROOT.length - "catalog.json".length), DIR), "utf8")));
+const catalog = await fixtureCatalog(loadCatalog);
 const ALETSCH = { rgiId: "RGI2000-v7.0-G-11-02596", o1region: "11" };
 
 test("the phone opens a pane in the sheet with the same snippet", () => {

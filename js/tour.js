@@ -105,8 +105,8 @@ export function placeNear(target, box, viewport, sides) {
  *  `onTakeMe()` opens the sample glacier and
  * may return a promise of false when there is none, which removes the offer;
  * `onStep(step)` hears each step the tour enters ("find", "card", "data",
- * "layers", "done"), so the app can reveal its control; `onEnd({byTarget})`
- * hears the tour end.
+ * "layers", "done"), so the app can reveal its control; `onEnd()` hears the
+ * tour end.
  *
  * The app tells the tour what changed: `refresh()` after a panel opens or
  * closes or the layout changes; `layersChanged()` when the reader picks a base map or
@@ -166,7 +166,6 @@ export function mountTour(root, { anchor, panel, onTakeMe, onStep, onEnd }) {
       if (step === "card") node.dataset.dock = "sheet";
       else if (step === "data") dockToButton();
       else delete node.dataset.dock;
-      node.dataset.side = "top";
       node.style.top = "";
       node.style.left = "";
       return;
@@ -175,7 +174,6 @@ export function mountTour(root, { anchor, panel, onTakeMe, onStep, onEnd }) {
     node.style.left = "";
     if (STEPS[step].dock) {
       node.dataset.dock = STEPS[step].dock;
-      node.dataset.side = "left";
       return;
     }
     delete node.dataset.dock;
@@ -186,7 +184,6 @@ export function mountTour(root, { anchor, panel, onTakeMe, onStep, onEnd }) {
       { width: window.innerWidth, height: window.innerHeight },
       STEPS[step].sides,
     );
-    node.dataset.side = spot.side;
     node.style.top = `${spot.top}px`;
     node.style.left = `${spot.left}px`;
   }
@@ -222,26 +219,21 @@ export function mountTour(root, { anchor, panel, onTakeMe, onStep, onEnd }) {
   }
 
   /* At most one filled button per step: its main action. */
-  const outline = (label, onClick, extra = {}) => {
-    const btn = h("button", { type: "button", class: "btn", ...extra }, label);
-    btn.addEventListener("click", onClick);
-    return btn;
-  };
-  const filled = (label, onClick) => {
-    const btn = h("button", { type: "button", class: "btn primary" }, label);
+  const button = (label, onClick, { primary = false, disabled = false } = {}) => {
+    const btn = h("button", { type: "button", class: primary ? "btn primary" : "btn", disabled }, label);
     btn.addEventListener("click", onClick);
     return btn;
   };
 
   function buttons() {
-    if (step === "done") return [filled("Done", () => end())];
+    if (step === "done") return [button("Done", () => end(), { primary: true })];
     const skip = () => go(STEPS[step].skipTo);
-    if (step === "card" && used) return [filled("Next", () => go("data"))];
+    if (step === "card" && used) return [button("Next", () => go("data"), { primary: true })];
     if (step === "find") {
       const busy = takeMe === "working";
-      return takeMe === "gone" ? [] : [outline(busy ? "Opening…" : "Take me to a glacier", takeMeThere, { disabled: busy })];
+      return takeMe === "gone" ? [] : [button(busy ? "Opening…" : "Take me to a glacier", takeMeThere, { disabled: busy })];
     }
-    return [outline("Skip", skip)];
+    return [button("Skip", skip)];
   }
 
   function show({ focus = false } = {}) {
@@ -331,7 +323,7 @@ export function mountTour(root, { anchor, panel, onTakeMe, onStep, onEnd }) {
     show({ focus: true });
   }
 
-  function end({ byTarget = false } = {}) {
+  function end() {
     if (!node) return;
     running.abort();
     PHONE.removeEventListener("change", reanchor);
@@ -341,7 +333,7 @@ export function mountTour(root, { anchor, panel, onTakeMe, onStep, onEnd }) {
     node.remove();
     node = null;
     covered = null;
-    onEnd({ byTarget });
+    onEnd();
   }
 
   return {
@@ -375,7 +367,7 @@ export function mountTour(root, { anchor, panel, onTakeMe, onStep, onEnd }) {
       if (typeof node.showPopover === "function") node.showPopover();
       show({ focus: true });
     },
-    end: () => end(),
+    end,
     /** Re-read what is open, the layers and the layout, move on if a step is done, and re-anchor. */
     refresh() {
       show();

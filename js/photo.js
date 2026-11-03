@@ -4,7 +4,8 @@
  * or the DOM: the caller supplies the outline rings.
  */
 
-import { COMMONS_API, ESRI_EXPORT, ESRI_IDENTIFY, SPARQL, TIMEOUT_MS } from "./config.js";
+import { fetchJson } from "./catalog.js";
+import { COMMONS_API, ESRI_EXPORT, ESRI_IDENTIFY, mercatorX, mercatorY, SPARQL, TIMEOUT_MS } from "./config.js";
 
 const GLIMS_ID = /^G\d{6}E\d{5}[NS]$/;
 const GLACIER_CLASS = "wd:Q35666";
@@ -14,7 +15,6 @@ const CATEGORY_FILES = 5;
 const THUMB_WIDTH = 640;
 const IMAGE_FILE = /\.(jpe?g|png|gif|webp|tiff?)$/i;
 const PAD = 0.15;
-const MAX_LAT = 85.05;
 
 const corner = (x, y) => `"Point(${Number(x)} ${Number(y)})"^^geo:wktLiteral`;
 
@@ -145,12 +145,6 @@ function textOf(html) {
   return text.replace(/\s+/g, " ").trim();
 }
 
-async function getJson(url, { fetch = globalThis.fetch, signal } = {}) {
-  const response = await fetch(url, { signal });
-  if (!response.ok) throw new Error(`${response.status} from ${new URL(url).host}`);
-  return response.json();
-}
-
 const normalName = (name) => String(name).replace(/^File:/, "").replaceAll("_", " ");
 const pageUrl = (name) => `https://commons.wikimedia.org/wiki/File:${encodeURIComponent(normalName(name).replaceAll(" ", "_"))}`;
 
@@ -169,7 +163,7 @@ export async function commonsCredits(files, { fetch, signal } = {}) {
     origin: "*",
     titles: files.map((f) => `File:${normalName(f.file)}`).join("|"),
   });
-  const data = await getJson(`${COMMONS_API}?${params}`, { fetch, signal });
+  const data = await fetchJson(`${COMMONS_API}?${params}`, { fetch, signal });
   const byName = new Map();
   for (const page of Object.values(data?.query?.pages ?? {})) {
     if (page?.title) byName.set(normalName(page.title), page.imageinfo?.[0]);
@@ -208,7 +202,7 @@ export async function commonsThumb(file, width, { fetch, signal } = {}) {
     titles: `File:${normalName(file)}`,
   });
   try {
-    const data = await getJson(`${COMMONS_API}?${params}`, { fetch, signal });
+    const data = await fetchJson(`${COMMONS_API}?${params}`, { fetch, signal });
     const page = Object.values(data?.query?.pages ?? {})[0];
     return page?.imageinfo?.[0]?.thumburl ?? null;
   } catch {
@@ -229,7 +223,7 @@ export async function categoryFiles(categories, { fetch, signal } = {}) {
         format: "json",
         origin: "*",
       });
-      const data = await getJson(`${COMMONS_API}?${params}`, { fetch, signal });
+      const data = await fetchJson(`${COMMONS_API}?${params}`, { fetch, signal });
       return Object.values(data?.query?.pages ?? {})
         .sort((a, b) => (a.index ?? 0) - (b.index ?? 0))
         .map((page) => normalName(page.title ?? ""))
@@ -239,11 +233,8 @@ export async function categoryFiles(categories, { fetch, signal } = {}) {
   return results.flat();
 }
 
-const EARTH_RADIUS = 6378137;
 /* The finest scale a crop asks for, in metres per pixel. */
 const MIN_SCALE = 1;
-const mercatorX = (lon) => (EARTH_RADIUS * lon * Math.PI) / 180;
-const mercatorY = (lat) => EARTH_RADIUS * Math.log(Math.tan(Math.PI / 4 + (Math.max(-MAX_LAT, Math.min(MAX_LAT, lat)) * Math.PI) / 360));
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -304,37 +295,22 @@ export function imagerySource(data) {
   return { provider: found.NICE_DESC, date };
 }
 
-/** An AbortSignal that fires on the caller's signal or after `timeoutMs`, and a cleanup. */
-function withTimeout(outer, timeoutMs) {
-  const controller = new AbortController();
-  const abort = () => controller.abort();
-  if (outer?.aborted) abort();
-  outer?.addEventListener("abort", abort, { once: true });
-  const timer = setTimeout(abort, timeoutMs);
-  return {
-    signal: controller.signal,
-    done() {
-      clearTimeout(timer);
-      outer?.removeEventListener("abort", abort);
-    },
-  };
-}
+/** An AbortSignal that fires on the caller's signal, if any, or after `timeoutMs`. */
+const withTimeout = (outer, timeoutMs) =>
+  outer ? AbortSignal.any([outer, AbortSignal.timeout(timeoutMs)]) : AbortSignal.timeout(timeoutMs);
 
 /** The imagery source of the crop esriCrop draws, or null on any error or timeout. */
 export async function findCropSource(bbox, width, height, top = 0, { fetch = globalThis.fetch, timeoutMs = TIMEOUT_MS } = {}) {
-  const guard = withTimeout(null, timeoutMs);
   try {
-    return imagerySource(await getJson(cropSourceUrl(bbox, width, height, top), { fetch, signal: guard.signal }));
+    return imagerySource(await fetchJson(cropSourceUrl(bbox, width, height, top), { fetch, signal: withTimeout(null, timeoutMs) }));
   } catch {
     return null;
-  } finally {
-    guard.done();
   }
 }
 
 async function gather(glacier, rings, { fetch, signal }) {
   const { glims_id: glimsId, bbox } = glacier.props ?? {};
-  const data = await getJson(
+  const data = await fetchJson(
     `${SPARQL}?${new URLSearchParams({ format: "json", query: sparqlQuery(bbox, glimsId) })}`,
     { fetch, signal },
   );
@@ -376,17 +352,8 @@ export async function findPhotos(glacier, rings, { fetch = globalThis.fetch, sig
   if (!glacier?.props?.bbox) return [];
   const guard = withTimeout(signal, timeoutMs);
   const stopped = new Promise((resolve) => {
-    if (guard.signal.aborted) resolve([]);
-    guard.signal.addEventListener("abort", () => resolve([]), { once: true });
+    if (guard.aborted) resolve([]);
+    guard.addEventListener("abort", () => resolve([]), { once: true });
   });
-  try {
-    return await Promise.race([
-      gather(glacier, rings ?? [], { fetch, signal: guard.signal }).catch(() => []),
-      stopped,
-    ]);
-  } catch {
-    return [];
-  } finally {
-    guard.done();
-  }
+  return Promise.race([gather(glacier, rings ?? [], { fetch, signal: guard }).catch(() => []), stopped]);
 }

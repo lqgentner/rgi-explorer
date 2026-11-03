@@ -29,6 +29,17 @@ export function inertAround(...keep) {
   };
 }
 
+/* A dialog opens as a modal, or by its attribute where showModal is missing. */
+export const isDialogOpen = (dialog) => dialog.open || dialog.hasAttribute("open");
+export function openDialog(dialog) {
+  if (typeof dialog.showModal !== "function") dialog.setAttribute("open", "");
+  else if (!dialog.open) dialog.showModal();
+}
+export function closeDialog(dialog) {
+  if (typeof dialog.close === "function" && dialog.open) dialog.close();
+  else dialog.removeAttribute("open");
+}
+
 /*
  * Append children as nodes or text. Set known DOM properties directly and other
  * keys as attributes. `style` takes an object of CSSOM properties. A string
@@ -54,6 +65,9 @@ export function h(tag, props = {}, ...children) {
   return node;
 }
 
+/** `items` without the empty ones, with `separator` between them, for a node's children. */
+export const joined = (items, separator) => items.filter(Boolean).flatMap((item, i) => (i ? [separator, item] : [item]));
+
 /* A link out of the explorer: the icon says it opens a new tab, and stays on the line of the link's last word. */
 export function externalLink(href, text) {
   const words = String(text);
@@ -66,11 +80,11 @@ const SVG_NS = "http://www.w3.org/2000/svg";
 /* Lucide's sprite holds every icon as a symbol named like the icon. */
 const ICON_SPRITE = "node_modules/lucide-static/sprite.svg";
 
-/** An SVG element with attributes. */
+/** An SVG element with attributes, and children as nodes or text; null and undefined are skipped. */
 export function svg(tag, attrs = {}, ...children) {
   const node = document.createElementNS(SVG_NS, tag);
   for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
-  node.append(...children);
+  node.append(...children.filter((child) => child !== null && child !== undefined));
   return node;
 }
 
@@ -113,10 +127,36 @@ function place(node, button) {
 export const GLIDE_MS = 300;
 /* Slower flicks, in px/ms, stop where they are. */
 const GLIDE_MIN = 0.1;
-/* Movement in px before a drag on a popover scrolls. Match LOCK_PX in js/sheet.js. */
-const DRAG_PX = 8;
+/** Movement in px before a gesture counts as vertical or horizontal. */
+export const LOCK_PX = 8;
 /* A drag's speed is measured over this many ms before its release. */
 const SPEED_MS = 100;
+
+/** The gesture's axis once it has moved LOCK_PX, before that null. */
+export function lockAxis(dx, dy) {
+  if (Math.hypot(dx, dy) < LOCK_PX) return null;
+  return Math.abs(dy) > Math.abs(dx) ? "y" : "x";
+}
+
+/**
+ * A drag's recent positions along y. `speed(time)` is its speed at a release
+ * at `time` in px/ms, positive upward; no time between samples reads as a
+ * flick. A finger held still sends no moves, so after a pause it is 0.
+ */
+export function dragSpeed() {
+  const samples = [];
+  return {
+    add(y, time) {
+      samples.push({ y, time });
+      while (samples.length > 2 && time - samples[0].time > SPEED_MS) samples.shift();
+    },
+    speed(time) {
+      const last = samples.at(-1);
+      const first = samples.find((sample) => time - sample.time <= SPEED_MS) ?? last;
+      return last ? (first.y - last.y) / (last.time - first.time) || 0 : 0;
+    },
+  };
+}
 
 /** Carry on a scroll of `scroller` that a flick at `velocity` px/ms ended, positive downward through the content. */
 export function glide(scroller, velocity) {
@@ -149,7 +189,7 @@ function passScroll(node, button, signal) {
   }, { passive: false, signal });
   node.addEventListener("touchstart", (event) => {
     const [{ clientX, clientY }] = event.touches;
-    drag = event.touches.length === 1 ? { x: clientX, y: clientY, axis: null, samples: [] } : null;
+    drag = event.touches.length === 1 ? { x: clientX, y: clientY, axis: null, speed: dragSpeed() } : null;
   }, { passive: true, signal });
   window.addEventListener("touchmove", (event) => {
     if (!drag || event.touches.length !== 1) return;
@@ -159,9 +199,8 @@ function passScroll(node, button, signal) {
     }
     const [{ clientX, clientY }] = event.touches;
     if (!drag.axis) {
-      const [dx, dy] = [clientX - drag.x, clientY - drag.y];
-      if (Math.hypot(dx, dy) < DRAG_PX) return;
-      drag.axis = Math.abs(dy) > Math.abs(dx) ? "y" : "x";
+      drag.axis = lockAxis(clientX - drag.x, clientY - drag.y);
+      if (!drag.axis) return;
       drag.scroller = scrollerOf(button);
       if (drag.axis !== "y" || !drag.scroller) {
         drag = null;
@@ -171,15 +210,12 @@ function passScroll(node, button, signal) {
     event.preventDefault();
     drag.scroller.scrollTop += drag.y - clientY;
     drag.y = clientY;
-    drag.samples.push({ y: clientY, time: event.timeStamp });
-    while (drag.samples.length > 2 && event.timeStamp - drag.samples[0].time > SPEED_MS) drag.samples.shift();
+    drag.speed.add(clientY, event.timeStamp);
   }, { passive: false, signal });
   const end = (event) => {
-    const { samples = [], scroller } = drag ?? {};
+    const { speed, scroller } = drag ?? {};
     drag = null;
-    if (samples.length < 2 || event.timeStamp - samples.at(-1).time > SPEED_MS) return;
-    const [first, last] = [samples[0], samples.at(-1)];
-    glide(scroller, (first.y - last.y) / (last.time - first.time || 1));
+    if (scroller) glide(scroller, speed.speed(event.timeStamp));
   };
   window.addEventListener("touchend", end, { signal });
   window.addEventListener("touchcancel", () => (drag = null), { signal });

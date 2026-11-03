@@ -1,22 +1,17 @@
 /* The display table and the Overview rows. */
 
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import { loadPage, load } from "./helpers/browser.js";
+import { fixtureCatalog } from "./helpers/served.js";
 
 await loadPage();
 const { loadCatalog } = await load("js/catalog.js");
 const { ATTRIBUTE_COLUMNS, DISPLAY, GROUP_TITLES, complexRows, formatArea, formatCoord, formatDate, formatInt, overviewRows } =
   await load("js/columns.js");
 
-const ROOT = "https://data.source.coop/lqgentner/rgi/catalog.json";
-const DIR = new URL("./fixtures/catalog/", import.meta.url);
-const fixtureFetch = async (url) =>
-  JSON.parse(await readFile(new URL(url.slice(ROOT.length - "catalog.json".length), DIR), "utf8"));
-
-const catalog = await loadCatalog(ROOT, fixtureFetch);
+const catalog = await fixtureCatalog(loadCatalog);
 const columns = catalog.columns;
 
 const ALETSCH = {

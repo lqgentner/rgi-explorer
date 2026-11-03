@@ -1,9 +1,12 @@
 /* The map: base maps, the RGI layers, the selection and the terminus pin. */
 
+import { fetchJson } from "./catalog.js";
 import {
+  clampLat,
   ESRI_TILES,
   GLYPHS,
   LIBERTY_STYLE,
+  MAX_LAT,
   MIN_PICK_PX,
   MIN_VISIBLE_FRACTION,
   startView,
@@ -43,7 +46,6 @@ const sky = (base) => ({
 });
 /* The background on imagery, where the imagery has not loaded yet. */
 const IMAGERY_BACKGROUND = "#3c4043";
-const MAX_LAT = 85.05;
 /* A fit that would fly longer than this, in ms, jumps there: a far flight is a long wait. */
 const FLY_MAX_MS = 2000;
 const POINTS = ["in", ["geometry-type"], ["literal", ["Point", "MultiPoint"]]];
@@ -82,11 +84,8 @@ function registerProtocol() {
   protocolRegistered = true;
 }
 
-async function fetchJson(url) {
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`${url}: HTTP ${response.status}`);
-  return response.json();
-}
+/** Liberty's style, which needs no catalog: start it early and pass the promise to createMap. */
+export const fetchLiberty = () => fetchJson(LIBERTY_STYLE);
 
 const isSymbol = (layer) => layer.type === "symbol";
 const visibility = (on) => (on ? "visible" : "none");
@@ -297,8 +296,6 @@ function buildStyle(liberty, rgi, state) {
   };
 }
 
-const clampLat = (lat) => Math.max(-MAX_LAT, Math.min(MAX_LAT, lat));
-
 /** MapLibre's padding, a number for every side or some of the sides, as four numbers. */
 function sides(padding = 0) {
   if (typeof padding === "number") return { top: padding, right: padding, bottom: padding, left: padding };
@@ -368,7 +365,11 @@ function standardPictures(liberty) {
       mini.on("idle", onIdle);
     });
 
+  /* The last picture, kept while the view and size it shows stay the same: an idle without a move asks again. */
+  let last = null;
   return async function picture({ center, zoom }, size) {
+    const key = `${center}|${zoom}|${size}`;
+    if (last?.key === key) return last.url;
     try {
       if (!mini) make(size);
       else if (size !== px) {
@@ -379,7 +380,9 @@ function standardPictures(liberty) {
       const settled = idle();
       mini.jumpTo({ center, zoom, bearing: 0, pitch: 0 });
       mini.triggerRepaint();
-      return (await settled) ? mini.getCanvas().toDataURL("image/jpeg", 0.85) : null;
+      const url = (await settled) ? mini.getCanvas().toDataURL("image/jpeg", 0.85) : null;
+      last = url ? { key, url } : null;
+      return url;
     } catch (error) {
       console.warn("standard picture:", error.message);
       return null;
@@ -389,10 +392,10 @@ function standardPictures(liberty) {
 
 /**
  * Builds the map and resolves once it has loaded. The RGI layers share one
- * source, the catalog's PMTiles file.
+ * source, the catalog's PMTiles file. `liberty` is the promise of fetchLiberty.
  */
-export async function createMap(container, catalog, state) {
-  const liberty = await fetchJson(LIBERTY_STYLE);
+export async function createMap(container, catalog, state, liberty = fetchLiberty()) {
+  liberty = await liberty;
   const rgi = rgiStyle(catalog.collections.glaciers.pmtilesUrl);
 
   registerProtocol();
@@ -669,11 +672,7 @@ export async function createMap(container, catalog, state) {
       map.easeTo({ center: lonLat, offset: [(left - right) / 2, (top - bottom) / 2] });
     },
 
-    fitBbox({ xmin, ymin, xmax, ymax }, padding, center, options = {}) {
-      if (xmax - xmin >= 360 && center) {
-        map.jumpTo({ center, zoom: 3 });
-        return;
-      }
+    fitBbox({ xmin, ymin, xmax, ymax }, padding, options = {}) {
       map.fitBounds(
         [
           [xmin, clampLat(ymin)],

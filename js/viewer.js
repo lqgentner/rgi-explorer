@@ -7,7 +7,7 @@
  * and, on the desktop, a click outside the image close it.
  */
 
-import { PHONE, h, icon } from "./ui.js";
+import { closeDialog, h, icon, isDialogOpen, openDialog, PHONE } from "./ui.js";
 
 /**
  * @typedef {object} ViewerItem
@@ -37,7 +37,7 @@ let aiming = null;
 /** The open viewer: { items, slides, srcs, credits, index, loaded, onClose, returnFocus }. */
 let state = null;
 
-const isOpen = () => Boolean(dialog && (dialog.open || dialog.hasAttribute("open")));
+const isOpen = () => Boolean(dialog && isDialogOpen(dialog));
 
 /* Who hears the viewer open and close: the tour. */
 const toggleListeners = new Set();
@@ -49,16 +49,13 @@ export function onViewerToggle(fn) {
 
 function show() {
   const was = isOpen();
-  if (typeof dialog.showModal === "function") {
-    if (!dialog.open) dialog.showModal();
-  } else dialog.setAttribute("open", "");
+  openDialog(dialog);
   if (!was) for (const fn of toggleListeners) fn(true);
 }
 
 function hide() {
   const was = isOpen();
-  if (typeof dialog.close === "function" && dialog.open) dialog.close();
-  else dialog.removeAttribute("open");
+  closeDialog(dialog);
   if (was) for (const fn of toggleListeners) fn(false);
 }
 

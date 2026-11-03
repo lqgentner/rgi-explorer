@@ -233,7 +233,7 @@ test("one change of base map or layer finishes step 4 with the last card", () =>
   assert.deepEqual(ringed(), []);
   button("Done").click();
   assert.equal(popup(), null);
-  assert.deepEqual(calls.ends, [{ byTarget: false }]);
+  assert.equal(calls.ends.length, 1);
 });
 
 test("on the desktop Layers docks above the Layers control and the last card beside the controls, placed by style.css", () => {
@@ -252,9 +252,9 @@ test("on the desktop Layers docks above the Layers control and the last card bes
   page.setPhone(false);
   assert.equal(popup().dataset.dock, "controls");
   const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
-  assert.match(css, /@media \(min-width: 641px\) \{\s*\.tour\[data-dock="controls"\] \{\s*top: auto;\s*left: auto;\s*bottom: calc\(var\(--status-h, 0px\) \+ 16px\);\s*right: calc\(16px \+ 54px \+ 12px\);\s*\}/,
+  assert.match(css, /@media \(min-width: 641px\) \{\s*\.tour\[data-dock="controls"\] \{\s*top: auto;\s*left: auto;\s*bottom: calc\(var\(--status-h, 0px\) \+ 16px\);\s*right: calc\(16px \+ var\(--controls-w\) \+ 12px\);\s*\}/,
     "its bottom on the same line as the controls', left of the compass's 54 px and the 12 px gap");
-  assert.match(css, /\.tour\[data-dock="layers"\] \{[^}]*left: 16px;[^}]*bottom: calc\(var\(--status-h, 0px\) \+ 16px \+ 90px \+ 12px\);/,
+  assert.match(css, /\.tour\[data-dock="layers"\] \{[^}]*left: 16px;[^}]*bottom: calc\(var\(--status-h, 0px\) \+ 16px \+ var\(--layers-h\) \+ 12px\);/,
     "above the Layers control, whose card is 90 px tall, on the line it stands on");
   assert.match(css, /body\.card-open \.tour\[data-dock="layers"\] \{\s*left: calc\(var\(--sidebar-w\) \+ 16px\);/, "with the card open the control moves right of it, and the step with it");
 });

@@ -33,6 +33,15 @@ export function makeParquet() {
   }
 }
 
+/**
+ * The catalog fixture, read through `loadCatalog` from the page's own copy of
+ * js/catalog.js, which `load()` returns.
+ */
+export function fixtureCatalog(loadCatalog) {
+  return loadCatalog(`${DATA}catalog.json`, async (url) =>
+    JSON.parse(fs.readFileSync(path.join(FIXTURES, "catalog", url.slice(DATA.length)), "utf8")));
+}
+
 const json = (file) =>
   new Response(fs.readFileSync(file), { status: 200, headers: { "Content-Type": "application/json" } });
 

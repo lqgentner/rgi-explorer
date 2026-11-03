@@ -10,8 +10,8 @@ import { mountCompass } from "./compass.js";
 import { mountComplexCard } from "./complexcard.js";
 import { resolveCatalogUrl, SAMPLE_GLACIER, TIMEOUT_MS } from "./config.js";
 import { mountLayers, mountTerrain, mountZoom } from "./layers.js";
-import { createMap } from "./map.js";
-import { groupOfKey, openParquet, readColumns, readRow, rowGroupOf, SEARCH_COLUMNS } from "./parquet.js";
+import { createMap, fetchLiberty } from "./map.js";
+import { findRow, groupOfKey, openParquet, readColumns, readRow, rowGroupOf, SEARCH_COLUMNS } from "./parquet.js";
 import { findPhotos } from "./photo.js";
 import { buildGlacierIndex } from "./search.js";
 import { mountSearch } from "./searchbox.js";
@@ -107,56 +107,45 @@ async function loadRegions(url) {
   return rowsOf(await readColumns(await openParquet(url), REGION_COLUMNS));
 }
 
+/** `load()` once: every call shares its promise, and one that rejects is tried again on the next call. */
+function retrying(load) {
+  let pending = null;
+  return () =>
+    (pending ??= load().catch((error) => {
+      pending = null;
+      throw error;
+    }));
+}
+
 /**
  * The glaciers GeoParquet, opened on first use, and its search index, read on
  * first use. A failed open or read is tried again on the next use.
  */
 function glacierFile(url, regionNames) {
-  let opening = null;
-  let indexing = null;
+  /* The search index once it is read; until then a row comes from its own row group. */
+  let indexed = null;
   const file = {
     handle: null,
-    open() {
-      opening ??= openParquet(url).then(
-        (handle) => {
-          file.handle = handle;
-          return handle;
-        },
-        (error) => {
-          opening = null;
-          throw error;
-        },
-      );
-      return opening;
-    },
-    index() {
-      indexing ??= file
+    open: retrying(() => openParquet(url).then((handle) => (file.handle = handle))),
+    index: retrying(() =>
+      file
         .open()
         .then((handle) => readColumns(handle, SEARCH_COLUMNS))
-        .then((columns) => buildGlacierIndex(columns, regionNames))
-        .catch((error) => {
-          indexing = null;
-          throw error;
-        });
-      return indexing;
-    },
+        .then((columns) => (indexed = buildGlacierIndex(columns, regionNames))),
+    ),
     /**
      * The row of an RGI ID from its row group alone: the file is sorted by ID,
-     * so the ID statistics name one group and only its IDs are read. Null when
-     * the file does not hold it; rejects when the file cannot be read.
+     * so only one group's IDs are read. Null when the file does not hold it;
+     * rejects when the file cannot be read.
      */
-    async find(rgiId) {
-      const handle = await file.open();
-      const group = groupOfKey(handle, "rgi_id", rgiId);
-      if (group === -1) return null;
-      const { rgi_id: ids } = await readColumns(handle, ["rgi_id"], group);
-      const at = ids.indexOf(rgiId);
-      return at === -1 ? null : handle.groups[group].start + at;
-    },
-    /** The row of an RGI ID, or null when the index does not hold it or cannot be read. */
+    find: async (rgiId) => findRow(await file.open(), "rgi_id", rgiId),
+    /**
+     * The row of an RGI ID, or null when the file does not hold it or cannot be
+     * read. A map click needs one row, so it does not wait for the whole index.
+     */
     async rowOf(rgiId) {
       try {
-        return (await file.index()).byId.get(rgiId) ?? null;
+        return indexed ? (indexed.byId.get(rgiId) ?? null) : await file.find(rgiId);
       } catch {
         return null;
       }
@@ -173,37 +162,20 @@ function glacierFile(url, regionNames) {
 
 /**
  * The complexes GeoParquet, opened on first use. The file is sorted by ID, so a
- * complex's row group comes from the ID statistics and one group is read.
+ * complex's row group comes from the ID statistics and one group is read. The
+ * panel, the fit and the map share that read through readColumns' cache.
  */
 function complexFile(url) {
-  let opening = null;
-  /* The last complex read, which the panel, the fit and the map share. */
-  let last = null;
-  const open = () => {
-    opening ??= openParquet(url).catch((error) => {
-      opening = null;
-      throw error;
-    });
-    return opening;
-  };
+  const open = retrying(() => openParquet(url));
   return {
     /** The complex's row, null when the file does not hold it; rejects when the file cannot be read. */
-    read(complexId) {
-      if (last?.complexId === complexId) return last.row;
-      const row = (async () => {
-        const handle = await open();
-        const group = groupOfKey(handle, "rgi_id", complexId);
-        if (group === -1) return null;
-        const columns = await readColumns(handle, COMPLEX_COLUMNS, group);
-        const at = columns.rgi_id.indexOf(complexId);
-        return at === -1 ? null : Object.fromEntries(COMPLEX_COLUMNS.map((name) => [name, columns[name][at]]));
-      })();
-      const mine = { complexId, row };
-      last = mine;
-      row.catch(() => {
-        if (last === mine) last = null;
-      });
-      return row;
+    async read(complexId) {
+      const handle = await open();
+      const group = groupOfKey(handle, "rgi_id", complexId);
+      if (group === -1) return null;
+      const columns = await readColumns(handle, COMPLEX_COLUMNS, group);
+      const at = columns.rgi_id.indexOf(complexId);
+      return at === -1 ? null : Object.fromEntries(COMPLEX_COLUMNS.map((name) => [name, columns[name][at]]));
     },
   };
 }
@@ -303,7 +275,7 @@ function wire(catalog, rgiMap, regions) {
   };
 
   let status = null;
-  const layers = mountLayers(el("layers"), {
+  mountLayers(el("layers"), {
     base: state.base,
     layers: state.layers,
     map,
@@ -425,10 +397,7 @@ function wire(catalog, rgiMap, regions) {
         },
       );
     },
-    /* A click on Use this data leaves the focus in the data it opened. */
-    onEnd({ byTarget }) {
-      if (!byTarget) help.button.focus();
-    },
+    onEnd: () => help.button.focus(),
   });
   const help = mountHelp({ desktop: el("controls"), phone: el("status") }, {
     onHelp() {
@@ -475,7 +444,7 @@ function wire(catalog, rgiMap, regions) {
   const fitAround = ({ xmin, ymin, xmax, ymax }) => {
     const [dx, dy] = [(xmax - xmin) * FIT_MARGIN, (ymax - ymin) * FIT_MARGIN];
     const wide = { xmin: xmin - dx, ymin: ymin - dy, xmax: xmax + dx, ymax: ymax + dy };
-    rgiMap.fitBbox(wide, padding(), undefined, { maxZoom: FIT_MAX_ZOOM });
+    rgiMap.fitBbox(wide, padding(), { maxZoom: FIT_MAX_ZOOM });
   };
 
   /** Fit `bbox` as `fit` asks, ALWAYS or IF_NEEDED, clear of the panels open now. */
@@ -765,14 +734,13 @@ function wire(catalog, rgiMap, regions) {
     },
   });
 
-  /* A shared link's glacier opens once the index places it; an ID it lacks is dropped. */
+  /* A shared link's glacier opens once its row group places it; an ID the file lacks is dropped. */
   if (state.glacier) {
     const rgiId = state.glacier;
-    glaciers.index().then(
-      (index) => {
+    glaciers.find(rgiId).then(
+      (row) => {
         if (state.glacier !== rgiId || shown) return;
-        const row = index.byId.get(rgiId);
-        if (row === undefined) {
+        if (row === null) {
           state.glacier = null;
           save();
           return;
@@ -780,7 +748,7 @@ function wire(catalog, rgiMap, regions) {
         /* The sender's view stays; without one the glacier is fitted, wherever the opening view is. */
         openGlacier({ rgiId, row }, !hadView && ALWAYS, { fromLink: true });
       },
-      (error) => console.warn("glacier index:", error.message),
+      (error) => console.warn("glacier:", error.message),
     );
   }
 
@@ -809,6 +777,9 @@ function fail(message, error) {
 
 async function start() {
   save();
+  /* The basemap style needs no catalog, so it loads while the catalog does. */
+  const liberty = fetchLiberty();
+  liberty.catch(() => {});
   const catalogUrl = resolveCatalogUrl(new URLSearchParams(location.search));
   let catalog;
   try {
@@ -818,7 +789,7 @@ async function start() {
     return;
   }
   const [mapResult, regionsResult] = await Promise.allSettled([
-    createMap(el("map"), catalog, state),
+    createMap(el("map"), catalog, state, liberty),
     loadRegions(catalog.collections.regions.dataUrl),
   ]);
   if (regionsResult.status === "rejected") {

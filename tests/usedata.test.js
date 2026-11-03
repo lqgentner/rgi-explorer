@@ -1,13 +1,11 @@
 /* "Use this data": the snippets and the desktop dialog. */
 
 import assert from "node:assert/strict";
-import fs from "node:fs";
 import { test } from "node:test";
 
 import { load, loadPage, settle, waitFor } from "./helpers/browser.js";
+import { fixtureCatalog } from "./helpers/served.js";
 
-const ROOT = "https://data.source.coop/lqgentner/rgi/catalog.json";
-const DIR = new URL("./fixtures/catalog/", import.meta.url);
 const SIZE = 258_123_456;
 
 const heads = [];
@@ -28,8 +26,7 @@ Object.defineProperty(globalThis.navigator, "clipboard", {
 
 const { loadCatalog } = await load("js/catalog.js");
 const { snippet, mountUseData } = await load("js/usedata.js");
-const catalog = await loadCatalog(ROOT, async (url) =>
-  JSON.parse(fs.readFileSync(new URL(url.slice(ROOT.length - "catalog.json".length), DIR), "utf8")));
+const catalog = await fixtureCatalog(loadCatalog);
 
 const URL_ = "https://data.source.coop/lqgentner/rgi/v7.0/glaciers/rgi7.0-glaciers.parquet";
 const ALETSCH = { rgiId: "RGI2000-v7.0-G-11-02596", o1region: "11" };

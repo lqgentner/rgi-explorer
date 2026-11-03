@@ -19,6 +19,15 @@ export const PHOTON = "https://photon.komoot.io/api/";
 export const SPARQL = "https://query.wikidata.org/sparql";
 export const COMMONS_API = "https://commons.wikimedia.org/w/api.php";
 
+/* Web Mercator: the latitude the map stops at, the sphere's radius in metres, and MapLibre's tile size. */
+export const MAX_LAT = 85.05;
+export const EARTH_RADIUS = 6378137;
+export const TILE_SIZE = 512;
+export const clampLat = (lat) => Math.max(-MAX_LAT, Math.min(MAX_LAT, lat));
+/** A longitude, and a latitude clamped to MAX_LAT, in Web Mercator metres. */
+export const mercatorX = (lon) => (EARTH_RADIUS * lon * Math.PI) / 180;
+export const mercatorY = (lat) => EARTH_RADIUS * Math.log(Math.tan(Math.PI / 4 + (clampLat(lat) * Math.PI) / 360));
+
 /** Height of one hypsometry band in metres. */
 export const HYPSO_BAND_M = 50;
 /** How long a third-party request may take before the page falls back. */

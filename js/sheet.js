@@ -13,10 +13,8 @@
  * scroll that carries on a flick.
  */
 
-import { el, glide, PHONE } from "./ui.js";
+import { dragSpeed, el, glide, lockAxis, PHONE } from "./ui.js";
 
-/** Movement in px before a gesture counts as vertical or horizontal. */
-export const LOCK_PX = 8;
 /** Release speed in px/ms past which the sheet follows the flick. */
 export const FLICK = 0.5;
 /** The heights, lowest first. */
@@ -28,8 +26,6 @@ export const MIDDLE_SHARE = 0.65;
 /** The share of the key numbers' second row that the middle sheet shows. */
 export const MIDDLE_CUT = 0.5;
 
-/* Release speed is measured over this many ms before the release. */
-const VELOCITY_WINDOW_MS = 100;
 /* A click this soon after a drag is the drag's own click. */
 const DRAG_CLICK_MS = 300;
 
@@ -40,12 +36,6 @@ const LABELS = {
 };
 /* A tap on the handle moves up a height, and from the top back down to compact. */
 const NEXT = { compact: "middle", middle: "full", full: "compact" };
-
-/** The gesture's axis once it has moved LOCK_PX, before that null. */
-export function lockAxis(dx, dy) {
-  if (Math.hypot(dx, dy) < LOCK_PX) return null;
-  return Math.abs(dy) > Math.abs(dx) ? "y" : "x";
-}
 
 /**
  * The height a released sheet settles at: with a flick, the next stop in its
@@ -175,14 +165,8 @@ const startsOnRange = (target) => target.closest?.('input[type="range"]') != nul
 function begin(x, y, time, scroller = null) {
   measure();
   const from = stops[LEVELS.indexOf(level)];
-  gesture = { x, y, axis: null, from, visible: from, samples: [], scroller, scrollFrom: scroller?.scrollTop ?? 0, past: 0 };
-  track(y, time);
-}
-
-function track(y, time) {
-  const { samples } = gesture;
-  samples.push({ y, time });
-  while (samples.length > 2 && time - samples[0].time > VELOCITY_WINDOW_MS) samples.shift();
+  gesture = { x, y, axis: null, from, visible: from, speed: dragSpeed(), scroller, scrollFrom: scroller?.scrollTop ?? 0, past: 0 };
+  gesture.speed.add(y, time);
 }
 
 function drag(y, time) {
@@ -194,17 +178,12 @@ function drag(y, time) {
   }
   el("sheet").classList.add("dragging");
   show(gesture.visible);
-  track(y, time);
+  gesture.speed.add(y, time);
 }
 
 /* Settle a drag, released at `time`, at the height its position and speed point to. */
 function release(time) {
-  const { samples } = gesture;
-  const last = samples.at(-1);
-  const first = samples.find((sample) => time - sample.time <= VELOCITY_WINDOW_MS) ?? last;
-  // Upward is positive; no time between samples reads as a flick. A finger held
-  // still sends no moves, so after a pause only `last` is recent: no speed.
-  const velocity = (first.y - last.y) / (last.time - first.time) || 0;
+  const velocity = gesture.speed.speed(time);
   const { visible: at, past, scroller } = gesture;
   gesture = null;
   el("sheet").classList.remove("dragging");

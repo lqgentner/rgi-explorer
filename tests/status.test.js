@@ -215,17 +215,26 @@ test("with terrain on, each move credits the elevation sources in view, and only
   /* A slow answer for the first view arrives after the one for the second. */
   let release;
   const slow = new Promise((resolve) => (release = resolve));
+  /* Each move goes to a view of its own: a coverage tile, once read, is not asked again. */
   answer = () => slow.then(() => ({ old: source("Old", 1) }));
-  onMove[0]({ zoom: 11, lat: 46.5, lon: 8.03 });
+  map.jumpTo({ center: [9.5, 46.5] });
+  onMove[0]({ zoom: 11, lat: 46.5, lon: 9.5 });
   answer = () => ({ usgs: source("USGS", 10) });
-  onMove[0]({ zoom: 11, lat: 46.5, lon: 8.03 });
+  map.jumpTo({ center: [11, 46.5] });
+  onMove[0]({ zoom: 11, lat: 46.5, lon: 11 });
   await settle();
   release();
   await settle();
   assert.equal(terrainText(), "Terrain© Mapterhorn, © USGS");
+  const before = asked.length;
+  onMove[0]({ zoom: 11, lat: 46.5, lon: 11 });
+  await settle();
+  assert.equal(asked.length, before, "a coverage tile read once is not fetched again");
+  assert.equal(terrainText(), "Terrain© Mapterhorn, © USGS");
 
   answer = () => Promise.reject(new Error("offline"));
-  onMove[0]({ zoom: 11, lat: 46.5, lon: 8.03 });
+  map.jumpTo({ center: [12.5, 46.5] });
+  onMove[0]({ zoom: 11, lat: 46.5, lon: 12.5 });
   await settle();
   assert.equal(terrainText(), "Terrain© Mapterhorn");
 

@@ -3,6 +3,9 @@
 export const LAYERS = ["regions", "centerlines", "intersects"];
 export const DEFAULT_LAYERS = new Set(["regions"]);
 
+/** The first-order region code inside an RGI glacier or complex ID, such as "11" in RGI2000-v7.0-G-11-02596. */
+export const regionOfId = (id) => /-[GC]-(\d{2})-/.exec(id ?? "")?.[1] ?? null;
+
 const GLACIER_ID = /^RGI2000-v7\.0-G-\d{2}-\d{5}$/;
 const COMPLEX_ID = /^RGI2000-v7\.0-C-\d{2}-\d{5}$/;
 const NUMBER = /^-?\d+(\.\d+)?$/;

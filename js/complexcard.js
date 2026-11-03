@@ -4,9 +4,10 @@
  * place; one of the two is open at a time.
  */
 
-import { cardFrame, imageryItem, imageryViewerItem, infoButton, keyGrid, placeholder, regionOfId } from "./card.js";
+import { cardFrame, imageryItem, imageryViewerItem, infoButton, keyGrid, placeholder } from "./card.js";
 import { mountStrip } from "./strip.js";
-import { GROUP_TITLES, complexRows, formatArea } from "./columns.js";
+import { GROUP_TITLES, complexRows, formatArea, regionFullName } from "./columns.js";
+import { regionOfId } from "./state.js";
 import { PHONE, h } from "./ui.js";
 import { openViewer } from "./viewer.js";
 
@@ -50,7 +51,7 @@ export function mountComplexCard(root, ctx) {
 
   function renderHead() {
     const code = regionCode();
-    const region = (ctx.regions ?? []).find((r) => Number(r.level) === 1 && r.o1region === code)?.full_name;
+    const region = regionFullName(ctx.regions, code);
     ctx.onTitle?.(current.id);
     head.replaceChildren(
       h("h2", { class: "card-title" }, current.id),

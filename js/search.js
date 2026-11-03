@@ -5,6 +5,8 @@
 
 import uFuzzy from "@leeoniya/ufuzzy";
 
+import { regionOfId } from "./state.js";
+
 /* The product letter picks a glacier (G) or a complex (C); a bare ID may be either. */
 const ID_PATTERN = /^(?:(?:RGI2000-v7\.0-)?([GC])-)?(\d{2})-(\d{5})$/i;
 /** The fewest characters a query needs before any search runs. */
@@ -70,7 +72,7 @@ function glacierHit(index, row, score) {
   const { cols, regionNames } = index;
   const rgiId = cols.rgi_id[row];
   const name = cols.display_name[row];
-  const region = regionNames.get(rgiId.split("-G-")[1].slice(0, 2));
+  const region = regionNames.get(regionOfId(rgiId));
   return {
     kind: "glacier",
     title: name || rgiId,
@@ -83,7 +85,7 @@ function glacierHit(index, row, score) {
 
 /* A complex has no name: its ID is the title. It ranks just below a glacier with the same number. */
 function complexHit(index, complexId) {
-  const region = index.regionNames.get(complexId.split("-C-")[1].slice(0, 2));
+  const region = index.regionNames.get(regionOfId(complexId));
   return {
     kind: "complex",
     title: complexId,
@@ -121,9 +123,12 @@ export function searchGlaciers(index, q, limit = 8) {
     seen.add(i);
   }
 
-  const [found, , order] = index.fuzzy.search(folded, needle, false, RANK_LIMIT);
-  const ranked = (order ? order.map((k) => found[k]) : (found ?? [])).filter((i) => !seen.has(i));
-  ranked.forEach((i, rank) => scored.push([i, (SCORE.fuzzy * (ranked.length - rank)) / ranked.length]));
+  /* Fuzzy hits score below every word hit, so with `limit` of those none would show. */
+  if (scored.length < limit) {
+    const [found, , order] = index.fuzzy.search(folded, needle, false, RANK_LIMIT);
+    const ranked = (order ? order.map((k) => found[k]) : (found ?? [])).filter((i) => !seen.has(i));
+    ranked.forEach((i, rank) => scored.push([i, (SCORE.fuzzy * (ranked.length - rank)) / ranked.length]));
+  }
 
   scored.sort((a, b) => b[1] - a[1]);
   return scored.slice(0, limit).map(([i, score]) => glacierHit(index, rows[i], score));

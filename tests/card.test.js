@@ -11,6 +11,7 @@ import { fileURLToPath } from "node:url";
 import * as hyparquet from "hyparquet";
 
 import { loadPage, load, settle } from "./helpers/browser.js";
+import { fixtureCatalog } from "./helpers/served.js";
 
 const { document, window, setPhone } = await loadPage();
 globalThis.hyparquet = hyparquet;
@@ -18,11 +19,8 @@ const { loadCatalog } = await load("js/catalog.js");
 const { openParquet } = await load("js/parquet.js");
 const { mountCard } = await load("js/card.js");
 
-const ROOT = "https://data.source.coop/lqgentner/rgi/catalog.json";
-const DIR = new URL("./fixtures/catalog/", import.meta.url);
 const SCRIPT = fileURLToPath(new URL("../scripts/make_fixture_parquet.py", import.meta.url));
-const catalog = await loadCatalog(ROOT, async (url) =>
-  JSON.parse(fs.readFileSync(new URL(url.slice(ROOT.length - "catalog.json".length), DIR), "utf8")));
+const catalog = await fixtureCatalog(loadCatalog);
 
 const IDS = ["RGI2000-v7.0-G-11-02596", "RGI2000-v7.0-G-11-00001", "RGI2000-v7.0-G-03-00002",
   "RGI2000-v7.0-G-11-00003", "RGI2000-v7.0-G-11-00004"];

@@ -3,11 +3,10 @@
  * credits into an info button and draws no scale bar.
  */
 
-import { ESRI_ATTRIBUTION, TERRAIN_COVERAGE } from "./config.js";
-import { PHONE, h, icon } from "./ui.js";
+import { clampLat, EARTH_RADIUS, ESRI_ATTRIBUTION, TERRAIN_COVERAGE, TILE_SIZE } from "./config.js";
+import { PHONE, h, icon, joined } from "./ui.js";
 
-const EARTH_CIRCUMFERENCE = 40075016.686;
-const TILE_SIZE = 512;
+const EARTH_CIRCUMFERENCE = 2 * Math.PI * EARTH_RADIUS;
 const OSM = { text: "© OpenStreetMap contributors", href: "https://www.openstreetmap.org/copyright" };
 const OPENFREEMAP = { text: "OpenFreeMap", href: "https://openfreemap.org/" };
 const OPENMAPTILES = { text: "© OpenMapTiles", href: "https://www.openmaptiles.org/" };
@@ -20,7 +19,6 @@ const MAPLIBRE = { text: "MapLibre", href: "https://maplibre.org/" };
 const DOI = /^10\.\d{4,}\/\S+$/;
 const WEB = /^https?:\/\//;
 
-const MAX_LAT = 85.05;
 /* Mapterhorn's coverage index holds zooms 4 to 12. */
 const COVERAGE_ZOOMS = { min: 4, max: 12 };
 /* A view needing more index tiles is looked up at a coarser zoom. */
@@ -32,8 +30,7 @@ const MAX_IMAGERY_CONTRIBUTORS = 15;
 
 /** Ground meters per screen pixel at a latitude in degrees (clamped to the map's) and a zoom level. */
 export function metersPerPixel(lat, zoom) {
-  const clamped = Math.max(-MAX_LAT, Math.min(MAX_LAT, lat));
-  return (EARTH_CIRCUMFERENCE * Math.cos((clamped * Math.PI) / 180)) / (TILE_SIZE * 2 ** zoom);
+  return (EARTH_CIRCUMFERENCE * Math.cos((clampLat(lat) * Math.PI) / 180)) / (TILE_SIZE * 2 ** zoom);
 }
 
 /** The longest 1, 2 or 5 times a power of ten that fits in maxPx pixels, or null without a usable scale. */
@@ -52,7 +49,7 @@ export function scaleBar(mpp, maxPx = 80) {
  */
 export function coverageTiles({ west, south, east, north }, zoom) {
   const latY = (lat, n) => {
-    const r = (Math.max(-MAX_LAT, Math.min(MAX_LAT, lat)) * Math.PI) / 180;
+    const r = (clampLat(lat) * Math.PI) / 180;
     return Math.min(n - 1, Math.max(0, Math.floor(((1 - Math.asinh(Math.tan(r)) / Math.PI) / 2) * n)));
   };
   for (let z = Math.min(Math.floor(zoom), COVERAGE_ZOOMS.max); z >= COVERAGE_ZOOMS.min; z--) {
@@ -105,19 +102,28 @@ export function imageryContributors(contributors, { west, south, east, north }, 
 }
 
 let coverage = null;
+/*
+ * Each coverage tile's entries, by "z/x/y". PMTiles caches the directories
+ * but not the tiles, so a move with terrain on would fetch them again. A
+ * failed read is forgotten.
+ */
+const entries = new Map();
+function coverageEntries({ z, x, y }) {
+  const key = `${z}/${x}/${y}`;
+  if (!entries.has(key)) {
+    const read = coverage.getZxy(z, x, y).then((tile) => (tile ? JSON.parse(new TextDecoder().decode(tile.data)) : {}));
+    read.catch(() => entries.delete(key));
+    entries.set(key, read);
+  }
+  return entries.get(key);
+}
 
 /** The producers behind the terrain in view, or null when the index has no answer. */
 async function lookUpProducers(bounds, zoom) {
   const tiles = coverageTiles(bounds, zoom);
   if (!tiles.length) return null;
   coverage ??= new globalThis.pmtiles.PMTiles(TERRAIN_COVERAGE);
-  const decoder = new TextDecoder();
-  const found = await Promise.all(
-    tiles.map(async ({ z, x, y }) => {
-      const tile = await coverage.getZxy(z, x, y);
-      return tile ? JSON.parse(decoder.decode(tile.data)) : {};
-    }),
-  );
+  const found = await Promise.all(tiles.map(coverageEntries));
   return terrainProducers(Object.assign({}, ...found));
 }
 
@@ -190,7 +196,7 @@ export function mountStatus(root, rgiMap, catalog, getState) {
           "span",
           { class: "credit-group" },
           label ? h("span", { class: "credit-label" }, label) : null,
-          ...items.flatMap((entry, i) => (i ? [", ", item(entry)] : [item(entry)])),
+          ...joined(items.map(item), ", "),
         ),
       ),
     );

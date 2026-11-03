@@ -5,6 +5,8 @@
   --text: #202124;
   --muted: #5f6368;
   --line: #dadce0;
+  /* A hover, and a box of code, on white. */
+  --surface-2: #f1f3f4;
   /* What an image shows until it loads, or when there is none. */
   --image-placeholder: #9aa0a6;
   --shadow: 0 1px 3px rgb(60 64 67 / 30%), 0 4px 8px 3px rgb(60 64 67 / 15%);
@@ -14,6 +16,16 @@
   --photo-glass: rgb(255 255 255 / 45%);
   --space: #10141c;
   --card-w: 408px;
+  /*
+   * The Layers control's size: 2 * 8 px padding + 56 px tile + 4 px + 14 px
+   * label, and the width of the map's controls, the compass's. The tour's
+   * desktop steps dock clear of both.
+   */
+  --tile: 56px;
+  --pad: 8px;
+  --label: 14px;
+  --layers-h: calc(2 * var(--pad) + var(--tile) + 4px + var(--label));
+  --controls-w: 54px;
   /* The desktop sidebar's scrollbar, which js/app.js measures; 0 where scrollbars overlay. */
   --scrollbar: 0px;
   /* The sidebar's outer width: the content keeps --card-w, the scrollbar sits beyond it. */
@@ -190,7 +202,7 @@ kbd {
 #search li .subtitle {
   grid-column: 2;
   font-size: 0.85em;
-  color: #5f6368;
+  color: var(--muted);
 }
 
 #search li[aria-selected="true"],
@@ -233,7 +245,7 @@ button {
   .zoom-btn:hover,
   .terrain-btn:hover,
   .help-btn:hover {
-    background: #f1f3f4;
+    background: var(--surface-2);
   }
 }
 
@@ -282,10 +294,6 @@ button:focus-visible {
  * from behind the card, and the bottom line names the map a click swaps to.
  */
 .layers {
-  --tile: 56px;
-  --pad: 8px;
-  --label: 14px;
-  --layers-h: calc(2 * var(--pad) + var(--tile) + 4px + var(--label));
   --grow-time: 200ms;
   --ring-time: 120ms;
   --fade-time: 150ms;
@@ -625,7 +633,7 @@ button:focus-visible {
 .compass {
   position: relative;
   display: flex;
-  width: 54px;
+  width: var(--controls-w);
   height: 40px;
   border-radius: 20px;
   overflow: hidden;
@@ -661,7 +669,7 @@ button:focus-visible {
 
 @media (hover: hover) {
   .compass button:hover {
-    background: #f1f3f4;
+    background: var(--surface-2);
   }
 }
 
@@ -1239,28 +1247,27 @@ body:has(#search.fullscreen) .welcome {
 /*
  * On the desktop 3D and the last card dock beside the map's controls: their
  * bottom stands on the same line as the controls', which a taller status line
- * lifts, and they keep the compass's 54 px and a 12 px gap clear of them.
+ * lifts, and they keep the controls' width and a 12 px gap clear of them.
  */
 @media (min-width: 641px) {
   .tour[data-dock="controls"] {
     top: auto;
     left: auto;
     bottom: calc(var(--status-h, 0px) + 16px);
-    right: calc(16px + 54px + 12px);
+    right: calc(16px + var(--controls-w) + 12px);
   }
 }
 
 /*
  * The layers step sits above the Layers control, which stands at the map
- * area's left edge, so the drawer that opens beside it stays clear. Its height
- * is the control's: 2 * 8 px padding + 56 px tile + 4 px + 14 px label.
+ * area's left edge, so the drawer that opens beside it stays clear.
  */
 @media (min-width: 641px) {
   .tour[data-dock="layers"] {
     top: auto;
     right: auto;
     left: 16px;
-    bottom: calc(var(--status-h, 0px) + 16px + 90px + 12px);
+    bottom: calc(var(--status-h, 0px) + 16px + var(--layers-h) + 12px);
     transition: left var(--slide);
   }
 
@@ -1277,9 +1284,9 @@ body:has(#search.fullscreen) .welcome {
 @media (min-width: 641px) and (max-width: 814px) {
   body.card-open .tour[data-dock="layers"] {
     bottom: calc(var(--status-h, 0px) + 16px);
-    left: calc(var(--sidebar-w) + 16px + 90px + 12px);
+    left: calc(var(--sidebar-w) + 16px + var(--layers-h) + 12px);
     width: auto;
-    max-width: calc(100vw - var(--sidebar-w) - 16px - 90px - 12px - 12px - 54px - 16px);
+    max-width: calc(100vw - var(--sidebar-w) - 16px - var(--layers-h) - 12px - 12px - var(--controls-w) - 16px);
   }
 }
 
@@ -1403,7 +1410,7 @@ body:has(#search.fullscreen) .welcome {
   position: absolute;
   top: 8px;
   right: 8px;
-  background: #f1f3f4;
+  background: var(--surface-2);
 }
 
 .card-close:hover {
@@ -1480,7 +1487,7 @@ body:has(#search.fullscreen) .welcome {
 }
 
 .btn:hover {
-  background: #f1f3f4;
+  background: var(--surface-2);
 }
 
 .btn.primary {
@@ -2262,7 +2269,7 @@ dialog.usedata::backdrop {
   padding: 12px;
   overflow-x: auto;
   border-radius: 8px;
-  background: #f1f3f4;
+  background: var(--surface-2);
   font-size: 12.5px;
   line-height: 1.5;
 }

@@ -19,9 +19,9 @@ stub(el("sheet"), "offsetHeight", 500);
 stub(el("sheet-body"), "offsetTop", 90);
 stub(el("sheet-body"), "scrollTop", 0);
 
-const { FLICK, LEVELS, LOCK_PX, MIDDLE_CUT, PEEK_PX, initSheet, lockAxis, popupPadding, setSheetLevel, sheetLevel, snapTarget } =
+const { FLICK, LEVELS, MIDDLE_CUT, PEEK_PX, initSheet, popupPadding, setSheetLevel, sheetLevel, snapTarget } =
   await load("js/sheet.js");
-const { GLIDE_MS } = await load("js/ui.js");
+const { GLIDE_MS, LOCK_PX, lockAxis } = await load("js/ui.js");
 initSheet();
 
 const root = () => document.documentElement.style;

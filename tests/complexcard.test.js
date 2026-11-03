@@ -5,15 +5,13 @@ import fs from "node:fs";
 import { test } from "node:test";
 
 import { loadPage, load, settle } from "./helpers/browser.js";
+import { fixtureCatalog } from "./helpers/served.js";
 
 const { document, window, setPhone } = await loadPage();
 const { loadCatalog } = await load("js/catalog.js");
 const { mountComplexCard } = await load("js/complexcard.js");
 
-const ROOT = "https://data.source.coop/lqgentner/rgi/catalog.json";
-const DIR = new URL("./fixtures/catalog/", import.meta.url);
-const catalog = await loadCatalog(ROOT, async (url) =>
-  JSON.parse(fs.readFileSync(new URL(url.slice(ROOT.length - "catalog.json".length), DIR), "utf8")));
+const catalog = await fixtureCatalog(loadCatalog);
 /** Run `fn` with the page on a phone, then back on desktop. */
 async function onPhone(fn) {
   setPhone(true);

@@ -2,8 +2,8 @@
 
 import { formatInt } from "./columns.js";
 import { HYPSO_BAND_M } from "./config.js";
+import { h, svg } from "./ui.js";
 
-const SVG_NS = "http://www.w3.org/2000/svg";
 const WIDTH = 360;
 /* The plot area. Left of it the elevation ticks and the rotated axis title, below it the area axis. */
 const PLOT = { left: 60, right: 304, top: 8, height: 300 };
@@ -15,13 +15,6 @@ const PERCENT = new Intl.NumberFormat("en", { maximumFractionDigits: 1 });
 /** The bands of a hypsometry: their center elevation and thousandths of the area. */
 export function bands(z0, permille) {
   return permille.map((value, i) => ({ center: z0 + HYPSO_BAND_M * i, permille: value }));
-}
-
-function svg(tag, attrs = {}, text) {
-  const node = document.createElementNS(SVG_NS, tag);
-  for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
-  if (text !== undefined) node.textContent = text;
-  return node;
 }
 
 /** A tick step that gives a handful of labels over the span. */
@@ -145,12 +138,9 @@ export function renderHypsometry(el, props) {
     );
   }
 
-  const range = document.createElement("p");
-  range.className = "hypso-range";
   const { zmin_m: min, zmax_m: max } = props;
   const known = (v) => v !== null && v !== undefined;
-  range.textContent = [known(min) ? `Min ${formatInt(min)} m` : null, known(max) ? `Max ${formatInt(max)} m` : null]
-    .filter(Boolean)
-    .join(" · ");
+  const range = h("p", { class: "hypso-range" },
+    [known(min) ? `Min ${formatInt(min)} m` : null, known(max) ? `Max ${formatInt(max)} m` : null].filter(Boolean).join(" · "));
   el.replaceChildren(chart, range);
 }

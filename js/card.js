@@ -1,12 +1,13 @@
 /* The glacier card: photo area, header, actions and the Overview and Hypsometry tabs. */
 
-import { ATTRIBUTE_COLUMNS, GROUP_TITLES, missingAttributes, nonEmpty, overviewRows } from "./columns.js";
+import { ATTRIBUTE_COLUMNS, GROUP_TITLES, missingAttributes, nonEmpty, overviewRows, regionFullName } from "./columns.js";
 import { HYPSO_BAND_M } from "./config.js";
 import { renderHypsometry } from "./hypsometry.js";
 import { CARD_COLUMNS, readRow } from "./parquet.js";
 import { commonsThumb, esriCrop, findCropSource } from "./photo.js";
 import { mountStrip } from "./strip.js";
-import { PHONE, externalLink, h, icon, popover } from "./ui.js";
+import { regionOfId } from "./state.js";
+import { PHONE, externalLink, h, icon, joined, popover } from "./ui.js";
 import { openViewer } from "./viewer.js";
 
 const TABS = [
@@ -22,11 +23,7 @@ const IMAGERY_CREDIT = "Esri, Vantor, Earthstar Geographics";
 const VIEWER_PHOTO_WIDTH = 1600;
 const isHttp = (url) => /^https?:\/\//i.test(url ?? "");
 
-/** The first-order region code inside an RGI glacier or complex ID, such as "11" in RGI2000-v7.0-G-11-02596. */
-export const regionOfId = (id) => /-[GC]-(\d{2})-/.exec(id ?? "")?.[1] ?? null;
-
-/** A text button that calls `onClick`. */
-/* A text button with a Lucide icon before its label. */
+/** A text button that calls `onClick`, with a Lucide icon before its label when `glyph` names one. */
 function button(label, className, onClick, glyph) {
   const node = h("button", { type: "button", class: className }, ...(glyph ? [icon(glyph)] : []), label);
   node.addEventListener("click", onClick);
@@ -47,10 +44,8 @@ export function infoButton(label, ...content) {
  * what it credits.
  */
 function photoCredit(...items) {
-  return h("div", { class: "photo-credit" }, ...creditParts(items));
+  return h("div", { class: "photo-credit" }, ...joined(items, ", "));
 }
-
-const creditParts = (items) => items.filter(Boolean).flatMap((item, i) => (i ? [", ", item] : [item]));
 
 /**
  * Marks `section` as the panel last opened in `root`, which holds the glacier
@@ -66,17 +61,6 @@ function settle(container) {
   container.hidden = ![...container.children].some((panel) => !panel.hidden);
 }
 
-/**
- * The frame the glacier card and the complex panel share: the photo area, the
- * header and the actions, in a section above `body`. On desktop the section
- * goes in `root` with the header and the actions under the photo, and only
- * the search bar's Close closes the panel. On the phone, with `ctx.band`, the
- * section goes in `ctx.sheet` (or `root`), and a close button of its own that
- * calls `ctx.onClose`, the header and the actions go in the band, hidden while the
- * panel is closed, so the other panel can use the band. A change of layout
- * moves them across. `onUseData` and `onZoom` serve the actions.
- * `show(on)` opens or closes the panel.
- */
 /** The key numbers as tiles, each with its label and info button. */
 export function keyGrid(rows) {
   return h("div", { class: "key-grid" }, rows.map((row) => {
@@ -88,6 +72,17 @@ export function keyGrid(rows) {
   }));
 }
 
+/**
+ * The frame the glacier card and the complex panel share: the photo area, the
+ * header and the actions, in a section above `body`. On desktop the section
+ * goes in `root` with the header and the actions under the photo, and only
+ * the search bar's Close closes the panel. On the phone, with `ctx.band`, the
+ * section goes in `ctx.sheet` (or `root`), and a close button of its own that
+ * calls `ctx.onClose`, the header and the actions go in the band, hidden while the
+ * panel is closed, so the other panel can use the band. A change of layout
+ * moves them across. `onUseData` and `onZoom` serve the actions.
+ * `show(on)` opens or closes the panel.
+ */
 export function cardFrame(root, ctx, { label, className, body, onUseData, onZoom }) {
   const photo = h("div", { class: "photo" });
   const head = h("header", { class: "card-head" });
@@ -146,16 +141,16 @@ export const placeholder = () => h("div", { class: "photo-placeholder", style: {
  * Once Esri names the imagery's provider and capture date, they replace the
  * fixed credit; a credit no longer shown changes unseen.
  */
-export function imageryCredit(bbox, size, top) {
+function imageryCredit(bbox, size, top) {
   const credit = photoCredit(IMAGERY_CREDIT);
   findCropSource(bbox, ...size, top).then((source) => {
-    if (source) credit.replaceChildren(...creditParts(["Esri", source.provider, source.date && `imaged ${source.date}`]));
+    if (source) credit.replaceChildren(...joined(["Esri", source.provider, source.date && `imaged ${source.date}`], ", "));
   });
   return credit;
 }
 
 /** The strip item of the imagery crop of `bbox`, framed as `crop` says. */
-export function imageryItem(bbox, { key = "imagery", crop = CROP, alt, onError }) {
+export function imageryItem(bbox, { key, crop = CROP, alt, onError }) {
   return {
     key,
     src: esriCrop(bbox, ...crop.size, crop.top),
@@ -173,12 +168,11 @@ const link = (href, text) => (isHttp(href) ? h("a", { href, target: "_blank", re
  * the file's page, and the license, linked to its deed; with no author, the
  * license alone.
  */
-export function photoItem(photo, { alt, onError }) {
+function photoItem(photo, { alt, onError }) {
   const credit = () => {
     const author = photo.author ? h("span", { class: "credit-author" }, link(photo.page, photo.author)) : null;
     const license = photo.license ? link(photo.licenseUrl, photo.license) : null;
-    const parts = [author, license].filter(Boolean).flatMap((part, i) => (i ? [" · ", part] : [part]));
-    return h("div", { class: "photo-credit photo-credit-photo" }, ...parts);
+    return h("div", { class: "photo-credit" }, ...joined([author, license], " · "));
   };
   return { key: photo.page, src: photo.src, alt, credit, onError };
 }
@@ -206,9 +200,9 @@ function photoViewerItem(photo, alt) {
       photo.author,
       photo.license ? link(photo.licenseUrl, photo.license) : null,
       photo.source,
-      isHttp(photo.page) ? h("a", { href: photo.page, target: "_blank", rel: "noopener noreferrer" }, "View on Commons") : null,
-    ].filter(Boolean);
-    return h("div", {}, ...parts.flatMap((part, i) => (i ? [" · ", part] : [part])));
+      isHttp(photo.page) && link(photo.page, "View on Commons"),
+    ];
+    return h("div", {}, ...joined(parts, " · "));
   };
   return { alt, thumb: photo.src, large: () => commonsThumb(photo.file ?? "", VIEWER_PHOTO_WIDTH), credit };
 }
@@ -298,7 +292,7 @@ export function mountCard(root, ctx) {
     /* glac_name holds placeholders such as "Unnamed_23", so a glacier without a display_name shows its ID. */
     const name = nonEmpty(props.display_name);
     const code = nonEmpty(props.o1region) ?? regionOfId(rgiId);
-    const region = (ctx.regions ?? []).find((r) => Number(r.level) === 1 && r.o1region === code)?.full_name;
+    const region = regionFullName(ctx.regions, code);
     /* Two rows whatever the region's length: the kind and the region, then a named glacier's ID. */
     const kind = ["Glacier", region].filter(Boolean).join(" · ");
     ctx.onTitle?.(name ?? rgiId);

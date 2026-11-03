@@ -5,9 +5,9 @@
  * bottom sheet on the phone.
  */
 
-import { regionOfId } from "./card.js";
+import { regionOfId } from "./state.js";
 import { TIMEOUT_MS } from "./config.js";
-import { PHONE, h, icon } from "./ui.js";
+import { closeDialog, h, icon, isDialogOpen, openDialog, PHONE } from "./ui.js";
 
 const TOOLS = [
   { value: "python", label: "Python" },
@@ -228,23 +228,20 @@ export function mountUseData(root, { catalog, sheet = root, onToggle }) {
     body.replaceChildren(...parts);
   }
 
-  const isOpen = () => (container === pane ? !pane.hidden : dialog.open || dialog.hasAttribute("open"));
+  const isOpen = () => (container === pane ? !pane.hidden : isDialogOpen(dialog));
 
   /* onToggle hears each real change, after it happens. */
   function show() {
     const was = isOpen();
     if (container === pane) pane.hidden = false;
-    else if (typeof dialog.showModal === "function") {
-      if (!dialog.open) dialog.showModal();
-    } else dialog.setAttribute("open", "");
+    else openDialog(dialog);
     if (!was) onToggle?.(true);
   }
 
   function hide() {
     const was = isOpen();
     if (container === pane) pane.hidden = true;
-    else if (typeof dialog.close === "function" && dialog.open) dialog.close();
-    else dialog.removeAttribute("open");
+    else closeDialog(dialog);
     if (was) onToggle?.(false);
   }
 

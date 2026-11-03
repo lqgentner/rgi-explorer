@@ -57,6 +57,21 @@ export function groupOfKey(handle, column, key) {
   });
 }
 
+/**
+ * The row of `key` in `column`, or null. Only the row groups whose statistics
+ * span `key` are read: one in a file sorted by that column.
+ */
+export async function findRow(handle, column, key) {
+  for (const [group, meta] of handle.metadata.row_groups.entries()) {
+    const stats = meta.columns.find((c) => c.meta_data?.path_in_schema?.join(".") === column)?.meta_data?.statistics;
+    if (stats?.min_value === undefined || key < stats.min_value || key > stats.max_value) continue;
+    const { [column]: keys } = await readColumns(handle, [column], group);
+    const at = keys.indexOf(key);
+    if (at !== -1) return handle.groups[group].start + at;
+  }
+  return null;
+}
+
 /** Converts BigInt to Number inside lists and structs. Dates stay as they are. */
 function plain(value) {
   if (typeof value === "bigint") return Number(value);

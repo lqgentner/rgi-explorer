@@ -158,12 +158,17 @@ function coded(entry, props, columns) {
   return label ?? String(value);
 }
 
-function regionName(regions, level, props) {
+/** The full name of the region `code` at `level` (1 or 2) in the regions table, or undefined. */
+export function regionFullName(regions, code, level = 1) {
   const key = level === 1 ? "o1region" : "o2region";
-  const code = props[key];
+  return (regions ?? []).find((r) => Number(r.level) === level && r[key] === code)?.full_name;
+}
+
+function regionName(regions, level, props) {
+  const code = props[level === 1 ? "o1region" : "o2region"];
   if (missing(code)) return null;
-  const match = (regions ?? []).find((r) => Number(r.level) === level && r[key] === code);
-  return match?.full_name ? `${code} · ${match.full_name}` : String(code);
+  const name = regionFullName(regions, code, level);
+  return name ? `${code} · ${name}` : String(code);
 }
 
 function valueOf(entry, props, columns, regions) {

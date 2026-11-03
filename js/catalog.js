@@ -3,11 +3,12 @@
 const COLLECTION_ID = /^rgi-v(\d+)-(\d+)-(\w+)$/;
 const NAMES = ["glaciers", "regions", "complexes", "centerlines", "intersects"];
 
-const defaultFetchJson = (url) =>
-  fetch(url).then((response) => {
-    if (!response.ok) throw new Error(`${url}: HTTP ${response.status}`);
-    return response.json();
-  });
+/** The JSON at `url`; rejects on an HTTP error. */
+export async function fetchJson(url, { fetch = globalThis.fetch, signal } = {}) {
+  const response = await fetch(url, { signal });
+  if (!response.ok) throw new Error(`${url}: HTTP ${response.status}`);
+  return response.json();
+}
 
 const resolve = (href, base) => new URL(href, base).href;
 
@@ -66,8 +67,8 @@ function toColumns(collection) {
  * collections with absolute asset URLs, the glaciers and complexes column labels, the
  * glacier count (or null), the citation and the license. Rejects when a collection is missing.
  */
-export async function loadCatalog(rootUrl, fetchJson = defaultFetchJson) {
-  const found = await walk(rootUrl, fetchJson, new Set());
+export async function loadCatalog(rootUrl, read = fetchJson) {
+  const found = await walk(rootUrl, read, new Set());
   if (!found.length) throw new Error("The catalog holds no RGI collections");
 
   const top = found.reduce((best, c) =>
