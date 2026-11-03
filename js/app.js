@@ -307,6 +307,7 @@ function wire(catalog, rgiMap, regions) {
     base: state.base,
     layers: state.layers,
     map,
+    onPane: (open) => tour.cover("layers", open),
     standardPicture: (px) => rgiMap.standardPicture(px),
     backgrounds: rgiMap.backgrounds,
     onBase(base) {
@@ -314,12 +315,14 @@ function wire(catalog, rgiMap, regions) {
       rgiMap.setBase(base);
       save();
       status?.refresh();
+      tour.layersChanged();
     },
     onToggle(name, on) {
       if (on) state.layers.add(name);
       else state.layers.delete(name);
       rgiMap.setToggle(name, on);
       save();
+      tour.layersChanged();
     },
   });
   /* First in #controls, so the desktop column and its Tab order start with it. */
@@ -383,20 +386,21 @@ function wire(catalog, rgiMap, regions) {
     searchBar: () => el("search").querySelector("input"),
     panel: () => (PHONE.matches ? el("sheet") : el("card")),
     useData: () => visible(PHONE.matches ? '#sheet [data-tour="use-data"]' : '#card [data-tour="use-data"]'),
-    terrain: () => document.querySelector(".terrain-btn"),
-    /* The last card sits under the search on the desktop, above the status line on the phone. */
+    /* The picture that opens the desktop's drawer, or the phone's round button that opens the pane. */
+    layers: () => document.querySelector(PHONE.matches ? "#layers .layers-open" : "#layers .layers-thumb"),
+    /* The last card sits beside the controls on the desktop, at the top on the phone. */
     done: () => el("status"),
     /* While Use this data or the viewer covers the tour, the ring points at the close button that continues it. */
     useDataClose: () => visible(".usedata-close"),
     viewerClose: () => document.querySelector(".viewer-close"),
+    layersClose: () => document.querySelector('.layers-pane button[aria-label="Close"]'),
   };
   const tour = mountTour(document.body, {
     anchor: (name) => ANCHORS[name](),
     panel: () => (shown ? "glacier" : shownComplex ? "complex" : null),
-    terrainOn: () => state.terrain,
-    /* On the phone a raised sheet covers the 3D button; the 3D step lowers it. */
+    /* On the phone a raised sheet can cover the Layers button; the layers step lowers it. */
     onStep(step) {
-      if (step === "terrain" && PHONE.matches && (shown || shownComplex)) setSheetLevel("compact");
+      if (step === "layers" && PHONE.matches && (shown || shownComplex)) setSheetLevel("compact");
       /* On the desktop Use this data heads the scrolling card, which step 2 may have scrolled away. */
       if (step === "data" && !PHONE.matches) el("card").scrollTop = 0;
     },

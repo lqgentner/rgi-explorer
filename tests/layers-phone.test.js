@@ -111,3 +111,13 @@ test("a change of layout moves the toggles between the pane and the drawer, and 
   assert.ok(!root.querySelector(".layers").classList.contains("open"), "the drawer closes on the phone");
   assert.equal(pane.querySelectorAll(".layer-toggle").length, 3);
 });
+
+test("onPane hears the pane open and close, once for each real change", () => {
+  const root = document.body.appendChild(document.createElement("div"));
+  const heard = [];
+  mountLayers(root, { base: "standard", layers: new Set(), onBase() {}, onToggle() {}, onPane: (open) => heard.push(open) });
+  const pane = [...document.querySelectorAll(".layers-pane")].at(-1);
+  root.querySelector(".layers-open").click();
+  pane.querySelector('button[aria-label="Close"]').click();
+  assert.deepEqual(heard, [true, false]);
+});

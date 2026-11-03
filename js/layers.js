@@ -135,11 +135,12 @@ const swatch = (color = "transparent") =>
  * arrive. With `map`, the pictures show the view once the map has rested for
  * PREVIEW_DELAY_MS: the imagery picture is one Esri export, and the standard
  * picture comes from `standardPicture(px)`, a promise of an image URL or null.
- * A picture that is hidden catches up when it shows.
+ * A picture that is hidden catches up when it shows. `onPane(open)` hears the
+ * phone's pane open and close.
  *
  * @returns {{setBase(base: string): void, setLayers(set: Iterable<string>): void}}
  */
-export function mountLayers(root, { base, layers, onBase, onToggle, map = null, standardPicture = null, backgrounds = {} }) {
+export function mountLayers(root, { base, layers, onBase, onToggle, onPane, map = null, standardPicture = null, backgrounds = {} }) {
   const toggles = toggleButtons({ layers, onToggle });
   let current = base;
   const other = () => (current === "standard" ? "imagery" : "standard");
@@ -255,6 +256,8 @@ export function mountLayers(root, { base, layers, onBase, onToggle, map = null, 
     scrim.hidden = !show;
     if (show) restore = inertAround(pane, scrim);
     else restore?.();
+    /* Heard after each real change, so the tour can ask the reader to close the pane. */
+    onPane?.(show);
   };
 
   openPane.addEventListener("click", () => {

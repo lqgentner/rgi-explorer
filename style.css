@@ -1168,15 +1168,20 @@ button:focus-visible {
     top: auto;
     bottom: 24px;
   }
+
+  /* The layers pane rises from the bottom: the message sits 12 px above it, as tall as tour.js measures it. */
+  .tour.covering[data-cover="layers"] {
+    top: auto;
+    bottom: calc(var(--tour-above, 340px) + 12px);
+  }
 }
 
 /*
- * The phone's full-screen search and layers pane cover the page and make it
- * inert; the tour and the welcome hide under them, out of reach of Tab and
+ * The phone's full-screen search covers the page and makes it inert; the tour
+ * and the welcome hide under it, out of reach of Tab and
  * screen readers too.
  */
 body:has(#search.fullscreen) .tour,
-body:has(.layers-pane:not([hidden])) .tour,
 body:has(#search.fullscreen) .welcome {
   visibility: hidden;
 }
@@ -1242,6 +1247,39 @@ body:has(#search.fullscreen) .welcome {
     left: auto;
     bottom: calc(var(--status-h, 0px) + 16px);
     right: calc(16px + 54px + 12px);
+  }
+}
+
+/*
+ * The layers step sits above the Layers control, which stands at the map
+ * area's left edge, so the drawer that opens beside it stays clear. Its height
+ * is the control's: 2 * 8 px padding + 56 px tile + 4 px + 14 px label.
+ */
+@media (min-width: 641px) {
+  .tour[data-dock="layers"] {
+    top: auto;
+    right: auto;
+    left: 16px;
+    bottom: calc(var(--status-h, 0px) + 16px + 90px + 12px);
+    transition: left var(--slide);
+  }
+
+  body.card-open .tour[data-dock="layers"] {
+    left: calc(var(--sidebar-w) + 16px);
+  }
+}
+
+/*
+ * With the sidebar open on a narrow window the drawer opens upwards as a
+ * column above the control: the step moves to the control's right instead,
+ * short of the zoom buttons.
+ */
+@media (min-width: 641px) and (max-width: 814px) {
+  body.card-open .tour[data-dock="layers"] {
+    bottom: calc(var(--status-h, 0px) + 16px);
+    left: calc(var(--sidebar-w) + 16px + 90px + 12px);
+    width: auto;
+    max-width: calc(100vw - var(--sidebar-w) - 16px - 90px - 12px - 12px - 54px - 16px);
   }
 }
 

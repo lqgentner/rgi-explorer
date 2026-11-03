@@ -44,10 +44,27 @@ test("on the phone the card step asks to swipe up, raising the sheet counts, and
   assert.notEqual($("#sheet").dataset.level, "compact");
   click(button($(".tour"), "Next"));
   click(button($(".tour"), "Skip"));
-  assert.equal(title(), "3D");
-  assert.equal($("#sheet").dataset.level, "compact", "the sheet lowers so the 3D button shows");
+  assert.equal(title(), "Layers");
+  assert.equal($("#sheet").dataset.level, "compact", "the sheet lowers so the Layers button shows");
+  assert.deepEqual(ringed(), [$("#layers .layers-open")], "the ring is on the round button");
+  assert.equal($(".tour").dataset.dock, undefined, "at the top, level with the round button");
   page.setPhone(false);
-  assert.equal(title(), "3D");
+  assert.equal(title(), "Layers");
+  assert.deepEqual(ringed(), [$("#layers .layers-thumb")], "on the desktop the ring is on the control's picture");
+  page.setPhone(true);
+
+  /* The pane covers the tour, as Use this data does: the message asks to close it. */
+  click($("#layers .layers-open"));
+  assert.ok($(".tour").classList.contains("covering"));
+  assert.ok($(".tour").textContent.includes("Close to continue the tour"));
+  assert.deepEqual(ringed(), [$('.layers-pane button[aria-label="Close"]')], "the ring points at the pane's close button");
+  assert.notEqual($(".tour").style.getPropertyValue("--tour-above"), "", "the message is placed from the pane's height");
+  click([...document.querySelectorAll(".layers-pane .base-tile")].find((b) => b.textContent.includes("Imagery")));
+  assert.ok($(".tour").classList.contains("covering"), "still covered until the pane closes");
+  click($('.layers-pane button[aria-label="Close"]'));
+  assert.ok(!$(".tour").classList.contains("covering"));
+  assert.equal(title(), "You're all set.");
+  page.setPhone(false);
 });
 
 test("across the breakpoint the card step swaps its text and ring", async () => {

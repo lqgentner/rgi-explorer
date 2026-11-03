@@ -56,7 +56,7 @@ test("help with a card open closes the card and shows the welcome", async () => 
 const title = () => document.getElementById($(".tour").getAttribute("aria-labelledby")).textContent;
 const usedataOpen = () => $("dialog.usedata").open || $("dialog.usedata").hasAttribute("open");
 
-test("the tour moves on as the reader acts: a glacier, the card, Use this data, 3D", async () => {
+test("the tour moves on as the reader acts: a glacier, the card, Use this data, Layers", async () => {
   click(button($(".welcome"), "Take the tour"));
   assert.equal(title(), "Find a glacier");
   assert.deepEqual(ringed(), [$("#search input")]);
@@ -82,18 +82,21 @@ test("the tour moves on as the reader acts: a glacier, the card, Use this data, 
   assert.ok($(".tour").classList.contains("covering"));
   assert.ok($(".tour").textContent.includes("Close to continue the tour"));
   click($('dialog.usedata button[aria-label="Close"]'));
-  assert.equal(title(), "3D");
-  assert.deepEqual(ringed(), [$(".terrain-btn")]);
+  assert.equal(title(), "Layers");
+  assert.deepEqual(ringed(), [$("#layers .layers-thumb")]);
 
-  click($(".terrain-btn"));
-  assert.equal(title(), "You're all set.");
+  click($("#layers .layers-thumb"));
+  assert.equal(title(), "Layers", "a click that only opens the drawer changes nothing");
+  click($('#layers .layer-toggle[data-name="centerlines"]'));
+  assert.equal(title(), "You're all set.", "one layer is enough");
   click(button($(".tour"), "Done"));
   assert.equal($(".tour"), null);
   assert.equal(document.activeElement, help());
 });
 
 test("a keyboard switch to Hypsometry counts as using the card", async () => {
-  click($(".terrain-btn"));
+  /* Leave the layers as a first visit has them. */
+  click($('#layers .layer-toggle[data-name="centerlines"]'));
   click(help());
   click(button($(".welcome"), "Take the tour"));
   click(button($(".tour"), "Take me to a glacier"));

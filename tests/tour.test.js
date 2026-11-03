@@ -43,9 +43,8 @@ test("with no side that fits, the first side is used and clamped inside the marg
 });
 
 
-/* Plain targets stand in for the page's; `panelKind` and `terrain` stand in for the app's state. */
+/* Plain targets stand in for the page's; `panelKind` stands in for the app's state. */
 let panelKind = null;
-let terrain = false;
 let calls = null;
 let targets = null;
 let tour = null;
@@ -55,7 +54,6 @@ beforeEach(() => {
   if (PHONE.matches) page.setPhone(false);
   document.body.replaceChildren();
   panelKind = null;
-  terrain = false;
   calls = { takeMe: 0, ends: [], steps: [] };
   const target = (name) => document.body.appendChild(Object.assign(document.createElement("div"), { id: name }));
   targets = {
@@ -64,16 +62,16 @@ beforeEach(() => {
     panel: target("panel"),
     phonePanel: target("phone-panel"),
     useData: document.body.appendChild(Object.assign(document.createElement("button"), { id: "use-data" })),
-    terrain: target("terrain"),
+    layers: target("layers"),
     controls: target("controls"),
     done: target("done"),
     useDataClose: document.body.appendChild(Object.assign(document.createElement("button"), { id: "usedata-close" })),
     viewerClose: document.body.appendChild(Object.assign(document.createElement("button"), { id: "viewer-close" })),
+    layersClose: document.body.appendChild(Object.assign(document.createElement("button"), { id: "layers-close" })),
   };
   tour = mountTour(document.body, {
     anchor: (name) => (name === "panel" && PHONE.matches ? targets.phonePanel : targets[name]),
     panel: () => panelKind,
-    terrainOn: () => terrain,
     onTakeMe: () => {
       calls.takeMe += 1;
       return calls.takeMeResult;
@@ -93,8 +91,8 @@ const toCard = () => {
   panelKind = panelKind ?? "glacier";
   tour.refresh();
 };
-/* Step 1 has no Skip, so the way to 3D is through a glacier and past the card steps. */
-const toTerrain = () => {
+/* Step 1 has no Skip, so the way to Layers is through a glacier and past the card steps. */
+const toLayers = () => {
   toCard();
   button("Skip").click();
   button("Skip").click();
@@ -185,7 +183,7 @@ test("closing the panel on step 3 goes back to step 1", () => {
   assert.equal(title(), "Find a glacier");
 });
 
-test("opening Use this data on step 3 covers the tour, and closing it moves on to 3D", () => {
+test("opening Use this data on step 3 covers the tour, and closing it moves on to Layers", () => {
   toCard();
   button("Skip").click();
   tour.cover("useData", true);
@@ -196,10 +194,10 @@ test("opening Use this data on step 3 covers the tour, and closing it moves on t
   assert.deepEqual(ringed(), ["usedata-close"], "the ring points at the close button to press");
   tour.cover("useData", false);
   assert.ok(!popup().classList.contains("covering"));
-  assert.equal(title(), "3D");
-  assert.equal(text(), "Switch to 3D to see the terrain.");
+  assert.equal(title(), "Layers");
+  assert.equal(text(), "Open Layers to see the world in Imagery or to view other RGI layers.");
   assert.ok(popup().textContent.includes("4 of 4"));
-  assert.deepEqual(ringed(), ["terrain"]);
+  assert.deepEqual(ringed(), ["layers"]);
 });
 
 test("Use this data closed together with the card goes back to step 1", () => {
@@ -222,11 +220,12 @@ test("the viewer covers a step and returns to it, keeping step 2's interaction",
   assert.ok(button("Next"));
 });
 
-test("3D turning on finishes step 4 with the last card", () => {
-  toTerrain();
-  assert.equal(title(), "3D");
-  terrain = true;
+test("one change of base map or layer finishes step 4 with the last card", () => {
+  toLayers();
+  assert.equal(title(), "Layers");
   tour.refresh();
+  assert.equal(title(), "Layers", "nothing changed yet");
+  tour.layersChanged();
   assert.equal(title(), "You're all set.");
   assert.equal(text(), "Have fun exploring the glaciers on your own.");
   assert.ok(!/of 4/.test(popup().textContent), "the last card has no counter");
@@ -237,15 +236,14 @@ test("3D turning on finishes step 4 with the last card", () => {
   assert.deepEqual(calls.ends, [{ byTarget: false }]);
 });
 
-test("on the desktop 3D and the last card dock beside the controls, placed by style.css", () => {
-  toTerrain();
-  assert.equal(title(), "3D");
-  assert.equal(popup().dataset.dock, "controls");
+test("on the desktop Layers docks above the Layers control and the last card beside the controls, placed by style.css", () => {
+  toLayers();
+  assert.equal(title(), "Layers");
+  assert.equal(popup().dataset.dock, "layers");
   assert.equal(popup().style.top, "", "no inline place: the dock follows the controls as they move");
   assert.equal(popup().style.left, "");
-  assert.deepEqual(ringed(), ["terrain"]);
-  terrain = true;
-  tour.refresh();
+  assert.deepEqual(ringed(), ["layers"]);
+  tour.layersChanged();
   assert.equal(title(), "You're all set.");
   assert.equal(popup().dataset.dock, "controls");
   assert.equal(popup().style.top, "");
@@ -256,11 +254,14 @@ test("on the desktop 3D and the last card dock beside the controls, placed by st
   const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
   assert.match(css, /@media \(min-width: 641px\) \{\s*\.tour\[data-dock="controls"\] \{\s*top: auto;\s*left: auto;\s*bottom: calc\(var\(--status-h, 0px\) \+ 16px\);\s*right: calc\(16px \+ 54px \+ 12px\);\s*\}/,
     "its bottom on the same line as the controls', left of the compass's 54 px and the 12 px gap");
+  assert.match(css, /\.tour\[data-dock="layers"\] \{[^}]*left: 16px;[^}]*bottom: calc\(var\(--status-h, 0px\) \+ 16px \+ 90px \+ 12px\);/,
+    "above the Layers control, whose card is 90 px tall, on the line it stands on");
+  assert.match(css, /body\.card-open \.tour\[data-dock="layers"\] \{\s*left: calc\(var\(--sidebar-w\) \+ 16px\);/, "with the card open the control moves right of it, and the step with it");
 });
-test("with 3D already on, Skip on step 3 goes straight to the last card", () => {
-  terrain = true;
-  toTerrain();
-  assert.equal(title(), "You're all set.");
+test("a layers change before step 4 does not move the tour", () => {
+  toCard();
+  tour.layersChanged();
+  assert.equal(title(), "The glacier card");
 });
 
 test("Escape ends the tour from the tour, and the close button does too", () => {
@@ -338,9 +339,26 @@ test("Take me to a glacier shows it is busy, and goes away when there is no glac
   assert.equal(title(), "The glacier card");
 });
 
-test("the tour and the welcome hide under the phone's full-screen search and layers pane", () => {
+test("the tour and the welcome hide under the phone's full-screen search", () => {
   const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
-  assert.match(css, /body:has\(#search\.fullscreen\) \.tour,\s*body:has\(\.layers-pane:not\(\[hidden\]\)\) \.tour,\s*body:has\(#search\.fullscreen\) \.welcome \{\s*visibility: hidden;/);
+  assert.match(css, /body:has\(#search\.fullscreen\) \.tour,\s*body:has\(#search\.fullscreen\) \.welcome \{\s*visibility: hidden;/);
+  assert.doesNotMatch(css, /layers-pane:not\(\[hidden\]\)\) \.tour/, "the layers pane is covered like Use this data: the tour asks to close it");
+});
+
+test("the phone's layers pane covers the tour, rings its close button, and closing returns to the step", () => {
+  toLayers();
+  tour.cover("layers", true);
+  assert.ok(popup().classList.contains("covering"));
+  assert.equal(popup().textContent.includes("Close to continue the tour"), true);
+  assert.deepEqual(ringed(), ["layers-close"]);
+  const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
+  assert.match(css, /\.tour\.covering\[data-cover="layers"\] \{\s*top: auto;\s*bottom: calc\(var\(--tour-above, 340px\) \+ 12px\);/, "12 px above the pane");
+  tour.cover("layers", false);
+  assert.equal(title(), "Layers");
+  tour.cover("layers", true);
+  tour.layersChanged();
+  tour.cover("layers", false);
+  assert.equal(title(), "You're all set.", "a pick made in the pane finishes the step behind it");
 });
 
 test("the app hears each step the tour enters, once, so it can reveal the step's control", () => {
@@ -350,10 +368,10 @@ test("the app hears each step the tour enters, once, so it can reveal the step's
   tour.refresh();
   button("Skip").click();
   button("Skip").click();
-  assert.deepEqual(calls.steps, ["find", "card", "data", "terrain"]);
+  assert.deepEqual(calls.steps, ["find", "card", "data", "layers"]);
 });
 
-test("on the phone search, 3D and the last card sit at the top; the card steps dock to the sheet's edge", () => {
+test("on the phone search, Layers and the last card sit at the top; the card steps dock to the sheet's edge", () => {
   tour.start();
   page.setPhone(true);
   assert.equal(popup().style.top, "");
@@ -371,9 +389,9 @@ test("on the phone search, 3D and the last card sit at the top; the card steps d
   tour.cover("useData", true);
   assert.equal(popup().dataset.dock, undefined, "the cover message has its own place");
   tour.cover("useData", false);
-  assert.equal(popup().dataset.dock, undefined, "3D: at the top again");
+  assert.equal(popup().dataset.dock, undefined, "Layers: at the top again, level with the round button");
   page.setPhone(false);
-  assert.equal(popup().dataset.dock, "controls", "the desktop docks 3D beside its controls");
+  assert.equal(popup().dataset.dock, "layers", "the desktop docks Layers above its control");
   const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
   assert.match(css, /@media \(max-width: 640px\) \{\s*\.tour \{\s*top: calc\(12px \+ var\(--search-h\) \+ 12px\);\s*left: 12px;\s*right: 64px;\s*width: auto;/);
   assert.match(css, /\.tour\[data-dock="button"\] \{[^}]*translate: 0 max\(calc\(12px \+ var\(--search-h\) \+ 12px\), calc\(100dvh - var\(--sheet-visible, 160px\) - 12px - 100%\)\);/,

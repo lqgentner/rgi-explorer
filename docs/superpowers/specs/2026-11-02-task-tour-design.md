@@ -232,3 +232,27 @@ These replace the matching points above.
   sheet is raised, so the button stays in view.
 - **The welcome's text** is one paragraph: "Search for a glacier or click
   one on the map. New to RGI? Read the user guide."
+
+## Step 4 is Layers, not 3D (owner's call, 2026-11-03)
+
+Layers matter more to RGI than 3D: the reader should know they can see the
+world in imagery and draw centerlines. Step 4 now points at the Layers
+control. It replaces the 3D step above.
+
+- **Text:** "Layers" / "Open Layers to see the world in Imagery or to view other
+  RGI layers." ("RGI layers" is the heading of the toggles in the panel.)
+- **Done:** any one pick of a base map or flip of a layer toggle (Regions,
+  Centerlines, Intersects) while the step shows. Not both. Opening the
+  drawer or the pane changes nothing. Skip stays. A change made before the
+  step does not count, so a reader whose layers are set already still sees it.
+- **Desktop:** the card docks above the Layers control (its left edge is the
+  control's, so it follows the control when a card opens), clear of the
+  drawer that opens beside it. At 641-814 px with a card open the drawer
+  opens upwards, so the card sits right of the control instead. The ring is
+  on the control's picture.
+- **Phone:** the card keeps the top slot under the search, level with the round
+  Layers button, which carries the ring. The pane covers the tour like Use this
+  data does: the message "Close to continue the tour" shows at the top and
+  rings the pane's close button. A pick made in the pane finishes the step
+  behind it, and the next card shows when the reader closes the pane. A raised sheet lowers to compact first.
+- 3D no longer has a step. The last card still docks beside the controls.

@@ -33,14 +33,23 @@ const STEPS = {
     text: "This map reads the cloud-native RGI catalog directly, with no download. Open Use this data to read it in Python or QGIS.",
     anchor: "useData",
     sides: PANEL_SIDES,
-    skipTo: "terrain",
+    skipTo: "layers",
     needsPanel: true,
   },
   /*
-   * On the desktop 3D and the last card dock beside the map's controls, level
-   * with the lowest; style.css places them from the line the controls stand on.
+   * On the desktop the layers step docks above the Layers control, clear of
+   * the drawer that opens beside it; the last card docks beside the map's
+   * controls, level with the lowest. style.css places both. On the phone both
+   * sit at the top, level with the round Layers button.
    */
-  terrain: { n: 4, title: "3D", text: "Switch to 3D to see the terrain.", anchor: "terrain", dock: "controls", skipTo: "done" },
+  layers: {
+    n: 4,
+    title: "Layers",
+    text: "Open Layers to see the world in Imagery or to view other RGI layers.",
+    anchor: "layers",
+    dock: "layers",
+    skipTo: "done",
+  },
   done: { title: "You're all set.", text: "Have fun exploring the glaciers on your own.", dock: "controls" },
 };
 /* Step 2 names what is open, and on the phone first asks to raise the sheet. */
@@ -49,6 +58,8 @@ const CARD = {
   complex: { title: "The complex panel", what: "its area and its glaciers" },
 };
 const COVER_TEXT = "Close to continue the tour";
+/* The anchor of the close button that continues the tour, by what covers it. */
+const COVER_CLOSE = { useData: "useDataClose", viewer: "viewerClose", layers: "layersClose" };
 
 function cardText(kind) {
   const { what } = CARD[kind];
@@ -91,20 +102,21 @@ export function placeNear(target, box, viewport, sides) {
 /**
  * Mount the tour on `root`. `anchor(name)` finds a step's control in the
  * current layout; `panel()` says what is open: null, "glacier" or "complex";
- * `terrainOn()` whether 3D is on; `onTakeMe()` opens the sample glacier and
+ *  `onTakeMe()` opens the sample glacier and
  * may return a promise of false when there is none, which removes the offer;
  * `onStep(step)` hears each step the tour enters ("find", "card", "data",
- * "terrain", "done"), so the app can reveal its control; `onEnd({byTarget})`
+ * "layers", "done"), so the app can reveal its control; `onEnd({byTarget})`
  * hears the tour end.
  *
  * The app tells the tour what changed: `refresh()` after a panel opens or
- * closes, 3D turns on or off, or the layout changes; `interacted()` after the
- * reader used the card; `cover(by, open)` when Use this data ("useData") or
- * the viewer ("viewer") opens or closes.
+ * closes or the layout changes; `layersChanged()` when the reader picks a base map or
+ * flips a layer toggle, which finishes the layers step; `interacted()` after the
+ * reader used the card; `cover(by, open)` when Use this data ("useData"),
+ * the viewer ("viewer") or the phone's layers pane ("layers") opens or closes.
  *
- * @returns {{start(): void, end(): void, refresh(): void, interacted(): void, cover(by: string, open: boolean): void, readonly running: boolean}}
+ * @returns {{start(): void, end(): void, refresh(): void, layersChanged(): void, interacted(): void, cover(by: string, open: boolean): void, readonly running: boolean}}
  */
-export function mountTour(root, { anchor, panel, terrainOn, onTakeMe, onStep, onEnd }) {
+export function mountTour(root, { anchor, panel, onTakeMe, onStep, onEnd }) {
   let step = "find";
   let node = null;
   let ringed = null;
@@ -116,7 +128,7 @@ export function mountTour(root, { anchor, panel, terrainOn, onTakeMe, onStep, on
   let takeMe = "offered";
   /* Whether the reader used the card on step 2. */
   let used = false;
-  /* What covers the page now: null, "useData" or "viewer". */
+  /* What covers the page now: null, "useData", "viewer" or "layers" (the phone's pane). */
   let covered = null;
   /* The step the app last heard of. */
   let told = null;
@@ -142,6 +154,7 @@ export function mountTour(root, { anchor, panel, terrainOn, onTakeMe, onStep, on
   }
 
   function place() {
+    if (node && covered === "layers") aboveThePane();
     if (!node || covered) return;
     const at = watched;
     /*
@@ -178,6 +191,12 @@ export function mountTour(root, { anchor, panel, terrainOn, onTakeMe, onStep, on
     node.style.left = `${spot.left}px`;
   }
 
+  /* The message over the layers pane sits just above the pane, whose height is its content's. */
+  function aboveThePane() {
+    const pane = watched?.closest(".layers-pane") ?? anchor("layersClose")?.closest(".layers-pane");
+    if (pane) node.style.setProperty("--tour-above", `${Math.round(pane.getBoundingClientRect().height)}px`);
+  }
+
   /*
    * Use this data rides with its button: above the sheet's edge at compact,
    * under the button once the sheet is raised, so the button stays in view.
@@ -198,7 +217,6 @@ export function mountTour(root, { anchor, panel, terrainOn, onTakeMe, onStep, on
         step = "card";
         used = false;
       } else if (STEPS[step].needsPanel && !kind) step = "find";
-      else if (step === "terrain" && terrainOn()) step = "done";
       else return;
     }
   }
@@ -237,10 +255,11 @@ export function mountTour(root, { anchor, panel, terrainOn, onTakeMe, onStep, on
     if (covered) {
       delete node.dataset.dock;
       watch(null);
-      ring(anchor(covered === "useData" ? "useDataClose" : "viewerClose"));
+      ring(anchor(COVER_CLOSE[covered]));
       node.style.top = "";
       node.style.left = "";
       node.replaceChildren(h("p", { id: "tour-title" }, COVER_TEXT));
+      if (covered === "layers") aboveThePane();
       raise();
       return;
     }
@@ -357,8 +376,14 @@ export function mountTour(root, { anchor, panel, terrainOn, onTakeMe, onStep, on
       show({ focus: true });
     },
     end: () => end(),
-    /** Re-read what is open, 3D and the layout, move on if a step is done, and re-anchor. */
+    /** Re-read what is open, the layers and the layout, move on if a step is done, and re-anchor. */
     refresh() {
+      show();
+    },
+    /** The reader picked a base map or flipped a layer toggle: any one finishes the layers step. */
+    layersChanged() {
+      if (!node || step !== "layers") return;
+      step = "done";
       show();
     },
     /** The reader used the card: on step 2, Skip becomes Next. */
@@ -373,7 +398,7 @@ export function mountTour(root, { anchor, panel, terrainOn, onTakeMe, onStep, on
       if (open) covered = by;
       else if (covered === by) {
         covered = null;
-        if (by === "useData" && step === "data") step = panel() ? "terrain" : "find";
+        if (by === "useData" && step === "data") step = panel() ? "layers" : "find";
       } else return;
       show();
     },
