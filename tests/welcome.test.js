@@ -16,8 +16,14 @@ const button = (root, label) => [...root.querySelectorAll("button")].find((b) =>
 function welcome(extra = {}) {
   const root = document.createElement("div");
   document.body.append(root);
-  const calls = { tour: 0 };
-  const api = mountWelcome(root, { title: TITLE, autoShow: true, onTour: () => (calls.tour += 1), ...extra });
+  const calls = { tour: 0, privacy: 0 };
+  const api = mountWelcome(root, {
+    title: TITLE,
+    autoShow: true,
+    onTour: () => (calls.tour += 1),
+    onPrivacy: () => (calls.privacy += 1),
+    ...extra,
+  });
   return { root, api, calls };
 }
 
@@ -51,6 +57,19 @@ test("on a first visit the welcome shows its heading, two lines, the user guide 
   assert.ok(button(node, "Take the tour"));
   assert.ok(node.querySelector('button[aria-label="Close"]'));
   assert.equal(button(node, "Start exploring"), undefined);
+});
+
+test("Privacy shares the tour's row, opens the note and leaves the welcome open", () => {
+  const { api, calls } = welcome();
+  const privacy = button(api.node, "Privacy");
+  assert.ok(privacy, "a Privacy button");
+  assert.equal(privacy.type, "button");
+  assert.equal(privacy.parentElement, button(api.node, "Take the tour").parentElement, "one row with the tour");
+  assert.ok(privacy.compareDocumentPosition(button(api.node, "Take the tour")) & window.Node.DOCUMENT_POSITION_FOLLOWING, "Privacy comes first");
+  privacy.click();
+  assert.equal(calls.privacy, 1);
+  assert.equal(api.node.hidden, false, "reading the note does not close the welcome");
+  assert.equal(window.localStorage.getItem(KEY), null);
 });
 
 test("the close button hides the welcome for good", () => {

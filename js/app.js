@@ -13,6 +13,7 @@ import { mountLayers, mountTerrain, mountZoom } from "./layers.js";
 import { createMap, fetchLiberty } from "./map.js";
 import { findRow, openParquet, readColumns, readRow, rowGroupOf, SEARCH_COLUMNS } from "./parquet.js";
 import { findPhotos } from "./photo.js";
+import { openPrivacy } from "./privacy.js";
 import { buildGlacierIndex } from "./search.js";
 import { mountSearch } from "./searchbox.js";
 import { initSheet, onLevel, popupPadding, setSheetLevel } from "./sheet.js";
@@ -372,6 +373,7 @@ function wire(catalog, rgiMap, regions) {
     title: welcomeTitle(catalog.glacierCount, catalog.version),
     autoShow: !state.glacier && !state.complex,
     onTour: () => tour.start(),
+    onPrivacy: openPrivacy,
   });
   /*
    * The tour finds its controls by their data-tour names alone, so a class or

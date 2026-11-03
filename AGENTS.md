@@ -40,7 +40,9 @@ by hash: the import map and the globals module. When you edit one, replace its
 `sha256-` hash. `page-assets.test.js` prints the failing script.
 
 `connect-src` and `img-src` list exactly the data hosts in the design. A new
-host needs a CSP entry and a change to that test. A module worker's imports
+host needs a CSP entry, a change to that test, and an entry in `SERVICES` in
+`js/privacy.js`: `privacy.test.js` checks that the privacy note names every
+host the CSP allows. A module worker's imports
 fall under `worker-src`.
 
 ## Page rules
