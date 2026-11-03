@@ -159,7 +159,7 @@ function go(i, { scroll = true, smooth = false } = {}) {
 }
 
 function build() {
-  closeButton = h("button", { type: "button", class: "icon-button viewer-close", "aria-label": "Close" }, icon("x"));
+  closeButton = h("button", { type: "button", class: "icon-button viewer-close", "aria-label": "Close", dataset: { tour: "viewer-close" } }, icon("x"));
   /* Not a Tab stop: Chromium would otherwise focus the scroller and ring the whole screen. */
   track = h("div", { class: "viewer-track", tabindex: "-1" });
   prev = h("button", { type: "button", class: "icon-button viewer-prev", "aria-label": "Previous image" }, icon("chevron-left"));
@@ -234,6 +234,10 @@ function build() {
  * Opens the viewer on `items` at `index`. `onClose(index)` hears the image it
  * closed on; focus then goes to `returnFocus`, an element or a function of
  * that index.
+ *
+ * @param {ViewerItem[]} items
+ * @param {number} index
+ * @param {{onClose?: (index: number) => void, returnFocus?: HTMLElement | ((index: number) => HTMLElement | null | undefined)}} [options]
  */
 export function openViewer(items, index, { onClose, returnFocus } = {}) {
   if (!items.length) return;

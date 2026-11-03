@@ -170,6 +170,9 @@ test("Share copies the page address and says so", async () => {
   assert.equal(copied.at(-1), window.location.href);
   assert.match(copied.at(-1), /glacier=RGI2000-v7\.0-G-11-02596/);
   await waitFor(() => [...document.querySelectorAll('[aria-live="polite"]')].some((n) => n.textContent === "Link copied"));
+  /* It points at the button pressed, where the reader is looking. */
+  assert.ok(["above", "below"].includes($("#notice").dataset.side));
+  assert.ok($("#notice").style.top && $("#notice").style.left);
 });
 
 test("Zoom to fits the glacier again", async () => {
@@ -288,6 +291,27 @@ test("a drag while a glacier's bbox is read drops the late fit", async () => {
   await waitFor(() => $("#card .card-title")?.textContent === "Athabasca Glacier");
   await settle(20);
   assert.equal(fits(), before, "the user's drag wins over the late glacier fit");
+  map.rendered = [];
+  map.fire("click", { point: { x: 1, y: 1 } });
+  assert.equal($("#card").hidden, true);
+});
+
+test("a zoom-button click while a glacier's bbox is read drops the late fit", async () => {
+  await search("athabasca");
+  const row = await waitFor(() => [...document.querySelectorAll("#search li")]
+    .find((li) => li.querySelector(".title").textContent === "Athabasca Glacier"));
+  let release;
+  hold = new Promise((resolve) => {
+    release = resolve;
+  });
+  const before = fits();
+  click(row);
+  click($('#controls button[aria-label="Zoom in"]'));
+  release();
+  hold = null;
+  await waitFor(() => $("#card .card-title")?.textContent === "Athabasca Glacier");
+  await settle(20);
+  assert.equal(fits(), before, "the zoom click wins over the late glacier fit");
   map.rendered = [];
   map.fire("click", { point: { x: 1, y: 1 } });
   assert.equal($("#card").hidden, true);

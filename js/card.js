@@ -15,7 +15,6 @@ const TABS = [
   { id: "hypsometry", label: "Hypsometry" },
 ];
 const SHOWN_LINKS = 3;
-const USER_GUIDE = "https://rgidata.org/user_guide/products/glacier_product.html#product-files";
 /* The imagery crop's pixel size, and the rows at its top that something covers. */
 const CROP = { size: [816, 400], top: 0 };
 const IMAGERY_CREDIT = "Esri, Vantor, Earthstar Geographics";
@@ -92,7 +91,7 @@ export function cardFrame(root, ctx, { label, className, body, onUseData, onZoom
   const actions = h("div", { class: "card-actions" },
     useData,
     button("Zoom to", "btn", onZoom, "scan-search"),
-    button("Share", "btn", () => ctx.onShare?.(), "share-2"));
+    button("Share", "btn", (event) => ctx.onShare?.(event.currentTarget), "share-2"));
   const close = h("button", { type: "button", class: "icon-button card-close", "aria-label": "Close" }, icon("x"));
   close.addEventListener("click", () => ctx.onClose?.());
   const inBand = [close, head, actions];
@@ -370,17 +369,12 @@ export function mountCard(root, ctx) {
     panels.overview.replaceChildren(...nodes);
   }
 
-  /**
-   * What the chart shows, and an info button with the catalog's description of
-   * hypso_permille and the user guide's link; without a description, the link alone.
+  /*
+   * What the chart shows. The catalog's description of hypso_permille, in
+   * thousandths, is about the data, not the chart, so it is not repeated here.
    */
   function hypsoCaption() {
-    const description = ctx.catalog.columns.get("hypso_permille")?.description;
-    const [info, popover] = infoButton("Hypsometry",
-      description ? h("p", {}, description) : null,
-      h("p", {}, externalLink(USER_GUIDE, "RGI 7.0 user guide")));
-    return h("div", { class: "hypso-caption" },
-      `Share of the glacier's area in each ${HYPSO_BAND_M} m elevation band.`, info, popover);
+    return h("div", { class: "hypso-caption" }, `Share of the glacier's area in each ${HYPSO_BAND_M} m elevation band.`);
   }
 
   function renderHypso() {

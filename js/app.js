@@ -15,7 +15,7 @@ import { findRow, openParquet, readColumns, readRow, rowGroupOf, SEARCH_COLUMNS 
 import { findPhotos } from "./photo.js";
 import { buildGlacierIndex } from "./search.js";
 import { mountSearch } from "./searchbox.js";
-import { initSheet, popupPadding, setSheetLevel } from "./sheet.js";
+import { initSheet, onLevel, popupPadding, setSheetLevel } from "./sheet.js";
 import { parseState, writeState } from "./state.js";
 import { mountStatus } from "./status.js";
 import { mountTour } from "./tour.js";
@@ -50,6 +50,8 @@ const IF_NEEDED = "if-needed";
 const DESKTOP_CROP = { size: [816, 560], top: 144 };
 const PHONE_CROP = { size: [720, 360], top: 0 };
 const NOTICE_MS = 2000;
+/* The gap between a control and the notice that points at it, in px. */
+const NOTICE_GAP = 8;
 const REGION_COLUMNS = ["level", "o1region", "o2region", "full_name", "bbox"];
 const FACT_COLUMNS = ["bbox", "glims_id"];
 const COMPLEX_COLUMNS = ["rgi_id", "o1region", "o2region", "cenlon", "cenlat", "utm_zone", "area_km2", "glacier_ids", "bbox"];
@@ -216,7 +218,11 @@ async function membersOf(props, glaciers) {
     .sort((a, b) => (b.area ?? -Infinity) - (a.area ?? -Infinity));
 }
 
-/** Resolve on the map's next idle, after TIMEOUT_MS, or on abort, whichever comes first. */
+/**
+ * Resolve on the map's next idle, after TIMEOUT_MS, or on abort, whichever comes first.
+ *
+ * @returns {Promise<void>}
+ */
 function nextIdle(map, signal) {
   return new Promise((resolve) => {
     const done = () => {
@@ -264,8 +270,27 @@ function wire(catalog, rgiMap, regions) {
 
   const notice = el("notice");
   let noticeTimer = null;
-  const announce = (text) => {
+  /*
+   * A short notice in the polite live region, a dark pill. With `at` it sits
+   * above that control, or below it at the top of the screen, and points at
+   * it: the reader is looking there, not at the page's edge.
+   */
+  const announce = (text, at) => {
     notice.textContent = text;
+    notice.removeAttribute("data-side");
+    notice.style.removeProperty("top");
+    notice.style.removeProperty("left");
+    if (at) {
+      const box = at.getBoundingClientRect();
+      const { width, height } = notice.getBoundingClientRect();
+      const middle = box.left + box.width / 2;
+      const left = Math.max(8, Math.min(middle - width / 2, window.innerWidth - width - 8));
+      const above = box.top - NOTICE_GAP - height >= 0;
+      notice.dataset.side = above ? "above" : "below";
+      notice.style.top = `${above ? box.top - NOTICE_GAP - height : box.bottom + NOTICE_GAP}px`;
+      notice.style.left = `${left}px`;
+      notice.style.setProperty("--arrow-x", `${middle - left}px`);
+    }
     clearTimeout(noticeTimer);
     noticeTimer = setTimeout(() => {
       notice.textContent = "";
@@ -348,22 +373,28 @@ function wire(catalog, rgiMap, regions) {
     autoShow: !state.glacier && !state.complex,
     onTour: () => tour.start(),
   });
-  /* The one of a selector's nodes that shows: the glacier card and the complex panel are both mounted. */
-  const visible = (selector) => [...document.querySelectorAll(selector)].find((node) => !node.closest("[hidden]")) ?? null;
+  /*
+   * The tour finds its controls by their data-tour names alone, so a class or
+   * a label can change. `tourAt` reads one; `visible` the one of its nodes that
+   * shows: the glacier card and the complex panel are both mounted.
+   */
+  const TOUR = (...names) => names.map((name) => `[data-tour="${name}"]`).join(" ");
+  const tourAt = (...names) => document.querySelector(TOUR(...names));
+  const visible = (...names) => [...document.querySelectorAll(TOUR(...names))].find((node) => !node.closest("[hidden]")) ?? null;
   const ANCHORS = {
-    search: () => el("search"),
+    search: () => tourAt("search"),
     /* The bar alone: on the phone the search grows to the full screen, which a ring would frame whole. */
-    searchBar: () => el("search").querySelector("input"),
-    panel: () => (PHONE.matches ? el("sheet") : el("card")),
-    useData: () => visible(PHONE.matches ? '#sheet [data-tour="use-data"]' : '#card [data-tour="use-data"]'),
+    searchBar: () => tourAt("search-bar"),
+    panel: () => tourAt(PHONE.matches ? "sheet" : "card"),
+    useData: () => visible(PHONE.matches ? "sheet" : "card", "use-data"),
     /* The picture that opens the desktop's drawer, or the phone's round button that opens the pane. */
-    layers: () => document.querySelector(PHONE.matches ? "#layers .layers-open" : "#layers .layers-thumb"),
+    layers: () => tourAt(PHONE.matches ? "layers-phone" : "layers-desktop"),
     /* The last card sits beside the controls on the desktop, at the top on the phone. */
-    done: () => el("status"),
+    done: () => tourAt("status"),
     /* While Use this data or the viewer covers the tour, the ring points at the close button that continues it. */
-    useDataClose: () => visible(".usedata-close"),
-    viewerClose: () => document.querySelector(".viewer-close"),
-    layersClose: () => document.querySelector('.layers-pane button[aria-label="Close"]'),
+    useDataClose: () => visible("use-data-close"),
+    viewerClose: () => tourAt("viewer-close"),
+    layersClose: () => tourAt("layers-close"),
   };
   const tour = mountTour(document.body, {
     anchor: (name) => ANCHORS[name](),
@@ -416,18 +447,10 @@ function wire(catalog, rgiMap, regions) {
   /* The ID of the complex on the complex panel. Only one of the two is open. */
   let shownComplex = null;
   let fitting = null;
-  /*
-   * Each explicit camera request takes the next number. A fit that waits for a
-   * read moves the camera only if no request came after it.
-   */
-  let camera = 0;
 
-  /* A drag, pinch or wheel move is a camera request too, so a pending fit is dropped. */
-  /* The reader's own move also closes the welcome: they are exploring without the tour. */
+  /* The reader's own move closes the welcome: they are exploring without the tour. */
   map.on("movestart", (event) => {
-    if (!event?.originalEvent) return;
-    camera += 1;
-    welcome.dismiss();
+    if (event?.originalEvent) welcome.dismiss();
   });
   /* Typing in the search, or a press on it; a keyboard reader's Tab into it still reaches the welcome. */
   el("search").addEventListener("input", () => welcome.dismiss());
@@ -452,13 +475,9 @@ function wire(catalog, rgiMap, regions) {
 
   /** Fit the glacier's bbox as `fit` asks once its read returns, unless another camera request came first. */
   function fitGlacierLater(glacier, fit) {
-    const mine = ++camera;
-    return glaciers.factsOf(glacier).then(
-      (facts) => {
-        if (mine === camera && shown === glacier && isBbox(facts.bbox)) fitAs(facts.bbox, fit);
-      },
-      () => {},
-    );
+    return rgiMap.fitLater(glaciers.factsOf(glacier), (facts) => {
+      if (shown === glacier && isBbox(facts.bbox)) fitAs(facts.bbox, fit);
+    });
   }
 
   /* Photos wait for the fit and the tiles it loads, so the outline pieces are on the map. */
@@ -489,24 +508,25 @@ function wire(catalog, rgiMap, regions) {
   for (const scroller of [el("card"), el("sheet-body")]) scroller.addEventListener("scroll", used, { capture: true, passive: true });
   for (const panelRoot of [el("card"), el("sheet")]) {
     panelRoot.addEventListener("click", (event) => {
-      if (event.target.closest?.("button.info, table.members tr")) used();
+      if (/** @type {Element} */ (event.target).closest?.("button.info, table.members tr")) used();
     });
   }
-  /* A new level also moves the card's header, which the Use this data step sits under. */
-  const levels = new window.MutationObserver(() => {
-    if (el("sheet").dataset.level && el("sheet").dataset.level !== "compact") used();
-    tour.refresh();
-  });
-  levels.observe(el("sheet"), { attributes: true, attributeFilter: ["data-level"] });
   /*
-   * A panel opens on the phone at its top, at `level`. The height is the
-   * page's choice, not the reader's use of the card.
+   * Only the reader's raise counts. The page sets levels too: on opening a
+   * panel, across the breakpoint, and for Use this data, which counts on
+   * neither layout. A new level also moves the card's header, which the Use
+   * this data step sits under; the tour re-anchors in a microtask, since
+   * onStep() itself lowers the sheet.
    */
+  onLevel((level, byReader) => {
+    if (byReader && level !== "compact") used();
+    queueMicrotask(() => tour.refresh());
+  });
+  /* A panel opens on the phone at its top, at `level`. */
   function openSheet(level) {
     if (!PHONE.matches) return;
     el("sheet-body").scrollTop = 0;
     setSheetLevel(level);
-    levels.takeRecords();
   }
 
   /* The desktop sidebar holds the panels, the phone's sheet its band and body; see cardFrame. */
@@ -537,10 +557,8 @@ function wire(catalog, rgiMap, regions) {
 
   /** Fit the map around `bbox`, or around the open glacier or complex once its bbox is read. */
   function zoomTo(bbox) {
-    if (isBbox(bbox)) {
-      camera += 1;
-      fitAround(bbox);
-    } else if (shown) fitGlacierLater(shown, ALWAYS);
+    if (isBbox(bbox)) fitAround(bbox);
+    else if (shown) fitGlacierLater(shown, ALWAYS);
     else if (shownComplex) fitComplexLater(shownComplex, ALWAYS);
   }
 
@@ -549,17 +567,16 @@ function wire(catalog, rgiMap, regions) {
     rgiMap.pin(lonLat);
     const room = padding();
     if (rgiMap.inView(lonLat, room)) return;
-    camera += 1;
     rgiMap.centerOn(lonLat, room);
   }
 
-  async function share() {
+  async function share(button) {
     try {
       await globalThis.navigator.clipboard.writeText(location.href);
     } catch {
       return;
     }
-    announce("Link copied");
+    announce("Link copied", button);
   }
 
   const card = mountCard(cardRoot, {
@@ -620,13 +637,9 @@ function wire(catalog, rgiMap, regions) {
 
   /** Fit the whole complex as `fit` asks once its read returns, unless another camera request came first. */
   function fitComplexLater(complexId, fit) {
-    const mine = ++camera;
-    complexes.read(complexId).then(
-      (props) => {
-        if (mine === camera && shownComplex === complexId && isBbox(props?.bbox)) fitAs(props.bbox, fit);
-      },
-      () => {},
-    );
+    rgiMap.fitLater(complexes.read(complexId), (props) => {
+      if (shownComplex === complexId && isBbox(props?.bbox)) fitAs(props.bbox, fit);
+    });
   }
 
   /*
@@ -717,11 +730,9 @@ function wire(catalog, rgiMap, regions) {
       } else if (hit.kind === "complex") {
         openComplex(hit.complexId, IF_NEEDED, { level: "middle" });
       } else if (hit.kind === "region" && isBbox(hit.bbox)) {
-        camera += 1;
         fitTo(hit.bbox);
       } else if (hit.kind === "place") {
-        camera += 1;
-        map.jumpTo({ center: hit.center, zoom: PLACE_ZOOM });
+        rgiMap.jumpTo({ center: hit.center, zoom: PLACE_ZOOM });
       }
     },
     loadGlacierIndex: () => glaciers.index(),

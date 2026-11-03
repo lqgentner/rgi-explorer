@@ -158,7 +158,9 @@ export function credits({ base, terrain, catalog, imagery = null, producers = nu
  * Draw the scale bar and the credits.
  *
  * @param getState  returns the current `{ base, terrain }`
- * @returns {{refresh(): void}}  redraws both, after a base map or terrain change
+ * @returns {{fold(): void, refresh(): void}}  fold folds the phone's credits
+ *   into the info button, once; refresh redraws both, after a base map or
+ *   terrain change
  *
  * With terrain on, each move looks up the elevation sources in view. Until an
  * answer arrives, the credits keep the last one; a failed lookup leaves

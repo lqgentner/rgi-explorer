@@ -161,11 +161,12 @@ let mounted = 0;
  * uses, and an open offer stays open across the change.
  *
  * @param {HTMLElement} root
- * @param {{catalog: object, sheet?: HTMLElement}} ctx
+ * @param {{catalog: object, sheet?: HTMLElement, onToggle?: (open: boolean) => void}} ctx
  */
 export function mountUseData(root, { catalog, sheet = root, onToggle }) {
   mounted += 1;
   const id = `usedata-${mounted}`;
+  /** @type {{tool: "python"|"qgis", scope: string}} */
   const choice = { tool: "python", scope: "glacier" };
   let target = null;
   let bytes = null;
@@ -173,7 +174,7 @@ export function mountUseData(root, { catalog, sheet = root, onToggle }) {
 
   const closeButton = h(
     "button",
-    { type: "button", class: "icon-button usedata-close", "aria-label": "Close" },
+    { type: "button", class: "icon-button usedata-close", "aria-label": "Close", dataset: { tour: "use-data-close" } },
     icon("x"),
   );
   const body = h("div", { class: "usedata-body" });

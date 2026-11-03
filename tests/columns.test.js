@@ -99,6 +99,14 @@ test("area picks its decimals after rounding, so a carry adds no digit", () => {
   assert.equal(formatArea(999.96), "1,000");
 });
 
+test("a value that rounds to zero shows no minus sign, a negative one keeps it", () => {
+  /* RGI2000-v7.0-G-01-15261 has zmin_m -0.355; 2,164 glaciers have a minimum below -0.5 m. */
+  assert.equal(row({ zmin_m: -0.3547835 }, "key", "Min elevation").value, "0 m");
+  assert.equal(formatInt(-0), "0");
+  assert.equal(row({ zmin_m: -84.55775 }, "key", "Min elevation").value, "-85 m");
+  assert.equal(formatArea(-0.001), "0.00");
+});
+
 test("dates, integers and coordinates format", () => {
   const day = "2003-08-13";
   assert.equal(formatDate(new Date(Date.UTC(2003, 7, 13))), day);

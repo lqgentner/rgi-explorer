@@ -166,7 +166,7 @@ test("a keyboard click on the open control swaps the base map, whatever an earli
 test("the zoom buttons zoom the map", () => {
   const root = document.createElement("div");
   const map = new FakeMap();
-  mountZoom(root, { map });
+  mountZoom(root, { zoomIn: () => map.zoomIn(), zoomOut: () => map.zoomOut() });
   root.querySelector('button[aria-label="Zoom in"]').click();
   root.querySelector('button[aria-label="Zoom out"]').click();
   root.querySelector('button[aria-label="Zoom out"]').click();

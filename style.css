@@ -1796,17 +1796,9 @@ a.external .icon {
 
 /* The caption above the chart says what it shows; its info button keeps beside the text. */
 .hypso-caption {
-  display: flex;
-  gap: 4px;
-  align-items: center;
   margin: 4px 0 8px;
   color: var(--muted);
   font-size: 13px;
-}
-
-.hypso-caption .info {
-  flex: none;
-  margin-left: 0;
 }
 
 .hypsometry {
@@ -2177,6 +2169,30 @@ dialog.viewer::backdrop {
 
 .notice:empty {
   display: none;
+}
+
+/* Beside the control it answers, such as Share: js/app.js sets top and left, and the arrow points at it. */
+.notice[data-side] {
+  bottom: auto;
+  transform: none;
+}
+
+.notice[data-side]::before {
+  position: absolute;
+  left: calc(var(--arrow-x, 50%) - 5px);
+  width: 10px;
+  height: 10px;
+  background: inherit;
+  content: "";
+  transform: rotate(45deg);
+}
+
+.notice[data-side="above"]::before {
+  bottom: -5px;
+}
+
+.notice[data-side="below"]::before {
+  top: -5px;
 }
 
 /* Use this data */

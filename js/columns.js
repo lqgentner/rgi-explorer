@@ -99,9 +99,12 @@ export function nonEmpty(value) {
   return missing(value) ? null : value;
 }
 
-const INTEGER = new Intl.NumberFormat("en", { maximumFractionDigits: 0 });
-const TENTH = new Intl.NumberFormat("en", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-const HUNDREDTH = new Intl.NumberFormat("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+/* `signDisplay: "negative"` drops the minus of a value that rounds to zero, such as a minimum elevation of -0.4 m. */
+const number = (digits) =>
+  new Intl.NumberFormat("en", { minimumFractionDigits: digits, maximumFractionDigits: digits, signDisplay: "negative" });
+const INTEGER = number(0);
+const TENTH = number(1);
+const HUNDREDTH = number(2);
 
 /** `YYYY-MM-DD` for a Date, an ISO string or epoch milliseconds. */
 export function formatDate(value) {

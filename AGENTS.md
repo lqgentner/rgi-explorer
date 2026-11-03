@@ -12,6 +12,7 @@ Work from the repository root with Node 24 (`.node-version`), after `npm ci`.
 npm run serve   # http://localhost:8000/
 npm test        # node --test: every tests/*.test.js
 npm run smoke   # SMOKE=1 node --test tests/smoke.test.js
+npm run typecheck  # tsc --checkJs over js/, scripts/ and sw.js (not tests/ yet)
 ```
 
 Run `node --test tests/<file>.test.js` for a focused run. There is no

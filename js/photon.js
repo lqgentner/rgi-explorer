@@ -33,7 +33,7 @@ export async function searchPlaces(q, { lat, lon, zoom }, { fetch = globalThis.f
     zoom: String(Math.round(zoom)),
     limit: String(LIMIT),
     lang: "en",
-  });
+  }).toString();
   const timeout = AbortSignal.timeout(TIMEOUT_MS);
   const response = await fetch(url, { signal: signal ? AbortSignal.any([signal, timeout]) : timeout });
   if (!response.ok) return [];

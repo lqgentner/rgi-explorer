@@ -72,12 +72,14 @@ let middle = null;
 let observer = null;
 /* The touch or pointer moving the sheet: its start, axis and recent positions. */
 let gesture = null;
+/* The callbacks onLevel() added. */
+const listeners = [];
 
 /* The height of an element's box with its margins, or 0 when it does not show. */
 function outerHeight(node) {
   if (!node.getClientRects().length) return 0;
   const style = getComputedStyle(node);
-  return node.offsetHeight + parseFloat(style.marginTop || 0) + parseFloat(style.marginBottom || 0);
+  return node.offsetHeight + parseFloat(style.marginTop || "0") + parseFloat(style.marginBottom || "0");
 }
 
 /*
@@ -123,19 +125,30 @@ function show(px) {
   style.setProperty("--sheet-rise", String(Math.min(1, Math.max(0, rise))));
 }
 
-/** Move the sheet to `next`, one of LEVELS; on desktop only the handle's state changes. */
-export function setSheetLevel(next) {
+/**
+ * Move the sheet to `next`, one of LEVELS; on desktop only the handle's state
+ * changes. `byReader` marks a drag, a handle press or a tap on the photo
+ * strip, as opposed to the page's own choice.
+ */
+export function setSheetLevel(next, { byReader = false } = {}) {
   level = next;
   el("sheet").dataset.level = next;
   const handle = el("sheet-handle");
   handle.setAttribute("aria-expanded", String(next !== "compact"));
   handle.title = LABELS[next];
   handle.setAttribute("aria-label", LABELS[next]);
-  if (!PHONE.matches) return;
-  // Below the compact sheet's edge sit all but the top of the photo.
-  el("sheet-body").toggleAttribute("inert", next === "compact");
-  measure();
-  show(stops[LEVELS.indexOf(next)]);
+  if (PHONE.matches) {
+    // Below the compact sheet's edge sit all but the top of the photo.
+    el("sheet-body").toggleAttribute("inert", next === "compact");
+    measure();
+    show(stops[LEVELS.indexOf(next)]);
+  }
+  for (const fn of listeners) fn(next, byReader);
+}
+
+/** Call `fn(level, byReader)` each time the sheet's level is set, with setSheetLevel()'s arguments. */
+export function onLevel(fn) {
+  listeners.push(fn);
 }
 
 /** The sheet's height now, one of LEVELS. */
@@ -188,11 +201,11 @@ function release(time) {
   gesture = null;
   el("sheet").classList.remove("dragging");
   if (!past) {
-    setSheetLevel(snapTarget(at, velocity, stops));
+    setSheetLevel(snapTarget(at, velocity, stops), { byReader: true });
     return;
   }
   // A drag that went on into the body's scroll stays at full height, and a flick carries the scroll on.
-  setSheetLevel("full");
+  setSheetLevel("full", { byReader: true });
   glide(scroller, velocity);
 }
 
@@ -256,7 +269,7 @@ function wireGrips(sheet) {
   sheet.addEventListener("pointerup", end);
   sheet.addEventListener("pointercancel", end);
   sheet.addEventListener("click", (event) => {
-    if (PHONE.matches && event.target === sheet && level === "compact") setSheetLevel("middle");
+    if (PHONE.matches && event.target === sheet && level === "compact") setSheetLevel("middle", { byReader: true });
   });
 }
 
@@ -312,7 +325,7 @@ function wireContent(body) {
 }
 
 export function initSheet() {
-  el("sheet-handle").addEventListener("click", () => setSheetLevel(NEXT[level]));
+  el("sheet-handle").addEventListener("click", () => setSheetLevel(NEXT[level], { byReader: true }));
   wireGrips(el("sheet"));
   wireContent(el("sheet-body"));
 

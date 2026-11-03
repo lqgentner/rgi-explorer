@@ -1,0 +1,19 @@
+{
+  // Type-checks the page and the Node scripts without emitting anything.
+  // Lenient on purpose: TypeScript 6 and later default "strict" to true, so it
+  // is turned off here. tests/ is left out for now. sw.js has its own config,
+  // tsconfig.sw.json, because it needs the webworker lib instead of the DOM.
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+    "strict": false,
+    "skipLibCheck": true,
+    "target": "es2023",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "lib": ["es2023", "dom", "dom.iterable"],
+    "types": ["node"]
+  },
+  "include": ["js/**/*.js", "scripts/**/*.mjs", "types/globals.d.ts"]
+}

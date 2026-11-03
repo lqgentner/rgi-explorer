@@ -167,7 +167,7 @@ export function mountLayers(root, { base, layers, onBase, onToggle, onPane, map 
     });
     return { key, button, img };
   });
-  const close = h("button", { type: "button", class: "icon-button", "aria-label": "Close" }, icon("x"));
+  const close = h("button", { type: "button", class: "icon-button", "aria-label": "Close", dataset: { tour: "layers-close" } }, icon("x"));
   const paneToggles = h("div", { class: "tile-row" });
   /* No title: the close button sits in the first section's heading row, and a line parts the sections. */
   const pane = h(
@@ -181,14 +181,14 @@ export function mountLayers(root, { base, layers, onBase, onToggle, onPane, map 
     ),
     h("section", { class: "pane-section" }, h("h3", {}, "RGI layers"), paneToggles),
   );
-  const openPane = h("button", { type: "button", class: "round-button layers-open", "aria-label": "Layers" }, icon("layers-2"));
+  const openPane = h("button", { type: "button", class: "round-button layers-open", "aria-label": "Layers", dataset: { tour: "layers-phone" } }, icon("layers-2"));
 
   /* The desktop's control: the other base map's picture, and a drawer of toggles beside it. */
   const image = h("img", { alt: "", width: 96, height: 96 });
   const badge = h("span", { class: "layers-badge" }, icon("layers-2"), "Layers");
   /* Closed, the picture says "Layers"; open, it names the map a click swaps to. */
   const caption = h("span", { class: "layers-caption" });
-  const thumb = h("button", { type: "button", class: "layers-thumb" }, h("span", { class: "layers-picture" }, image, badge, caption));
+  const thumb = h("button", { type: "button", class: "layers-thumb", dataset: { tour: "layers-desktop" } }, h("span", { class: "layers-picture" }, image, badge, caption));
   const drawer = h("div", { class: "layers-drawer" });
   /* The panel stays in the page to slide open; it is inert while closed. */
   const panel = h("div", { class: "layers-panel" }, drawer);
@@ -402,8 +402,8 @@ export function mountZoom(root, rgiMap) {
     h(
       "div",
       { class: "zoom-control" },
-      zoomButton("plus", "Zoom in", () => rgiMap.map.zoomIn()),
-      zoomButton("minus", "Zoom out", () => rgiMap.map.zoomOut()),
+      zoomButton("plus", "Zoom in", () => rgiMap.zoomIn()),
+      zoomButton("minus", "Zoom out", () => rgiMap.zoomOut()),
     ),
   );
 }

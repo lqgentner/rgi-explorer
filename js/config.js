@@ -30,6 +30,12 @@ export const mercatorY = (lat) => EARTH_RADIUS * Math.log(Math.tan(Math.PI / 4 +
 
 /** Height of one hypsometry band in metres. */
 export const HYPSO_BAND_M = 50;
+/*
+ * How many row groups of each GeoParquet keep their decoded columns, about
+ * 5 MB each for the glaciers' card columns. Six hold the open glacier, its
+ * complex's members and a few glaciers visited before.
+ */
+export const ROW_GROUP_CACHE = 6;
 /** How long a third-party request may take before the page falls back. */
 export const TIMEOUT_MS = 4000;
 export const DEFAULT_VIEW = { zoom: 2, lat: 30, lon: 10 };
