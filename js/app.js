@@ -50,6 +50,8 @@ const IF_NEEDED = "if-needed";
 const DESKTOP_CROP = { size: [816, 560], top: 144 };
 const PHONE_CROP = { size: [720, 360], top: 0 };
 const NOTICE_MS = 2000;
+/* The gap between a control and the notice that points at it, in px. */
+const NOTICE_GAP = 8;
 const REGION_COLUMNS = ["level", "o1region", "o2region", "full_name", "bbox"];
 const FACT_COLUMNS = ["bbox", "glims_id"];
 const COMPLEX_COLUMNS = ["rgi_id", "o1region", "o2region", "cenlon", "cenlat", "utm_zone", "area_km2", "glacier_ids", "bbox"];
@@ -268,8 +270,27 @@ function wire(catalog, rgiMap, regions) {
 
   const notice = el("notice");
   let noticeTimer = null;
-  const announce = (text) => {
+  /*
+   * A short notice in the polite live region, a dark pill. With `at` it sits
+   * above that control, or below it at the top of the screen, and points at
+   * it: the reader is looking there, not at the page's edge.
+   */
+  const announce = (text, at) => {
     notice.textContent = text;
+    notice.removeAttribute("data-side");
+    notice.style.removeProperty("top");
+    notice.style.removeProperty("left");
+    if (at) {
+      const box = at.getBoundingClientRect();
+      const { width, height } = notice.getBoundingClientRect();
+      const middle = box.left + box.width / 2;
+      const left = Math.max(8, Math.min(middle - width / 2, window.innerWidth - width - 8));
+      const above = box.top - NOTICE_GAP - height >= 0;
+      notice.dataset.side = above ? "above" : "below";
+      notice.style.top = `${above ? box.top - NOTICE_GAP - height : box.bottom + NOTICE_GAP}px`;
+      notice.style.left = `${left}px`;
+      notice.style.setProperty("--arrow-x", `${middle - left}px`);
+    }
     clearTimeout(noticeTimer);
     noticeTimer = setTimeout(() => {
       notice.textContent = "";
@@ -549,13 +570,13 @@ function wire(catalog, rgiMap, regions) {
     rgiMap.centerOn(lonLat, room);
   }
 
-  async function share() {
+  async function share(button) {
     try {
       await globalThis.navigator.clipboard.writeText(location.href);
     } catch {
       return;
     }
-    announce("Link copied");
+    announce("Link copied", button);
   }
 
   const card = mountCard(cardRoot, {

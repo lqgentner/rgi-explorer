@@ -170,6 +170,9 @@ test("Share copies the page address and says so", async () => {
   assert.equal(copied.at(-1), window.location.href);
   assert.match(copied.at(-1), /glacier=RGI2000-v7\.0-G-11-02596/);
   await waitFor(() => [...document.querySelectorAll('[aria-live="polite"]')].some((n) => n.textContent === "Link copied"));
+  /* It points at the button pressed, where the reader is looking. */
+  assert.ok(["above", "below"].includes($("#notice").dataset.side));
+  assert.ok($("#notice").style.top && $("#notice").style.left);
 });
 
 test("Zoom to fits the glacier again", async () => {

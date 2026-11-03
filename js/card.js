@@ -91,7 +91,7 @@ export function cardFrame(root, ctx, { label, className, body, onUseData, onZoom
   const actions = h("div", { class: "card-actions" },
     useData,
     button("Zoom to", "btn", onZoom, "scan-search"),
-    button("Share", "btn", () => ctx.onShare?.(), "share-2"));
+    button("Share", "btn", (event) => ctx.onShare?.(event.currentTarget), "share-2"));
   const close = h("button", { type: "button", class: "icon-button card-close", "aria-label": "Close" }, icon("x"));
   close.addEventListener("click", () => ctx.onClose?.());
   const inBand = [close, head, actions];
