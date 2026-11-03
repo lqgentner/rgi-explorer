@@ -293,6 +293,27 @@ test("a drag while a glacier's bbox is read drops the late fit", async () => {
   assert.equal($("#card").hidden, true);
 });
 
+test("a zoom-button click while a glacier's bbox is read drops the late fit", async () => {
+  await search("athabasca");
+  const row = await waitFor(() => [...document.querySelectorAll("#search li")]
+    .find((li) => li.querySelector(".title").textContent === "Athabasca Glacier"));
+  let release;
+  hold = new Promise((resolve) => {
+    release = resolve;
+  });
+  const before = fits();
+  click(row);
+  click($('#controls button[aria-label="Zoom in"]'));
+  release();
+  hold = null;
+  await waitFor(() => $("#card .card-title")?.textContent === "Athabasca Glacier");
+  await settle(20);
+  assert.equal(fits(), before, "the zoom click wins over the late glacier fit");
+  map.rendered = [];
+  map.fire("click", { point: { x: 1, y: 1 } });
+  assert.equal($("#card").hidden, true);
+});
+
 test("a camera move without a user event keeps the glacier fit", async () => {
   await search("athabasca");
   const row = await waitFor(() => [...document.querySelectorAll("#search li")]

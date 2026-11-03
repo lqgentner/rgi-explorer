@@ -416,18 +416,10 @@ function wire(catalog, rgiMap, regions) {
   /* The ID of the complex on the complex panel. Only one of the two is open. */
   let shownComplex = null;
   let fitting = null;
-  /*
-   * Each explicit camera request takes the next number. A fit that waits for a
-   * read moves the camera only if no request came after it.
-   */
-  let camera = 0;
 
-  /* A drag, pinch or wheel move is a camera request too, so a pending fit is dropped. */
-  /* The reader's own move also closes the welcome: they are exploring without the tour. */
+  /* The reader's own move closes the welcome: they are exploring without the tour. */
   map.on("movestart", (event) => {
-    if (!event?.originalEvent) return;
-    camera += 1;
-    welcome.dismiss();
+    if (event?.originalEvent) welcome.dismiss();
   });
   /* Typing in the search, or a press on it; a keyboard reader's Tab into it still reaches the welcome. */
   el("search").addEventListener("input", () => welcome.dismiss());
@@ -452,13 +444,9 @@ function wire(catalog, rgiMap, regions) {
 
   /** Fit the glacier's bbox as `fit` asks once its read returns, unless another camera request came first. */
   function fitGlacierLater(glacier, fit) {
-    const mine = ++camera;
-    return glaciers.factsOf(glacier).then(
-      (facts) => {
-        if (mine === camera && shown === glacier && isBbox(facts.bbox)) fitAs(facts.bbox, fit);
-      },
-      () => {},
-    );
+    return rgiMap.fitLater(glaciers.factsOf(glacier), (facts) => {
+      if (shown === glacier && isBbox(facts.bbox)) fitAs(facts.bbox, fit);
+    });
   }
 
   /* Photos wait for the fit and the tiles it loads, so the outline pieces are on the map. */
@@ -537,10 +525,8 @@ function wire(catalog, rgiMap, regions) {
 
   /** Fit the map around `bbox`, or around the open glacier or complex once its bbox is read. */
   function zoomTo(bbox) {
-    if (isBbox(bbox)) {
-      camera += 1;
-      fitAround(bbox);
-    } else if (shown) fitGlacierLater(shown, ALWAYS);
+    if (isBbox(bbox)) fitAround(bbox);
+    else if (shown) fitGlacierLater(shown, ALWAYS);
     else if (shownComplex) fitComplexLater(shownComplex, ALWAYS);
   }
 
@@ -549,7 +535,6 @@ function wire(catalog, rgiMap, regions) {
     rgiMap.pin(lonLat);
     const room = padding();
     if (rgiMap.inView(lonLat, room)) return;
-    camera += 1;
     rgiMap.centerOn(lonLat, room);
   }
 
@@ -620,13 +605,9 @@ function wire(catalog, rgiMap, regions) {
 
   /** Fit the whole complex as `fit` asks once its read returns, unless another camera request came first. */
   function fitComplexLater(complexId, fit) {
-    const mine = ++camera;
-    complexes.read(complexId).then(
-      (props) => {
-        if (mine === camera && shownComplex === complexId && isBbox(props?.bbox)) fitAs(props.bbox, fit);
-      },
-      () => {},
-    );
+    rgiMap.fitLater(complexes.read(complexId), (props) => {
+      if (shownComplex === complexId && isBbox(props?.bbox)) fitAs(props.bbox, fit);
+    });
   }
 
   /*
@@ -717,11 +698,9 @@ function wire(catalog, rgiMap, regions) {
       } else if (hit.kind === "complex") {
         openComplex(hit.complexId, IF_NEEDED, { level: "middle" });
       } else if (hit.kind === "region" && isBbox(hit.bbox)) {
-        camera += 1;
         fitTo(hit.bbox);
       } else if (hit.kind === "place") {
-        camera += 1;
-        map.jumpTo({ center: hit.center, zoom: PLACE_ZOOM });
+        rgiMap.jumpTo({ center: hit.center, zoom: PLACE_ZOOM });
       }
     },
     loadGlacierIndex: () => glaciers.index(),

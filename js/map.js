@@ -460,6 +460,15 @@ export async function createMap(container, catalog, state, liberty = fetchLibert
   map.on("moveend", () => {
     if (!map.isMoving()) turnTo = null;
   });
+  /*
+   * Each camera request takes the next number: every camera method below, and
+   * each move by the reader, which MapLibre marks with its input event. A fit
+   * that waits for a read moves the camera only if no request came after it.
+   */
+  let requests = 0;
+  map.on("movestart", (event) => {
+    if (event?.originalEvent) requests += 1;
+  });
 
   /*
    * Whether `lonLat`, drawn at the screen `point`, is on the near side of the
@@ -573,7 +582,9 @@ export async function createMap(container, catalog, state, liberty = fetchLibert
         });
       }
       map.setTerrain(on ? { source: "terrain", exaggeration: 1 } : null);
-      if (move) map.easeTo(on ? { pitch: TERRAIN_PITCH } : { pitch: 0, bearing: 0 });
+      if (!move) return;
+      requests += 1;
+      map.easeTo(on ? { pitch: TERRAIN_PITCH } : { pitch: 0, bearing: 0 });
     },
 
     /**
@@ -582,6 +593,7 @@ export async function createMap(container, catalog, state, liberty = fetchLibert
      * add up to whole steps.
      */
     rotateBy(degrees) {
+      requests += 1;
       const from = turnTo !== null && map.isMoving() ? turnTo : map.getBearing();
       map.easeTo({ bearing: from + degrees });
       turnTo = from + degrees;
@@ -589,11 +601,13 @@ export async function createMap(container, catalog, state, liberty = fetchLibert
 
     /** Face north and level the camera. */
     faceNorth() {
+      requests += 1;
       map.easeTo({ bearing: 0, pitch: 0 });
     },
 
     /** Level the camera and keep its bearing. */
     level() {
+      requests += 1;
       map.easeTo({ pitch: 0 });
     },
 
@@ -668,11 +682,13 @@ export async function createMap(container, catalog, state, liberty = fetchLibert
      * on the map after the move, so the point is placed by an offset instead.
      */
     centerOn(lonLat, padding) {
+      requests += 1;
       const { top, right, bottom, left } = sides(padding);
       map.easeTo({ center: lonLat, offset: [(left - right) / 2, (top - bottom) / 2] });
     },
 
     fitBbox({ xmin, ymin, xmax, ymax }, padding, options = {}) {
+      requests += 1;
       map.fitBounds(
         [
           [xmin, clampLat(ymin)],
@@ -683,6 +699,36 @@ export async function createMap(container, catalog, state, liberty = fetchLibert
          * reader's turn instead. A flight longer than FLY_MAX_MS jumps.
          */
         { padding, bearing: map.getBearing(), maxDuration: FLY_MAX_MS, ...options },
+      );
+    },
+
+    jumpTo(options) {
+      requests += 1;
+      map.jumpTo(options);
+    },
+
+    zoomIn() {
+      requests += 1;
+      map.zoomIn();
+    },
+
+    zoomOut() {
+      requests += 1;
+      map.zoomOut();
+    },
+
+    /**
+     * Run `move` with what `read` resolves to, unless a camera request came
+     * after this call; a later fitLater is one too. A failed read moves
+     * nothing. The promise returned settles once `move` has run or been dropped.
+     */
+    fitLater(read, move) {
+      const mine = ++requests;
+      return read.then(
+        (value) => {
+          if (mine === requests) move(value);
+        },
+        () => {},
       );
     },
 

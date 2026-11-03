@@ -402,8 +402,8 @@ export function mountZoom(root, rgiMap) {
     h(
       "div",
       { class: "zoom-control" },
-      zoomButton("plus", "Zoom in", () => rgiMap.map.zoomIn()),
-      zoomButton("minus", "Zoom out", () => rgiMap.map.zoomOut()),
+      zoomButton("plus", "Zoom in", () => rgiMap.zoomIn()),
+      zoomButton("minus", "Zoom out", () => rgiMap.zoomOut()),
     ),
   );
 }

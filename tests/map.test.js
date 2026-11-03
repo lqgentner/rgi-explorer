@@ -641,6 +641,76 @@ test("a fit that would fly longer than two seconds jumps instead", async () => {
   assert.equal(map.lastFit.options.maxDuration, 2000, "MapLibre's flight resets a longer duration to 0");
 });
 
+/** A promise and the function that resolves it. */
+const deferred = () => {
+  let resolve;
+  const promise = new Promise((r) => {
+    resolve = r;
+  });
+  return { promise, resolve };
+};
+
+test("fitLater moves once its read returns, and a failed read moves nothing", async () => {
+  const { rgiMap } = await build();
+  const ran = [];
+  await rgiMap.fitLater(Promise.resolve("bbox"), (value) => ran.push(value));
+  assert.deepEqual(ran, ["bbox"]);
+  await rgiMap.fitLater(Promise.reject(new Error("read failed")), (value) => ran.push(value));
+  assert.deepEqual(ran, ["bbox"]);
+});
+
+test("every camera request of the map drops a pending fitLater", async () => {
+  const { rgiMap, map } = await build();
+  const bbox = { xmin: 7.9, ymin: 46.4, xmax: 8.1, ymax: 46.6 };
+  const requests = {
+    fitBbox: () => rgiMap.fitBbox(bbox, 8),
+    centerOn: () => rgiMap.centerOn([8, 46.5], 8),
+    jumpTo: () => rgiMap.jumpTo({ center: [8, 46.5], zoom: 12 }),
+    zoomIn: () => rgiMap.zoomIn(),
+    zoomOut: () => rgiMap.zoomOut(),
+    rotateBy: () => rgiMap.rotateBy(45),
+    faceNorth: () => rgiMap.faceNorth(),
+    level: () => rgiMap.level(),
+    setTerrain: () => rgiMap.setTerrain(true),
+    fitLater: () => rgiMap.fitLater(new Promise(() => {}), () => {}),
+    "a reader's move": () => map.fire("movestart", { originalEvent: { type: "mousedown" } }),
+  };
+  for (const [name, request] of Object.entries(requests)) {
+    const read = deferred();
+    let ran = false;
+    const later = rgiMap.fitLater(read.promise, () => {
+      ran = true;
+    });
+    request();
+    read.resolve();
+    await later;
+    assert.equal(ran, false, `${name} wins over the late fit`);
+  }
+});
+
+test("the page's own moves and a terrain switch without a move keep a pending fitLater", async () => {
+  const { rgiMap, map } = await build();
+  const read = deferred();
+  let ran = false;
+  const later = rgiMap.fitLater(read.promise, () => {
+    ran = true;
+  });
+  map.fire("movestart", {});
+  rgiMap.setTerrain(true, { move: false });
+  read.resolve();
+  await later;
+  assert.equal(ran, true);
+});
+
+test("jumpTo, zoomIn and zoomOut move the map", async () => {
+  const { rgiMap, map } = await build();
+  rgiMap.jumpTo({ center: [8, 46.5], zoom: 12 });
+  rgiMap.zoomIn();
+  rgiMap.zoomOut();
+  rgiMap.zoomOut();
+  assert.deepEqual(map.calls.slice(-4), ["jumpTo 8,46.5 z12", "zoomIn", "zoomOut", "zoomOut"]);
+});
+
 test("glacierAt returns the properties of the first glacier under the point", async () => {
   const { rgiMap, map } = await build();
   assert.equal(rgiMap.glacierAt([5, 5]), null);
