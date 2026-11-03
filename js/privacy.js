@@ -19,7 +19,7 @@ export const UPDATED = "3 November 2026";
  * @property {string} by        who runs it, and where
  * @property {string} what      what the page loads from it
  * @property {string} gets      what it receives besides the IP address
- * @property {string | null} policy  its privacy policy, null when it publishes none
+ * @property {string} policy    its privacy policy
  * @property {string} [note]    what its policy leaves out
  * @property {string[]} hosts   the origins the page contacts
  */
@@ -42,7 +42,8 @@ export const SERVICES = [
         by: "Radiant Earth, USA, served through Cloudflare",
         what: "The glacier data and its map tiles.",
         gets: "The parts of the data on view.",
-        policy: null,
+        policy: "https://radiant.earth/privacy/",
+        note: "Source Cooperative is a Radiant Earth project. Radiant Earth's policy names radiant.earth and mlhub.earth, not Source Cooperative.",
         hosts: ["https://data.source.coop"],
       },
       {
@@ -113,7 +114,7 @@ function serviceItem({ name, by, what, gets, policy, note, hosts }) {
     h(
       "p",
       { class: "privacy-links" },
-      policy ? externalLink(policy, "Privacy policy") : h("span", {}, "Publishes no privacy policy"),
+      externalLink(policy, "Privacy policy"),
       ...hosts.map((origin) => h("code", {}, hostName(origin))),
     ),
   );

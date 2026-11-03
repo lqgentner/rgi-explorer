@@ -32,10 +32,10 @@ test("the note names every host the CSP lets the page contact, and no other", ()
   assert.deepEqual(services.flatMap((s) => s.hosts).sort(), cspHosts());
 });
 
-test("every service says who runs it, what it gets, and links its policy over https or says it has none", () => {
+test("every service says who runs it, what it gets, and links its policy over https", () => {
   for (const service of services) {
     assert.ok(service.name && service.by && service.what && service.gets, service.name);
-    assert.ok(service.policy === null || service.policy.startsWith("https://"), service.name);
+    assert.ok(service.policy.startsWith("https://"), service.name);
   }
 });
 
@@ -54,8 +54,8 @@ test("the dialog shows the operator, the storage, each service and the rights, a
   const mails = [...dialog.querySelectorAll('a[href^="mailto:"]')].map((a) => a.getAttribute("href"));
   assert.deepEqual(mails, [`mailto:${OPERATOR.email}`, `mailto:${OPERATOR.email}`]);
   const policies = [...dialog.querySelectorAll("a.external")].map((a) => a.getAttribute("href"));
-  assert.deepEqual(policies, services.map((s) => s.policy).filter(Boolean));
-  assert.match(text, /Publishes no privacy policy/, "Source Cooperative says it has none");
+  assert.deepEqual(policies, services.map((s) => s.policy));
+  assert.match(text, /not Source Cooperative/, "Radiant Earth's policy says what it covers");
 
   dialog.querySelector(".privacy-close").dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
   assert.equal(dialog.open || dialog.hasAttribute("open"), false);
