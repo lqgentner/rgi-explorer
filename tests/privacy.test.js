@@ -32,10 +32,11 @@ test("the note names every host the CSP lets the page contact, and no other", ()
   assert.deepEqual(services.flatMap((s) => s.hosts).sort(), cspHosts());
 });
 
-test("every service says who runs it, what it gets, and links its policy over https", () => {
+test("every service says what it is for and links its privacy policy or, where none covers it, its website", () => {
   for (const service of services) {
-    assert.ok(service.name && service.by && service.what && service.gets, service.name);
-    assert.ok(service.policy.startsWith("https://"), service.name);
+    assert.ok(service.name && service.use, service.name);
+    assert.ok(service.link.href.startsWith("https://"), service.name);
+    assert.ok(["Privacy policy", "Website"].includes(service.link.label), service.name);
   }
 });
 
@@ -49,13 +50,16 @@ test("the dialog shows the operator, the storage, each service and the rights, a
   const text = dialog.textContent;
   assert.match(text, new RegExp(OPERATOR.name));
   assert.match(text, /no cookies/);
-  assert.match(text, /What your browser keeps/);
+  assert.match(text, /Stored in your browser/);
+  assert.match(text, /legitimate interest/);
   for (const service of services) assert.match(text, new RegExp(service.name), service.name);
   const mails = [...dialog.querySelectorAll('a[href^="mailto:"]')].map((a) => a.getAttribute("href"));
-  assert.deepEqual(mails, [`mailto:${OPERATOR.email}`, `mailto:${OPERATOR.email}`]);
+  assert.deepEqual(mails, [`mailto:${OPERATOR.email}`], "one address, in the contact at the end");
+  const contact = [...dialog.querySelectorAll("h3")].at(-1);
+  assert.equal(contact.textContent, "Contact");
+  assert.match(contact.nextElementSibling.textContent, new RegExp(`run by ${OPERATOR.name}`));
   const policies = [...dialog.querySelectorAll("a.external")].map((a) => a.getAttribute("href"));
-  assert.deepEqual(policies, services.map((s) => s.policy));
-  assert.match(text, /not Source Cooperative/, "Radiant Earth's policy says what it covers");
+  assert.deepEqual(policies, services.map((s) => s.link.href));
 
   dialog.querySelector(".privacy-close").dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
   assert.equal(dialog.open || dialog.hasAttribute("open"), false);

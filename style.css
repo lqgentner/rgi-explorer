@@ -2737,7 +2737,11 @@ dialog.privacy::backdrop {
   margin: 0 0 4px;
 }
 
-.privacy-by,
+.privacy-by {
+  color: var(--muted);
+  font-weight: 400;
+}
+
 .privacy-updated {
   color: var(--muted);
   font-size: 13px;

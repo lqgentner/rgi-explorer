@@ -16,13 +16,14 @@ export const UPDATED = "3 November 2026";
 /**
  * @typedef {object} Service
  * @property {string} name
- * @property {string} by        who runs it, and where
- * @property {string} what      what the page loads from it
- * @property {string} gets      what it receives besides the IP address
- * @property {string} policy    its privacy policy
- * @property {string} [note]    what its policy leaves out
+ * @property {string} [by]      who runs it, and where, when it says
+ * @property {string} use       what it does for the map and what it receives besides the IP address, in sentences
+ * @property {{href: string, label: string}} link  its privacy policy where one covers it, else its website
  * @property {string[]} hosts   the origins the page contacts
  */
+
+const policy = (href) => ({ href, label: "Privacy policy" });
+const website = (href) => ({ href, label: "Website" });
 
 /** @type {{title: string, services: Service[]}[]} */
 export const SERVICES = [
@@ -31,35 +32,30 @@ export const SERVICES = [
     services: [
       {
         name: "GitHub Pages",
-        by: "GitHub, Inc., USA",
-        what: "Hosts this site, and logs visitors' IP addresses for security.",
-        gets: "The page's own files.",
-        policy: "https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement",
+        by: "GitHub, USA",
+        use: "GitHub hosts this site and logs visitors' IP addresses for security.",
+        link: policy("https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement"),
         hosts: [],
       },
       {
         name: "Source Cooperative",
-        by: "Radiant Earth, USA, served through Cloudflare",
-        what: "The glacier data and its map tiles.",
-        gets: "The parts of the data on view.",
-        policy: "https://radiant.earth/privacy/",
-        note: "Source Cooperative is a Radiant Earth project. Radiant Earth's policy names radiant.earth and mlhub.earth, not Source Cooperative.",
+        by: "Radiant Earth, USA",
+        use: "Source Cooperative serves the glacier data and its map tiles for the area you view.",
+        link: website("https://source.coop"),
         hosts: ["https://data.source.coop"],
       },
       {
         name: "OpenFreeMap",
-        by: "Hyperknot Software Kft., Hungary",
-        what: "The standard base map and its fonts.",
-        gets: "The map area on view.",
-        policy: "https://openfreemap.org/privacy/",
+        by: "Hyperknot Software, Hungary",
+        use: "OpenFreeMap serves the standard base map for the area you view.",
+        link: policy("https://openfreemap.org/privacy/"),
         hosts: ["https://tiles.openfreemap.org"],
       },
       {
         name: "Esri World Imagery",
         by: "Esri, USA",
-        what: "Satellite imagery: a small preview of the view on the base map button, the Imagery base map, and a picture of each glacier you open.",
-        gets: "The map area on view, or the glacier's location.",
-        policy: "https://www.esri.com/en-us/privacy/privacy-statements/privacy-statement",
+        use: "Esri serves satellite imagery of the area you view, including the small preview on the base map button, and a picture of each glacier you open.",
+        link: policy("https://www.esri.com/en-us/privacy/privacy-statements/privacy-statement"),
         hosts: ["https://server.arcgisonline.com", "https://static.arcgis.com"],
       },
     ],
@@ -68,20 +64,17 @@ export const SERVICES = [
     title: "When you use a feature",
     services: [
       {
-        name: "Photon by komoot",
-        by: "komoot GmbH, Germany",
-        what: "Place search, as you type.",
-        gets: "What you type and the centre and zoom of the map.",
-        policy: "https://www.komoot.com/privacy",
-        note: "komoot's policy covers its own apps and site and does not name Photon.",
+        name: "Photon",
+        by: "komoot, Germany",
+        use: "When you search for a place, Photon receives your query and the position of the map.",
+        link: website("https://photon.komoot.io"),
         hosts: ["https://photon.komoot.io"],
       },
       {
         name: "Wikidata and Wikimedia Commons",
         by: "Wikimedia Foundation, USA",
-        what: "Photos of a glacier you open.",
-        gets: "The glacier's location and its GLIMS ID.",
-        policy: "https://foundation.wikimedia.org/wiki/Policy:Privacy_policy",
+        use: "When you open a glacier, Wikidata and Wikimedia Commons receive its location and GLIMS ID, to find photos of it.",
+        link: policy("https://foundation.wikimedia.org/wiki/Policy:Privacy_policy"),
         hosts: [
           "https://query.wikidata.org",
           "https://commons.wikimedia.org",
@@ -91,10 +84,8 @@ export const SERVICES = [
       },
       {
         name: "Mapterhorn",
-        by: "Mapterhorn, served through Cloudflare",
-        what: "Elevation data, in 3D.",
-        gets: "The map area on view.",
-        policy: "https://mapterhorn.com/privacy-policy/",
+        use: "When you switch to 3D, Mapterhorn serves elevation data for the area you view.",
+        link: policy("https://mapterhorn.com/privacy-policy/"),
         hosts: ["https://tiles.mapterhorn.com", "https://download.mapterhorn.com"],
       },
     ],
@@ -103,18 +94,16 @@ export const SERVICES = [
 
 const hostName = (origin) => new URL(origin).host;
 
-function serviceItem({ name, by, what, gets, policy, note, hosts }) {
+function serviceItem({ name, by, use, link, hosts }) {
   return h(
     "li",
     {},
-    h("h4", {}, name),
-    h("p", { class: "privacy-by" }, by),
-    h("p", {}, `${what} It receives ${gets.charAt(0).toLowerCase()}${gets.slice(1)}`),
-    note ? h("p", { class: "privacy-by" }, note) : null,
+    h("h4", {}, name, by ? h("span", { class: "privacy-by" }, ` · ${by}`) : null),
+    h("p", {}, use),
     h(
       "p",
       { class: "privacy-links" },
-      externalLink(policy, "Privacy policy"),
+      externalLink(link.href, link.label),
       ...hosts.map((origin) => h("code", {}, hostName(origin))),
     ),
   );
@@ -135,46 +124,38 @@ function build() {
       h(
         "p",
         {},
-        `RGI Explorer is a free, non-commercial map run by ${OPERATOR.name} (`,
-        mail,
-        "). It sets no cookies and has no analytics, tracking or accounts.",
+        "RGI Explorer is a free, non-commercial map of the world's glaciers. It uses no cookies, analytics or tracking.",
       ),
-      h("h3", {}, "What your browser keeps"),
-      h(
-        "ul",
-        {},
-        h("li", {}, "Whether you closed the welcome, so it stays closed."),
-        h("li", {}, "Copies of the catalog's and the base maps' description files, so later visits start faster."),
-      ),
+      h("h3", {}, "Stored in your browser"),
       h(
         "p",
         {},
-        "Neither leaves your browser. Clearing this site's data removes both. If your browser blocks site " +
-          "storage, the map works the same and the welcome shows on every visit.",
+        "Your browser remembers whether you closed the welcome screen and keeps copies of the catalog and base " +
+          "map descriptions, so that later visits load faster. If you block site storage in your browser's " +
+          "settings, the map still works.",
       ),
-      h("h3", {}, "Who receives your IP address"),
+      h("h3", {}, "Services that receive your IP address"),
       h(
         "p",
         {},
-        "The map loads its data straight from the services below, so each one receives your IP address, " +
-          "your browser's usual request details and what is listed. Each handles it under its own privacy " +
-          "policy. The operator runs no server and sees none of it.",
+        "The map loads its data directly from the services below. Each of them receives your IP address and " +
+          "the details described, and handles them under its own terms.",
       ),
       ...SERVICES.flatMap(({ title, services }) => [
         h("h3", { class: "privacy-group" }, title),
         h("ul", { class: "privacy-services" }, services.map(serviceItem)),
       ]),
-      h("h3", {}, "Your rights"),
+      h("h3", {}, "Contact"),
       h(
         "p",
         {},
-        "These requests rest on the site's legitimate interest in showing the map, which cannot work without " +
-          "them (Swiss FADP; for visitors in the EU, GDPR Art. 6(1)(f)). You can ask about your data or object " +
-          "by writing to ",
-        mail.cloneNode(true),
-        ".",
+        `RGI Explorer is run by ${OPERATOR.name}. The requests above rest on a legitimate interest in showing ` +
+          "the map, which cannot work without them (Swiss FADP; GDPR Art. 6(1)(f)). To ask about your data or " +
+          "to object, contact ",
+        mail,
+        ". You can also complain to a data protection authority.",
       ),
-      h("p", { class: "privacy-updated" }, `Last updated ${UPDATED}.`),
+      h("p", { class: "privacy-updated" }, `Updated ${UPDATED}.`),
     ),
   );
   document.body.append(dialog);
