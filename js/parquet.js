@@ -2,6 +2,8 @@
 
 import { decompress } from "fzstd";
 
+import { ROW_GROUP_CACHE } from "./config.js";
+
 /* Names come from display_name only: glac_name holds placeholders such as "Unnamed_23". */
 export const SEARCH_COLUMNS = ["rgi_id", "display_name", "complex_id"];
 export const CARD_COLUMNS = ["bbox", "hypso_z0_m", "hypso_permille", "rgi6_links"];
@@ -14,7 +16,12 @@ export const CARD_COLUMNS = ["bbox", "hypso_z0_m", "hypso_permille", "rgi6_links
 const compressors = { ZSTD: (input) => decompress(input) };
 
 const files = new WeakMap();
-const reads = new WeakMap();
+/*
+ * Per handle, a promise of each column read: `groups` maps the last
+ * ROW_GROUP_CACHE row groups read, least recent first, to their columns;
+ * `whole` holds columns read across the file, and `done` those that arrived.
+ */
+const caches = new WeakMap();
 
 /** Opens a GeoParquet from a URL or an AsyncBuffer and lists its row groups. */
 export async function openParquet(source) {
@@ -30,7 +37,7 @@ export async function openParquet(source) {
   }
   const handle = { metadata, groups };
   files.set(handle, file);
-  reads.set(handle, new Map());
+  caches.set(handle, { groups: new Map(), whole: new Map(), done: new Map() });
   return handle;
 }
 
@@ -95,24 +102,71 @@ async function fetchGroup(handle, columns, group) {
   return Object.fromEntries(columns.map((column) => [column, rows.map((row) => plain(row[column]))]));
 }
 
-async function fetchAll(handle, columns) {
-  const parts = await Promise.all(handle.groups.map((_, group) => readColumns(handle, columns, group)));
-  return Object.fromEntries(columns.map((column) => [column, parts.flatMap((part) => part[column])]));
+/**
+ * Stores in `cache` a promise of each of `columns` from `read` before it
+ * settles, so later reads share it. A failed read removes its own promises; a
+ * cache evicted meanwhile is only dropped.
+ */
+function fill(cache, columns, read, pick) {
+  const stored = columns.map((column) => [column, read.then((data) => pick(data, column))]);
+  for (const [column, promise] of stored) cache.set(column, promise);
+  read.catch(() => {
+    for (const [column, promise] of stored) if (cache.get(column) === promise) cache.delete(column);
+  });
 }
 
-/** Reads columns from one row group, or from all groups in parallel when `group` is omitted. */
+const collect = (cache, columns) =>
+  Promise.all(columns.map((column) => cache.get(column))).then((values) =>
+    Object.fromEntries(columns.map((column, i) => [column, values[i]])),
+  );
+
+/**
+ * One row group's columns, fetching only those it lacks. `keep` makes it the
+ * most recent group and evicts the least recent past ROW_GROUP_CACHE; a read
+ * across the file uses cached groups without keeping more.
+ */
+function readGroup(handle, columns, group, keep) {
+  const { groups, done } = caches.get(handle);
+  let cache = groups.get(group) ?? new Map();
+  if (keep) {
+    groups.delete(group);
+    groups.set(group, cache);
+    for (const old of groups.keys()) if (groups.size > ROW_GROUP_CACHE) groups.delete(old);
+    const { start, count } = handle.groups[group];
+    for (const column of columns) {
+      if (!cache.has(column) && done.has(column)) {
+        cache.set(column, Promise.resolve(done.get(column).slice(start, start + count)));
+      }
+    }
+  }
+  const missing = [...new Set(columns)].filter((column) => !cache.has(column));
+  if (missing.length) fill(cache, missing, fetchGroup(handle, missing, group), (data, column) => data[column]);
+  return collect(cache, columns);
+}
+
+function readWhole(handle, columns) {
+  const { whole, done } = caches.get(handle);
+  const missing = [...new Set(columns)].filter((column) => !whole.has(column));
+  if (missing.length) {
+    const read = Promise.all(handle.groups.map((_, group) => readGroup(handle, missing, group, false)));
+    fill(whole, missing, read, (parts, column) => {
+      const values = parts.flatMap((part) => part[column]);
+      done.set(column, values);
+      return values;
+    });
+  }
+  return collect(whole, columns);
+}
+
+/**
+ * Reads columns from one row group, or from all groups in parallel when
+ * `group` is omitted. Columns are cached one by one, so a read fetches only
+ * those not yet read; a group's read also takes them from a read of the file.
+ */
 export function readColumns(handle, columns, group) {
-  if (group !== undefined && !handle.groups[group]) {
-    return Promise.reject(new RangeError(`row group ${group} does not exist`));
-  }
-  const key = `${group}|${columns.join(",")}`;
-  const cache = reads.get(handle);
-  if (!cache.has(key)) {
-    const read = group === undefined ? fetchAll(handle, columns) : fetchGroup(handle, columns, group);
-    cache.set(key, read);
-    read.catch(() => cache.delete(key));
-  }
-  return cache.get(key);
+  if (group === undefined) return readWhole(handle, columns);
+  if (!handle.groups[group]) return Promise.reject(new RangeError(`row group ${group} does not exist`));
+  return readGroup(handle, columns, group, true);
 }
 
 /** Reads the given columns of one row as an object. */

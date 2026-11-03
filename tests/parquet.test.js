@@ -11,6 +11,7 @@ globalThis.hyparquet = hyparquet;
 
 const { CARD_COLUMNS, SEARCH_COLUMNS, findRow, groupsOfKey, openParquet, readColumns, readRow, rowGroupOf } =
   await import("../js/parquet.js");
+const { ROW_GROUP_CACHE } = await import("../js/config.js");
 
 /* The fixtures that scripts/make_fixture_parquet.py writes. */
 const dir = fileURLToPath(new URL("./fixtures/parquet/", import.meta.url));
@@ -209,4 +210,93 @@ test("the glaciers fixture names each glacier's complex", async () => {
   const cols = await readColumns(await open(), ["rgi_id", "complex_id"]);
   assert.equal(cols.complex_id[cols.rgi_id.indexOf("RGI2000-v7.0-G-11-00003")], "RGI2000-v7.0-C-11-01323");
   assert.equal(cols.complex_id[cols.rgi_id.indexOf("RGI2000-v7.0-G-11-00001")], "RGI2000-v7.0-C-11-00001");
+});
+
+/**
+ * Runs `body` with a fake hyparquet over `count` one-row groups. Each read is
+ * logged as "rowStart:columns"; a read that `fail(read)` names rejects.
+ */
+async function withFakeFile(count, body, fail = () => false) {
+  const reads = [];
+  globalThis.hyparquet = {
+    ...hyparquet,
+    parquetMetadataAsync: async () => ({ row_groups: Array.from({ length: count }, () => ({ num_rows: 1n })) }),
+    parquetReadObjects: async ({ columns, rowStart }) => {
+      const read = `${rowStart}:${columns}`;
+      reads.push(read);
+      await new Promise((resolve) => setTimeout(resolve));
+      if (fail(read)) throw new Error("network down");
+      return [Object.fromEntries(columns.map((c) => [c, `${c}@${rowStart}`]))];
+    },
+  };
+  try {
+    await body(await openParquet({}), reads);
+  } finally {
+    globalThis.hyparquet = hyparquet;
+  }
+}
+
+test("a read fetches only the columns its row group lacks", async () => {
+  await withFakeFile(2, async (h, reads) => {
+    await readColumns(h, ["a", "b"], 0);
+    assert.deepEqual(await readColumns(h, ["a", "c"], 0), { a: ["a@0"], c: ["c@0"] });
+    assert.deepEqual(reads, ["0:a,b", "0:c"]);
+  });
+});
+
+test("concurrent overlapping reads share the columns in flight", async () => {
+  await withFakeFile(2, async (h, reads) => {
+    const [ab, ac] = await Promise.all([readColumns(h, ["a", "b"], 0), readColumns(h, ["a", "c"], 0)]);
+    assert.deepEqual(ab, { a: ["a@0"], b: ["b@0"] });
+    assert.deepEqual(ac, { a: ["a@0"], c: ["c@0"] });
+    assert.deepEqual(reads, ["0:a,b", "0:c"]);
+  });
+});
+
+test("row groups past the cache size are evicted, the least recently read first", async () => {
+  assert.ok(ROW_GROUP_CACHE >= 2);
+  await withFakeFile(ROW_GROUP_CACHE + 1, async (h, reads) => {
+    for (let group = 0; group < ROW_GROUP_CACHE; group++) await readColumns(h, ["a"], group);
+    await readColumns(h, ["a"], 0); /* group 1 is now the least recent */
+    await readColumns(h, ["a"], ROW_GROUP_CACHE);
+    await readColumns(h, ["a"], 0);
+    assert.equal(reads.length, ROW_GROUP_CACHE + 1, "group 0 stayed");
+    assert.deepEqual(await readColumns(h, ["a"], 1), { a: ["a@1"] });
+    assert.deepEqual(reads.slice(-1), ["1:a"], "group 1 was evicted and is read again");
+  });
+});
+
+test("a group evicted while its read is in flight still resolves and is read again later", async () => {
+  await withFakeFile(ROW_GROUP_CACHE + 1, async (h, reads) => {
+    const pending = readColumns(h, ["a"], 0);
+    await Promise.all(Array.from({ length: ROW_GROUP_CACHE }, (_, i) => readColumns(h, ["a"], i + 1)));
+    assert.deepEqual(await pending, { a: ["a@0"] });
+    assert.deepEqual(await readColumns(h, ["a", "b"], 0), { a: ["a@0"], b: ["b@0"] });
+    assert.deepEqual(reads.slice(-1), ["0:a,b"]);
+  });
+});
+
+test("a failed read is dropped and tried again, and its group keeps the columns it had", async () => {
+  let down = true;
+  await withFakeFile(
+    2,
+    async (h, reads) => {
+      await readColumns(h, ["a"], 0);
+      await assert.rejects(readColumns(h, ["a", "b"], 0), /network down/);
+      down = false;
+      assert.deepEqual(await readColumns(h, ["a", "b"], 0), { a: ["a@0"], b: ["b@0"] });
+      assert.deepEqual(reads, ["0:a", "0:b", "0:b"]);
+    },
+    (read) => down && read.endsWith(":b"),
+  );
+});
+
+test("a group read takes a column the whole file has already read", async () => {
+  await withFakeFile(3, async (h, reads) => {
+    await readColumns(h, ["a"]);
+    const count = reads.length;
+    assert.deepEqual(await readColumns(h, ["a", "b"], 2), { a: ["a@2"], b: ["b@2"] });
+    await readColumns(h, ["a"]);
+    assert.deepEqual(reads.slice(count), ["2:b"], "neither the group nor the whole column reads `a` again");
+  });
 });
