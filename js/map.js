@@ -396,8 +396,11 @@ function standardPictures(liberty) {
 }
 
 /**
- * Builds the map and resolves once it has loaded. The RGI layers share one
- * source, the catalog's PMTiles file. `liberty` is the promise of fetchLiberty.
+ * Builds the map and resolves once its style has loaded, while the first
+ * view's tiles still arrive: the page's controls need the style's layers, not
+ * the tiles. MapLibre's `load` waits for every tile in view, seconds on a slow
+ * data host. The RGI layers share one source, the catalog's PMTiles file.
+ * `liberty` is the promise of fetchLiberty.
  */
 export async function createMap(container, catalog, state, liberty = fetchLiberty()) {
   liberty = await liberty;
@@ -436,7 +439,7 @@ export async function createMap(container, catalog, state, liberty = fetchLibert
       reject(event?.error ?? new Error("The map failed to load"));
     };
     map.on("error", fail);
-    map.once("load", () => {
+    map.once("style.load", () => {
       map.off("error", fail);
       resolve();
     });

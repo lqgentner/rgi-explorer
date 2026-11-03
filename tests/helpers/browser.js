@@ -40,7 +40,11 @@ export class FakeMap {
     this.sources = new Map(
       Object.entries(options.style?.sources ?? {}).map(([id, spec]) => [id, this.#source(spec)]),
     );
-    queueMicrotask(() => this.fire("load"));
+    /* As MapLibre: the style loads first, then `load` once the first view's tiles have. */
+    queueMicrotask(() => {
+      this.fire("style.load");
+      this.fire("load");
+    });
     this.layers = new Map();
     this.order = [];
     this.handlers = {};
