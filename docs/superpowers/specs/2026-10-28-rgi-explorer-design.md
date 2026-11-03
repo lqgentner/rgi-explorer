@@ -301,14 +301,16 @@ elsewhere closes it.
     "Glacier (OSM)" to set it apart from RGI glaciers);
   - glacier complex (its ID; see the complexes design,
     `2026-10-30-glacier-complexes-design.md`).
-- **Glacier names and IDs.** The first focus of the search bar reads three
-  columns from every row group of the glaciers GeoParquet: `rgi_id`,
-  `display_name` and `complex_id` (for finding complexes), about 0.4 MB on
-  the 7.0 file, using hyparquet. `glac_name` is not a name: it holds
-  placeholders such as "Unnamed_23", so a glacier without a `display_name`
-  is found and titled by its ID. The explorer builds a fuzzy index from them in
-  the browser. Each match keeps its row position (row group and offset), so
-  no lookup table is needed.
+- **Glacier names and IDs.** Once the first view's tiles have loaded, the
+  page reads three columns from every row group of the glaciers GeoParquet:
+  `rgi_id`, `display_name` and `complex_id` (for finding complexes), about
+  0.4 MB on the 7.0 file, using hyparquet. That is about 140 range requests,
+  2–4 s on the data host, so they start before anyone types. With Save-Data
+  on, the first focus of the search bar starts them instead. `glac_name` is
+  not a name: it holds placeholders such as "Unnamed_23", so a glacier
+  without a `display_name` is found and titled by its ID. The explorer builds
+  a fuzzy index from them in the browser. Each match keeps its row position
+  (row group and offset), so no lookup table is needed.
 - **Typing an RGI ID** (full, or the region-and-number part, for example
   `11-02596`) puts that glacier first. A complex ID (`C-11-01323`) finds that
   complex, and a bare `11-01323` lists the glacier and then the complex.
