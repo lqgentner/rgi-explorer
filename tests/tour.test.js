@@ -415,7 +415,8 @@ test("the text runs to the card's padding; only the heading keeps clear of the X
     assert.match(css, new RegExp(`\\.${selector} h2 \\{[^}]*padding: \\d+px 36px 0 8px;`), `.${selector} h2 clears the X, inset 8 px more than the buttons`);
     assert.match(css, new RegExp(`\\.${selector} p \\{[^}]*padding: 0 8px;`), `.${selector} text inset 8 px more than the buttons`);
   }
-  assert.match(css, /\.welcome \.btn \{[^}]*margin: 8px 0 0 auto;/, "Take the tour sits on the right");
+  assert.match(css, /\.welcome-actions \{[^}]*justify-content: space-between;[^}]*margin-top: 8px;/, "Privacy on the left, Take the tour on the right");
+  assert.match(css, /\.welcome-privacy \{[^}]*padding: 4px 8px;/, "Privacy's text lines up with the paragraph, 8 px in");
 });
 
 test("the ring on a focused search input survives the search's own focus style", () => {

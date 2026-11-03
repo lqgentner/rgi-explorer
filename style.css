@@ -1050,10 +1050,33 @@ button:focus-visible {
   color: var(--muted);
 }
 
-/* Take the tour on the right, 12 px from the edges. */
+/* Privacy small on the left, aligned with the text; Take the tour on the right, 12 px from the edges. */
+.welcome-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 8px;
+}
+
 .welcome .btn {
   display: flex;
-  margin: 8px 0 0 auto;
+}
+
+.welcome-privacy {
+  padding: 4px 8px;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 13px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.welcome-privacy:hover {
+  color: var(--text);
 }
 
 .welcome-close {
@@ -2648,4 +2671,91 @@ dialog.usedata::backdrop {
     bottom: auto;
     top: 64px;
   }
+}
+
+/*
+ * The privacy note: one modal dialog on both layouts, as wide as reads well,
+ * scrolling inside when the list is taller than the screen.
+ */
+dialog.privacy {
+  width: min(600px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  padding: 12px 20px 20px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow);
+  overflow-y: auto;
+}
+
+dialog.privacy::backdrop {
+  background: var(--scrim);
+}
+
+.privacy h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.privacy h3 {
+  margin: 20px 0 6px;
+  font-size: 15px;
+}
+
+.privacy h3.privacy-group {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.privacy p,
+.privacy ul {
+  margin: 0 0 8px;
+}
+
+.privacy ul {
+  padding-left: 20px;
+}
+
+.privacy ul.privacy-services {
+  padding: 0;
+  list-style: none;
+}
+
+.privacy-services li {
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+
+.privacy-services h4 {
+  margin: 0 0 2px;
+  font-size: 14px;
+}
+
+.privacy-services p {
+  margin: 0 0 4px;
+}
+
+.privacy-by {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.privacy-updated {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.privacy-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  font-size: 13px;
+}
+
+.privacy-links code {
+  color: var(--muted);
+  font-size: 12px;
 }
