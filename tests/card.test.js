@@ -1,17 +1,14 @@
 /* The glacier card: header, Overview, tabs, reads and late results. */
 
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
-import { after, before, test } from "node:test";
-import { fileURLToPath } from "node:url";
+import { before, test } from "node:test";
 
 import * as hyparquet from "hyparquet";
 
 import { loadPage, load, settle } from "./helpers/browser.js";
-import { fixtureCatalog } from "./helpers/served.js";
+import { fixtureCatalog, PARQUET_DIR } from "./helpers/served.js";
 
 const { document, window, setPhone } = await loadPage();
 globalThis.hyparquet = hyparquet;
@@ -19,7 +16,6 @@ const { loadCatalog } = await load("js/catalog.js");
 const { openParquet } = await load("js/parquet.js");
 const { mountCard } = await load("js/card.js");
 
-const SCRIPT = fileURLToPath(new URL("../scripts/make_fixture_parquet.py", import.meta.url));
 const catalog = await fixtureCatalog(loadCatalog);
 
 const IDS = ["RGI2000-v7.0-G-11-02596", "RGI2000-v7.0-G-11-00001", "RGI2000-v7.0-G-03-00002",
@@ -31,14 +27,10 @@ const regions = [
 ];
 const OVERVIEW_PROPS = { rgi_id: IDS[0], display_name: "Grosser Aletsch Gletscher", area_km2: 81.78, zmed_m: 3152, surge_type: 0, term_type: 9, is_rgi6: false };
 
-let dir;
 let handle;
 before(async () => {
-  dir = fs.mkdtempSync(path.join(os.tmpdir(), "rgi-card-"));
-  execFileSync("python", [SCRIPT, dir]);
-  handle = await openParquet(await hyparquet.asyncBufferFromFile(path.join(dir, "glaciers.parquet")));
+  handle = await openParquet(await hyparquet.asyncBufferFromFile(path.join(PARQUET_DIR, "glaciers.parquet")));
 });
-after(() => fs.rmSync(dir, { recursive: true, force: true }));
 
 function setup(over = {}) {
   document.getElementById("card")?.remove();

@@ -6,12 +6,12 @@ import { test } from "node:test";
 import * as hyparquet from "hyparquet";
 
 import { load, loadPage, waitFor } from "./helpers/browser.js";
-import { makeParquet, servedFetch } from "./helpers/served.js";
+import { parquetFiles, servedFetch } from "./helpers/served.js";
 
 const ID = "RGI2000-v7.0-G-11-00001";
 
 test("the sidebar measures its scrollbar, keeps it outside the content and fits the map past it", async () => {
-  const page = await loadPage({ url: `https://lqgentner.github.io/rgi-explorer/?glacier=${ID}`, fetch: servedFetch(makeParquet()) });
+  const page = await loadPage({ url: `https://lqgentner.github.io/rgi-explorer/?glacier=${ID}`, fetch: servedFetch(parquetFiles()) });
   globalThis.hyparquet = hyparquet;
   const card = page.document.getElementById("card");
   let outer = 423;

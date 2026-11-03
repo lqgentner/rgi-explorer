@@ -6,10 +6,10 @@ import { test } from "node:test";
 import * as hyparquet from "hyparquet";
 
 import { load, loadPage, waitFor } from "./helpers/browser.js";
-import { makeParquet, servedFetch } from "./helpers/served.js";
+import { parquetFiles, servedFetch } from "./helpers/served.js";
 
 const UPSALA = "RGI2000-v7.0-G-17-04760";
-const page = await loadPage({ fetch: servedFetch(makeParquet()) });
+const page = await loadPage({ fetch: servedFetch(parquetFiles()) });
 const { document, window } = page;
 window.localStorage.clear();
 const reads = [];

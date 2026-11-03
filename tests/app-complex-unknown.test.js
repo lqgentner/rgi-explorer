@@ -6,13 +6,13 @@ import { test } from "node:test";
 import * as hyparquet from "hyparquet";
 
 import { load, loadPage, settle, waitFor } from "./helpers/browser.js";
-import { COMPLEXES_URL, makeParquet, servedFetch } from "./helpers/served.js";
+import { COMPLEXES_URL, parquetFiles, servedFetch } from "./helpers/served.js";
 
 test("an unknown complex in the address is dropped", async () => {
   const log = [];
   const { window, document } = await loadPage({
     url: "https://lqgentner.github.io/rgi-explorer/?complex=RGI2000-v7.0-C-11-09999",
-    fetch: servedFetch(makeParquet(), log),
+    fetch: servedFetch(parquetFiles(), log),
   });
   globalThis.hyparquet = hyparquet;
   await load("js/app.js");

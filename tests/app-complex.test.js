@@ -10,7 +10,7 @@ import { test } from "node:test";
 import * as hyparquet from "hyparquet";
 
 import { load, loadPage, waitFor } from "./helpers/browser.js";
-import { makeParquet, servedFetch } from "./helpers/served.js";
+import { parquetFiles, servedFetch } from "./helpers/served.js";
 
 const ALETSCH = "RGI2000-v7.0-G-11-02596";
 const COMPLEX = "RGI2000-v7.0-C-11-01323";
@@ -23,7 +23,7 @@ const COMPLEX_BBOX = around([[7.931361, 46.397437], [8.31, 46.61]]);
 
 const page = await loadPage({
   url: `https://lqgentner.github.io/rgi-explorer/?glacier=${ALETSCH}`,
-  fetch: servedFetch(makeParquet()),
+  fetch: servedFetch(parquetFiles()),
 });
 const { document, window } = page;
 globalThis.hyparquet = hyparquet;

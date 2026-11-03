@@ -6,12 +6,12 @@ import { test } from "node:test";
 import * as hyparquet from "hyparquet";
 
 import { load, loadPage, settle, waitFor } from "./helpers/browser.js";
-import { makeParquet, servedFetch } from "./helpers/served.js";
+import { parquetFiles, servedFetch } from "./helpers/served.js";
 
 test("?complex= with a view opens the panel without a fit", async () => {
   const page = await loadPage({
     url: "https://lqgentner.github.io/rgi-explorer/?complex=RGI2000-v7.0-C-11-01323#12/46.5/8",
-    fetch: servedFetch(makeParquet()),
+    fetch: servedFetch(parquetFiles()),
   });
   globalThis.hyparquet = hyparquet;
   await load("js/app.js");

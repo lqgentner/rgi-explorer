@@ -10,7 +10,7 @@ import { test } from "node:test";
 import * as hyparquet from "hyparquet";
 
 import { load, loadPage, settle, waitFor } from "./helpers/browser.js";
-import { makeParquet, servedFetch } from "./helpers/served.js";
+import { parquetFiles, servedFetch } from "./helpers/served.js";
 
 const ALETSCH = "RGI2000-v7.0-G-11-02596";
 const COMPLEX = "RGI2000-v7.0-C-11-01323";
@@ -24,7 +24,7 @@ const around = ({ xmin, ymin, xmax, ymax }) => {
 };
 
 const log = [];
-const page = await loadPage({ fetch: servedFetch(makeParquet(), log) });
+const page = await loadPage({ fetch: servedFetch(parquetFiles(), log) });
 const { document, window } = page;
 globalThis.hyparquet = hyparquet;
 await load("js/app.js");

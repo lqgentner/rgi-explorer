@@ -6,7 +6,7 @@ import { test } from "node:test";
 import * as hyparquet from "hyparquet";
 
 import { load, loadPage, settle, waitFor } from "./helpers/browser.js";
-import { makeParquet, servedFetch } from "./helpers/served.js";
+import { parquetFiles, servedFetch } from "./helpers/served.js";
 
 const BASE = "https://lqgentner.github.io/rgi-explorer/";
 
@@ -14,7 +14,7 @@ test("?glacier= with an unknown ID opens no card and cleans the URL", async () =
   const log = [];
   const { window, document } = await loadPage({
     url: `${BASE}?glacier=RGI2000-v7.0-G-11-99999#not/a/view`,
-    fetch: servedFetch(makeParquet(), log),
+    fetch: servedFetch(parquetFiles(), log),
   });
   globalThis.hyparquet = hyparquet;
   const errors = [];

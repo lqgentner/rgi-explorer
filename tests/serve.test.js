@@ -1,0 +1,287 @@
+/*
+ * The development server: byte ranges, mount containment and cache headers,
+ * over raw socket requests. HTTP clients normalize traversal paths before
+ * sending them, hiding the cases these tests need to exercise.
+ */
+
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import net from "node:net";
+import os from "node:os";
+import path from "node:path";
+import { after, before, describe, test } from "node:test";
+
+import { createServer } from "../scripts/serve.mjs";
+
+const BODY = "0123456789abcdef";
+
+let tmp;
+let server;
+let port;
+
+before(async () => {
+  tmp = fs.mkdtempSync(path.join(os.tmpdir(), "rgi-serve-"));
+  const write = (file, text) => {
+    fs.mkdirSync(path.dirname(path.join(tmp, file)), { recursive: true });
+    fs.writeFileSync(path.join(tmp, file), text);
+  };
+  write("web/index.html", "<!doctype html>");
+  write("web/js/app.js", "// app");
+  write("web/js/lib.mjs", "export {};");
+  write("web/docs/index.html", "<!doctype html>");
+  write("catalog/sample.pmtiles", BODY);
+  write("catalog/with space.json", "{}");
+  write("catalog/nested/deep.pmtiles", BODY);
+  /* A second mount holds the data files; its copy of a shared name loses. */
+  write("staging/glaciers.parquet", BODY);
+  write("staging/sample.pmtiles", "SHADOWED");
+  /* Outside the mount, and named so a successful read is unmistakable. */
+  write("secret.txt", "ESCAPED");
+  fs.symlinkSync(path.join(tmp, "secret.txt"), path.join(tmp, "catalog", "link.txt"));
+
+  server = createServer({ webDir: path.join(tmp, "web"), catalogDirs: [path.join(tmp, "catalog"), path.join(tmp, "staging")] });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  port = server.address().port;
+});
+
+after(() => {
+  server.close();
+  fs.rmSync(tmp, { recursive: true, force: true });
+});
+
+/** Send a request line verbatim, without any client-side normalization. */
+function get(target, headers = "", method = "GET") {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    const socket = net.connect(port, "127.0.0.1", () => {
+      socket.write(`${method} ${target} HTTP/1.0\r\nHost: t\r\n${headers}\r\n`);
+    });
+    socket.setTimeout(5000, () => socket.destroy(new Error("timed out")));
+    socket.on("data", (chunk) => chunks.push(chunk));
+    socket.on("error", reject);
+    socket.on("end", () => {
+      const raw = Buffer.concat(chunks).toString("latin1");
+      const split = raw.indexOf("\r\n\r\n");
+      const [statusLine, ...lines] = raw.slice(0, split).split("\r\n");
+      const fields = Object.fromEntries(
+        lines.map((line) => {
+          const at = line.indexOf(":");
+          return [line.slice(0, at).trim().toLowerCase(), line.slice(at + 1).trim()];
+        }),
+      );
+      resolve({ status: Number(statusLine.split(" ")[1]), headers: fields, body: raw.slice(split + 4) });
+    });
+  });
+}
+
+/** The request is refused, and none of the target file comes back. */
+async function assertBlocked(target, headers = "") {
+  const response = await get(target, headers);
+  assert.equal(response.status, 404, `${target} was served`);
+  assert.doesNotMatch(response.body, /ESCAPED/);
+}
+
+describe("path containment", () => {
+  test("serves a file in the mount", async () => {
+    const response = await get("/catalog/sample.pmtiles");
+    assert.equal(response.status, 200);
+    assert.equal(response.body, BODY);
+  });
+
+  test("serves a file from the second mount", async () => {
+    const response = await get("/catalog/glaciers.parquet");
+    assert.equal(response.status, 200);
+    assert.equal(response.body, BODY);
+  });
+
+  test("the first mount wins for a shared name", async () => {
+    assert.equal((await get("/catalog/sample.pmtiles")).body, BODY);
+  });
+
+  test("a range read reaches the second mount", async () => {
+    const response = await get("/catalog/glaciers.parquet", "Range: bytes=4-7\r\n");
+    assert.equal(response.status, 206);
+    assert.equal(response.body, "4567");
+  });
+
+  test("a name in no mount is missing", async () => {
+    assert.equal((await get("/catalog/nope.parquet")).status, 404);
+  });
+
+  test("serves a nested file", async () => {
+    assert.equal((await get("/catalog/nested/deep.pmtiles")).status, 200);
+  });
+
+  test("percent-decodes the name", async () => {
+    /* The containment check must not cost ordinary escaped characters. */
+    assert.equal((await get("/catalog/with%20space.json")).status, 200);
+  });
+
+  test("rejects a .. escape", async () => {
+    /*
+     * Exactly one level up from the mount, which is where secret.txt is: a
+     * deeper climb would be stopped by the filesystem rather than by the
+     * check under test, and would pass even with the check removed.
+     */
+    await assertBlocked("/catalog/../secret.txt");
+  });
+
+  test("rejects a .. escape from a subdirectory", async () => {
+    await assertBlocked("/catalog/nested/../../secret.txt");
+  });
+
+  test("rejects an encoded .. escape", async () => {
+    /* The path is decoded before the check, so an encoded climb cannot walk past it either. */
+    await assertBlocked("/catalog/%2e%2e/secret.txt");
+    await assertBlocked("/catalog/..%2fsecret.txt");
+  });
+
+  test("rejects a symlink that leads out of the mount", async () => {
+    await assertBlocked("/catalog/link.txt");
+  });
+
+  test("rejects an absolute-looking path", async () => {
+    /* A leading slash must not discard the mount and resolve against the filesystem root. */
+    assert.equal((await get("/catalog//etc/hostname")).status, 404);
+  });
+
+  test("rejects a malformed escape", async () => {
+    assert.equal((await get("/catalog/%zz")).status, 404);
+  });
+
+  test("an escape is rejected for a range request too", async () => {
+    await assertBlocked("/catalog/../secret.txt", "Range: bytes=0-3\r\n");
+  });
+
+  test("rejects an escape from the second mount", async () => {
+    await assertBlocked("/catalog/../secret.txt");
+    await assertBlocked("/catalog/nope/../../secret.txt");
+  });
+
+  test("the web root is still served", async () => {
+    assert.equal((await get("/index.html")).status, 200);
+    assert.equal((await get("/js/app.js")).status, 200);
+  });
+
+  test("a climb out of the web root stops at the root", async () => {
+    await assertBlocked("/../secret.txt");
+    await assertBlocked("/js/../../secret.txt");
+  });
+
+  test("a directory serves its index.html, and its address gains a slash", async () => {
+    assert.equal((await get("/")).status, 200);
+    assert.equal((await get("/docs/")).status, 200);
+    const redirect = await get("/docs?catalog=x");
+    assert.equal(redirect.status, 301);
+    assert.equal(redirect.headers.location, "/docs/?catalog=x");
+  });
+});
+
+describe("range requests", () => {
+  test("no range returns the whole body", async () => {
+    const response = await get("/catalog/sample.pmtiles");
+    assert.equal(response.status, 200);
+    assert.equal(response.body, BODY);
+  });
+
+  test("a closed range", async () => {
+    const response = await get("/catalog/sample.pmtiles", "Range: bytes=0-3\r\n");
+    assert.equal(response.status, 206);
+    assert.equal(response.body, "0123");
+    assert.equal(response.headers["content-range"], `bytes 0-3/${BODY.length}`);
+    assert.equal(response.headers["content-length"], "4");
+  });
+
+  test("an open-ended range", async () => {
+    const response = await get("/catalog/sample.pmtiles", "Range: bytes=10-\r\n");
+    assert.equal(response.status, 206);
+    assert.equal(response.body, BODY.slice(10));
+  });
+
+  test("a suffix range", async () => {
+    const response = await get("/catalog/sample.pmtiles", "Range: bytes=-4\r\n");
+    assert.equal(response.status, 206);
+    assert.equal(response.body, "cdef");
+  });
+
+  test("a suffix longer than the file is clamped", async () => {
+    const response = await get("/catalog/sample.pmtiles", "Range: bytes=-9999\r\n");
+    assert.equal(response.status, 206);
+    assert.equal(response.body, BODY);
+  });
+
+  test("an end past the file is clamped", async () => {
+    const response = await get("/catalog/sample.pmtiles", "Range: bytes=12-9999\r\n");
+    assert.equal(response.status, 206);
+    assert.equal(response.body, BODY.slice(12));
+  });
+
+  test("the last byte", async () => {
+    const response = await get("/catalog/sample.pmtiles", "Range: bytes=15-15\r\n");
+    assert.equal(response.status, 206);
+    assert.equal(response.body, "f");
+  });
+
+  test("a start past the end is unsatisfiable", async () => {
+    const response = await get("/catalog/sample.pmtiles", "Range: bytes=9999-\r\n");
+    assert.equal(response.status, 416);
+    assert.equal(response.headers["content-range"], `bytes */${BODY.length}`);
+  });
+
+  test("an inverted range is unsatisfiable", async () => {
+    assert.equal((await get("/catalog/sample.pmtiles", "Range: bytes=5-2\r\n")).status, 416);
+  });
+
+  test("a zero-length suffix is unsatisfiable", async () => {
+    assert.equal((await get("/catalog/sample.pmtiles", "Range: bytes=-0\r\n")).status, 416);
+  });
+
+  test("a range naming neither end is ignored", async () => {
+    /* `bytes=-` matches the grammar with both groups empty: the whole body follows. */
+    const response = await get("/catalog/sample.pmtiles", "Range: bytes=-\r\n");
+    assert.equal(response.status, 200);
+    assert.equal(response.body, BODY);
+  });
+
+  test("an unparseable range is ignored", async () => {
+    const response = await get("/catalog/sample.pmtiles", "Range: bytes=abc\r\n");
+    assert.equal(response.status, 200);
+    assert.equal(response.body, BODY);
+  });
+
+  test("a range on a missing file", async () => {
+    assert.equal((await get("/catalog/nope.pmtiles", "Range: bytes=0-3\r\n")).status, 404);
+  });
+
+  test("HEAD gives the size without a body, as hyparquet asks for it", async () => {
+    const response = await get("/catalog/glaciers.parquet", "", "HEAD");
+    assert.equal(response.status, 200);
+    assert.equal(response.headers["content-length"], String(BODY.length));
+    assert.equal(response.headers["accept-ranges"], "bytes");
+    assert.equal(response.body, "");
+  });
+
+  test("other methods are not implemented", async () => {
+    assert.equal((await get("/index.html", "", "POST")).status, 501);
+  });
+});
+
+describe("cache headers", () => {
+  test("the page shell is never stored", async () => {
+    /* A stale js/app.js leaves the page silently rendering the old version. */
+    for (const target of ["/", "/index.html", "/js/app.js"]) {
+      assert.match((await get(target)).headers["cache-control"], /no-store/, target);
+    }
+  });
+
+  test("library modules are never stored", async () => {
+    /* MapLibre ships .mjs; a stale copy keeps running after npm moves it. */
+    const response = await get("/js/lib.mjs");
+    assert.match(response.headers["cache-control"], /no-store/);
+    assert.equal(response.headers["content-type"], "text/javascript");
+  });
+
+  test("archives are cacheable", async () => {
+    assert.equal((await get("/catalog/sample.pmtiles")).headers["cache-control"], undefined);
+  });
+});

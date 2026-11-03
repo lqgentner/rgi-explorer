@@ -6,16 +6,18 @@ the contracts to keep when you change the page. The design is in
 
 ## Commands
 
-Work from the repository root, inside the pixi environment.
+Work from the repository root with Node 24 (`.node-version`), after `npm ci`.
 
 ```sh
-pixi run --locked serve   # http://localhost:8000/
-pixi run --locked test    # Python, then npm ci and the JavaScript tests
-pixi run --locked smoke   # SMOKE=1 node --test tests/smoke.test.js
+npm run serve   # http://localhost:8000/
+npm test        # node --test: every tests/*.test.js
+npm run smoke   # SMOKE=1 node --test tests/smoke.test.js
 ```
 
-Use `test-py` or `test-js` for a focused run. There is no compilation or
-bundling.
+Run `node --test tests/<file>.test.js` for a focused run. There is no
+compilation or bundling, and no Python: the parquet fixtures in
+`tests/fixtures/parquet/` are committed, and `scripts/make_fixture_parquet.py`
+regenerates them with `uv run` only when they change.
 
 ## Libraries
 
@@ -58,7 +60,7 @@ fall under `worker-src`.
 
 ## The development server
 
-`scripts/serve.py` supports byte ranges and turns off caching for page code and
+`scripts/serve.mjs` supports byte ranges and turns off caching for page code and
 JSON. `--catalog-dir DIR` is repeatable and mounts each directory under
 `/catalog/`. The first directory that holds a file wins. A path that escapes a
 directory is a 404. `sw.js` serves JSON stale-while-revalidate on the deployed

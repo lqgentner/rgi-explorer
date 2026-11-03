@@ -6,9 +6,9 @@ import { test } from "node:test";
 import * as hyparquet from "hyparquet";
 
 import { load, loadPage, settle, waitFor } from "./helpers/browser.js";
-import { makeParquet, servedFetch } from "./helpers/served.js";
+import { parquetFiles, servedFetch } from "./helpers/served.js";
 
-const page = await loadPage({ phone: true, fetch: servedFetch(makeParquet()) });
+const page = await loadPage({ phone: true, fetch: servedFetch(parquetFiles()) });
 const { document, window } = page;
 window.localStorage.clear();
 globalThis.hyparquet = hyparquet;

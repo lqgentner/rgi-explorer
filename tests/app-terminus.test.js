@@ -6,7 +6,7 @@ import { test } from "node:test";
 import * as hyparquet from "hyparquet";
 
 import { load, loadPage, settle, waitFor } from "./helpers/browser.js";
-import { makeParquet, servedFetch } from "./helpers/served.js";
+import { parquetFiles, servedFetch } from "./helpers/served.js";
 
 const ALETSCH = "RGI2000-v7.0-G-11-02596";
 const TERMINUS = [8.024125568430303, 46.39832730515637];
@@ -19,7 +19,7 @@ const terminusButton = (document) =>
 test("the terminus point moves the map only when the pin is off screen or under the card", async () => {
   const page = await loadPage({
     url: `https://lqgentner.github.io/rgi-explorer/?glacier=${ALETSCH}#9/46.4/8.0`,
-    fetch: servedFetch(makeParquet()),
+    fetch: servedFetch(parquetFiles()),
   });
   globalThis.hyparquet = hyparquet;
   await load("js/app.js");

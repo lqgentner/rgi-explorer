@@ -1,11 +1,8 @@
 /* GeoParquet access reads columns by row group over an AsyncBuffer and caches them. */
 
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
-import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
-import { after, before, test } from "node:test";
+import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
 import * as hyparquet from "hyparquet";
@@ -15,18 +12,10 @@ globalThis.hyparquet = hyparquet;
 const { CARD_COLUMNS, SEARCH_COLUMNS, findRow, groupOfKey, openParquet, readColumns, readRow, rowGroupOf } =
   await import("../js/parquet.js");
 
-const SCRIPT = fileURLToPath(new URL("../scripts/make_fixture_parquet.py", import.meta.url));
-let dir;
-let file;
-let complexes;
-
-before(() => {
-  dir = fs.mkdtempSync(path.join(os.tmpdir(), "rgi-parquet-"));
-  execFileSync("python", [SCRIPT, dir]);
-  file = path.join(dir, "glaciers.parquet");
-  complexes = path.join(dir, "complexes.parquet");
-});
-after(() => fs.rmSync(dir, { recursive: true, force: true }));
+/* The fixtures that scripts/make_fixture_parquet.py writes. */
+const dir = fileURLToPath(new URL("./fixtures/parquet/", import.meta.url));
+const file = path.join(dir, "glaciers.parquet");
+const complexes = path.join(dir, "complexes.parquet");
 
 /** Wraps an AsyncBuffer and counts its slice calls. */
 function counting(buffer) {

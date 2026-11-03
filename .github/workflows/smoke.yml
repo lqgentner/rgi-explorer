@@ -16,7 +16,10 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
-      - uses: prefix-dev/setup-pixi@v0.11.3
+      # Node's major version comes from .node-version; npm's cache from package-lock.json.
+      - uses: actions/setup-node@v7
         with:
-          cache: true
-      - run: pixi run --locked smoke
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci
+      - run: npm run smoke

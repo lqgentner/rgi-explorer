@@ -6,12 +6,12 @@ import { test } from "node:test";
 import * as hyparquet from "hyparquet";
 
 import { load, loadPage, waitFor } from "./helpers/browser.js";
-import { makeParquet, servedFetch } from "./helpers/served.js";
+import { parquetFiles, servedFetch } from "./helpers/served.js";
 
 const LIBERTY = "https://tiles.openfreemap.org/styles/liberty";
 
 test("a missing base style says the map could not be loaded and logs one error", async () => {
-  const fetch = servedFetch(makeParquet(), [], (url) => (url === LIBERTY ? new Response("{}", { status: 404 }) : null));
+  const fetch = servedFetch(parquetFiles(), [], (url) => (url === LIBERTY ? new Response("{}", { status: 404 }) : null));
   const { document } = await loadPage({ fetch });
   globalThis.hyparquet = hyparquet;
   const errors = [];

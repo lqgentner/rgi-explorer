@@ -26,12 +26,14 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: prefix-dev/setup-pixi@v0.11.3
+      # Node's major version comes from .node-version; npm's cache from package-lock.json.
+      - uses: actions/setup-node@v7
         with:
-          cache: true
+          node-version-file: .node-version
+          cache: npm
 
       - name: Install the page's libraries
-        run: pixi run --locked install
+        run: npm ci
 
       # Publish the runtime files and the page's libraries. The data stays in the mirror.
       - name: Stage the site
@@ -39,7 +41,7 @@ jobs:
           mkdir -p _site
           cp index.html style.css sw.js _site/
           cp -r js assets _site/
-          pixi run --locked node scripts/stage-libraries.mjs _site
+          node scripts/stage-libraries.mjs _site
           du -sh _site
 
       - uses: actions/upload-pages-artifact@v5

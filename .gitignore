@@ -1,7 +1,5 @@
 .superpowers/
 node_modules/
-.pixi/
 _site/
 __pycache__/
 .DS_Store
-.dmypy*.json

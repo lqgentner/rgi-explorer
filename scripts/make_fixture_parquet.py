@@ -1,8 +1,14 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = ["pyarrow"]
+# ///
 """Write small glaciers, complexes and regions GeoParquet-shaped fixtures for the JavaScript tests.
 
-Usage: python scripts/make_fixture_parquet.py OUT_DIR
+Usage: uv run scripts/make_fixture_parquet.py tests/fixtures/parquet
 
 The columns and types match the mirror's glaciers, complexes and regions tables, without geometry.
+The tests read the committed output; run this again only when the fixtures change. pyarrow
+writes them as the mirror's files are written, which a JavaScript writer would not.
 """
 
 import datetime as dt

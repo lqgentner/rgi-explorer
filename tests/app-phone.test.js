@@ -6,10 +6,10 @@ import { test } from "node:test";
 import * as hyparquet from "hyparquet";
 
 import { load, loadPage, waitFor } from "./helpers/browser.js";
-import { GLACIERS_URL, makeParquet, servedFetch } from "./helpers/served.js";
+import { GLACIERS_URL, parquetFiles, servedFetch } from "./helpers/served.js";
 
 const ALETSCH = "RGI2000-v7.0-G-11-02596";
-const page = await loadPage({ phone: true, fetch: servedFetch(makeParquet()) });
+const page = await loadPage({ phone: true, fetch: servedFetch(parquetFiles()) });
 const { document, window } = page;
 globalThis.hyparquet = hyparquet;
 await load("js/app.js");

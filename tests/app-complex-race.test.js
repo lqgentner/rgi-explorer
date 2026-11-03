@@ -6,12 +6,12 @@ import { test } from "node:test";
 import * as hyparquet from "hyparquet";
 
 import { load, loadPage, settle, waitFor } from "./helpers/browser.js";
-import { COMPLEXES_URL, makeParquet, servedFetch } from "./helpers/served.js";
+import { COMPLEXES_URL, parquetFiles, servedFetch } from "./helpers/served.js";
 
 test("a glacier opened during the ?complex= read clears the complex for good", async () => {
   let release;
   const held = new Promise((resolve) => (release = resolve));
-  const fetch = servedFetch(makeParquet(), [], async (url) => {
+  const fetch = servedFetch(parquetFiles(), [], async (url) => {
     if (url === COMPLEXES_URL) await held;
     return null;
   });

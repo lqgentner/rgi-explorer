@@ -6,12 +6,12 @@ import { test } from "node:test";
 import * as hyparquet from "hyparquet";
 
 import { load, loadPage, waitFor } from "./helpers/browser.js";
-import { makeParquet, servedFetch } from "./helpers/served.js";
+import { parquetFiles, servedFetch } from "./helpers/served.js";
 
 test("a ?glacier= link shows no welcome and leaves it for the next visit", async () => {
   const page = await loadPage({
     url: "https://lqgentner.github.io/rgi-explorer/?glacier=RGI2000-v7.0-G-11-02596",
-    fetch: servedFetch(makeParquet()),
+    fetch: servedFetch(parquetFiles()),
   });
   const { document, window } = page;
   window.localStorage.clear();

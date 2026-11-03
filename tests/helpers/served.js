@@ -4,9 +4,7 @@
  * data host does.
  */
 
-import { execFileSync } from "node:child_process";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 
 import { REPO } from "./browser.js";
@@ -17,20 +15,16 @@ export const COMPLEXES_URL = `${DATA}v7.0/complexes/rgi7.0-complexes.parquet`;
 export const REGIONS_URL = `${DATA}v7.0/regions/rgi7.0-regions.parquet`;
 const LIBERTY = "https://tiles.openfreemap.org/styles/liberty";
 const FIXTURES = path.join(REPO, "tests", "fixtures");
+/* The glaciers, complexes and regions fixtures that scripts/make_fixture_parquet.py writes. */
+export const PARQUET_DIR = path.join(FIXTURES, "parquet");
 
-/** The glaciers, complexes and regions fixture files as bytes, from scripts/make_fixture_parquet.py. */
-export function makeParquet() {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "rgi-served-"));
-  try {
-    execFileSync("python", [path.join(REPO, "scripts", "make_fixture_parquet.py"), dir]);
-    return {
-      [GLACIERS_URL]: fs.readFileSync(path.join(dir, "glaciers.parquet")),
-      [COMPLEXES_URL]: fs.readFileSync(path.join(dir, "complexes.parquet")),
-      [REGIONS_URL]: fs.readFileSync(path.join(dir, "regions.parquet")),
-    };
-  } finally {
-    fs.rmSync(dir, { recursive: true, force: true });
-  }
+/** The parquet fixtures as bytes, by the URL the catalog fixture gives each. */
+export function parquetFiles() {
+  return {
+    [GLACIERS_URL]: fs.readFileSync(path.join(PARQUET_DIR, "glaciers.parquet")),
+    [COMPLEXES_URL]: fs.readFileSync(path.join(PARQUET_DIR, "complexes.parquet")),
+    [REGIONS_URL]: fs.readFileSync(path.join(PARQUET_DIR, "regions.parquet")),
+  };
 }
 
 /**

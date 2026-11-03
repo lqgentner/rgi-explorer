@@ -6,10 +6,10 @@ import { test } from "node:test";
 import * as hyparquet from "hyparquet";
 
 import { FakeMap, load, loadPage, waitFor } from "./helpers/browser.js";
-import { makeParquet, servedFetch } from "./helpers/served.js";
+import { parquetFiles, servedFetch } from "./helpers/served.js";
 
 test("a mount that throws leaves the map message and one logged error", async () => {
-  const { document } = await loadPage({ fetch: servedFetch(makeParquet()) });
+  const { document } = await loadPage({ fetch: servedFetch(parquetFiles()) });
   globalThis.hyparquet = hyparquet;
   globalThis.maplibregl.Map = class extends FakeMap {
     on(event, fn) {

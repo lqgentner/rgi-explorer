@@ -10,7 +10,7 @@ import { test } from "node:test";
 import * as hyparquet from "hyparquet";
 
 import { load, loadPage, waitFor } from "./helpers/browser.js";
-import { makeParquet, servedFetch } from "./helpers/served.js";
+import { parquetFiles, servedFetch } from "./helpers/served.js";
 
 const refused = () => {
   throw new Error("Refused to compile WebAssembly under the page's CSP");
@@ -31,7 +31,7 @@ globalThis.WebAssembly = {
 };
 
 test("without WebAssembly the page starts the map and searches the ZSTD index", async () => {
-  const page = await loadPage({ fetch: servedFetch(makeParquet()) });
+  const page = await loadPage({ fetch: servedFetch(parquetFiles()) });
   const { document, window } = page;
   globalThis.hyparquet = hyparquet;
   const errors = [];

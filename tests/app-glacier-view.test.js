@@ -6,14 +6,14 @@ import { test } from "node:test";
 import * as hyparquet from "hyparquet";
 
 import { load, loadPage, settle, waitFor } from "./helpers/browser.js";
-import { makeParquet, servedFetch } from "./helpers/served.js";
+import { parquetFiles, servedFetch } from "./helpers/served.js";
 
 const ID = "RGI2000-v7.0-G-11-00001";
 
 test("?glacier= with a view hash opens the card without moving the map", async () => {
   const page = await loadPage({
     url: `https://lqgentner.github.io/rgi-explorer/?glacier=${ID}&3d=1#9/46.2/8.3`,
-    fetch: servedFetch(makeParquet()),
+    fetch: servedFetch(parquetFiles()),
   });
   globalThis.hyparquet = hyparquet;
   await load("js/app.js");

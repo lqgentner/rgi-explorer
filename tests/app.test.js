@@ -11,7 +11,7 @@ import { test } from "node:test";
 import * as hyparquet from "hyparquet";
 
 import { load, loadPage, settle, waitFor } from "./helpers/browser.js";
-import { GLACIERS_URL, makeParquet, servedFetch } from "./helpers/served.js";
+import { GLACIERS_URL, parquetFiles, servedFetch } from "./helpers/served.js";
 
 const fixture = (p) => JSON.parse(fs.readFileSync(new URL(`./fixtures/${p}`, import.meta.url), "utf8"));
 const RINGS = fixture("aletsch-rings.json");
@@ -48,7 +48,7 @@ async function extra(url, init) {
 }
 
 const log = [];
-const page = await loadPage({ fetch: servedFetch(makeParquet(), log, extra) });
+const page = await loadPage({ fetch: servedFetch(parquetFiles(), log, extra) });
 const { document, window } = page;
 globalThis.hyparquet = hyparquet;
 const copied = [];

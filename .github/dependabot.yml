@@ -1,0 +1,31 @@
+# Dependabot keeps the npm libraries and the GitHub Actions current. Version
+# updates wait three days after a release; security updates do not wait. A
+# merged update deploys the site, so nothing merges itself. A page library that
+# gains a dependency needs its license in assets/third-party-licenses.txt by
+# hand; the tests catch a new bare import the import map lacks.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 3
+    groups:
+      # The test tools never reach the page: their minor and patch bumps share one PR.
+      test-tools:
+        dependency-type: development
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 3
+    groups:
+      github-actions:
+        patterns: ["*"]
+        update-types: [minor, patch]
