@@ -12,11 +12,27 @@ const DEBOUNCE_MS = 250;
 const ICONS = { glacier: "mountain-snow", complex: "group", region: "square-dashed", place: "map-pin" };
 
 /**
+ * A hit from search.js or photon.js. Which of the optional fields it has
+ * depends on its kind.
+ *
+ * @typedef {object} SearchHit
+ * @property {"glacier" | "complex" | "region" | "place"} kind
+ * @property {string} title
+ * @property {string} subtitle
+ * @property {number} score
+ * @property {string} [rgiId]  a glacier's
+ * @property {number} [row]  a glacier's row in the glacier index
+ * @property {string} [complexId]  a complex's
+ * @property {{xmin: number, ymin: number, xmax: number, ymax: number}} [bbox]  a region's
+ * @property {[number, number]} [center]  a place's [lon, lat]
+ */
+
+/**
  * Mount the search box in `root`.
  *
  * @param {HTMLElement} root
  * @param {object} options
- * @param {(hit: object) => void} options.onPick
+ * @param {(hit: SearchHit) => void} options.onPick
  * @param {() => Promise<object>} options.loadGlacierIndex  called once, on first focus or input
  * @param {object[]} options.regions
  * @param {() => {lat: number, lon: number, zoom: number}} options.view
@@ -227,7 +243,7 @@ export function mountSearch(root, { onPick, loadGlacierIndex, regions, view }) {
   });
   /* Full screen, the list stays while the keyboard is put away. */
   root.addEventListener("focusout", (event) => {
-    if (!root.contains(event.relatedTarget) && !isFull()) hide();
+    if (!root.contains(/** @type {Node | null} */ (event.relatedTarget)) && !isFull()) hide();
   });
   backButton.addEventListener("click", leave);
   /* The press keeps the focus, and the keyboard, in the input. */

@@ -16,6 +16,8 @@ import {
 import { BASE_PAINT, rgiStyle, TOGGLES } from "./styles.js";
 import { PREVIEW_SPAN } from "./viewpreview.js";
 
+/** @typedef {import("maplibre-gl").ExpressionSpecification} ExpressionSpecification */
+
 const SELECTION_RED = "#d93025";
 const DIM_GREY = "#5f6368";
 /*
@@ -48,6 +50,7 @@ const sky = (base) => ({
 const IMAGERY_BACKGROUND = "#3c4043";
 /* A fit that would fly longer than this, in ms, jumps there: a far flight is a long wait. */
 const FLY_MAX_MS = 2000;
+/** @type {ExpressionSpecification} */
 const POINTS = ["in", ["geometry-type"], ["literal", ["Point", "MultiPoint"]]];
 /* The camera tilt in 3D, in degrees from straight down. */
 const TERRAIN_PITCH = 60;
@@ -128,6 +131,8 @@ function splitLiberty(liberty) {
  * One style: Liberty, the imagery layer, the RGI layers and the selection
  * layers. The imagery and the RGI fills and lines go between Liberty's flat
  * layers and its borders and labels (see splitLiberty).
+ *
+ * @returns {import("maplibre-gl").StyleSpecification}
  */
 function buildStyle(liberty, rgi, state) {
   const { base, cut, covered, background } = splitLiberty(liberty);
@@ -423,7 +428,8 @@ export async function createMap(container, catalog, state, liberty = fetchLibert
     transformCameraUpdate: ({ center }) =>
       Math.abs(center.lat) > MAX_LAT ? { center: new maplibregl.LngLat(center.lng, clampLat(center.lat)) } : {},
   });
-  await new Promise((resolve, reject) => {
+  /** @type {Promise<void>} */
+  const loaded = new Promise((resolve, reject) => {
     const fail = (event) => {
       if (event?.sourceId || event?.tile) return;
       map.off("error", fail);
@@ -435,8 +441,10 @@ export async function createMap(container, catalog, state, liberty = fetchLibert
       resolve();
     });
   });
+  await loaded;
 
   const rgiToggles = rgi.layers.map((layer) => [layer.id, toggleOf(layer)]).filter(([, n]) => n);
+  /** @type {(id: string) => ExpressionSpecification} */
   const idFilter = (id) => ["==", ["get", "rgi_id"], id];
   const SELECTION = ["selection-dim", "selection-fill", "selection-outline", "selection-dot", "selection-label"];
   const COMPLEX = ["complex-fill", "complex-members", "complex-labels", "complex-outline", "complex-dot"];
@@ -506,7 +514,9 @@ export async function createMap(container, catalog, state, liberty = fetchLibert
       }
       const paint = BASE_PAINT[base];
       for (const [id, properties] of Object.entries(paint)) {
-        for (const [key, value] of Object.entries(properties)) map.setPaintProperty(id, key, value);
+        for (const [key, value] of Object.entries(properties)) {
+          map.setPaintProperty(id, /** @type {Parameters<typeof map.setPaintProperty>[1]} */ (key), value);
+        }
       }
       /* The selections redraw the glacier fill, and a complex its members' outlines, above the dimming. */
       map.setPaintProperty("selection-dim", "fill-opacity", DIM_OPACITY[base]);
@@ -557,7 +567,7 @@ export async function createMap(container, catalog, state, liberty = fetchLibert
     },
 
     pin(lonLat) {
-      map.getSource("pin").setData(
+      /** @type {import("maplibre-gl").GeoJSONSource} */ (map.getSource("pin")).setData(
         lonLat
           ? {
               type: "Feature",
@@ -642,6 +652,7 @@ export async function createMap(container, catalog, state, liberty = fetchLibert
       const step = BBOX_SAMPLES - 1;
       for (let i = 0; i <= step; i += 1) {
         for (let j = 0; j <= step; j += 1) {
+          /** @type {[number, number]} */
           const place = [xmin + turn + ((east - xmin) * i) / step, clampLat(ymin + ((ymax - ymin) * j) / step)];
           const point = map.project(place);
           if (!Number.isFinite(point.x) || !Number.isFinite(point.y) || !nearSide(place, point)) return null;

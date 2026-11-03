@@ -234,6 +234,10 @@ function build() {
  * Opens the viewer on `items` at `index`. `onClose(index)` hears the image it
  * closed on; focus then goes to `returnFocus`, an element or a function of
  * that index.
+ *
+ * @param {ViewerItem[]} items
+ * @param {number} index
+ * @param {{onClose?: (index: number) => void, returnFocus?: HTMLElement | ((index: number) => HTMLElement | null | undefined)}} [options]
  */
 export function openViewer(items, index, { onClose, returnFocus } = {}) {
   if (!items.length) return;

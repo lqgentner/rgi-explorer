@@ -130,7 +130,7 @@ function textOf(html) {
   let text;
   if (typeof globalThis.DOMParser === "function") {
     const { body } = new globalThis.DOMParser().parseFromString(String(html), "text/html");
-    for (const node of body.querySelectorAll("[style]")) if (node.style.display === "none") node.remove();
+    for (const node of body.querySelectorAll("[style]")) if (/** @type {HTMLElement} */ (node).style.display === "none") node.remove();
     text = body.textContent;
   } else {
     text = String(html)
@@ -151,6 +151,9 @@ const pageUrl = (name) => `https://commons.wikimedia.org/wiki/File:${encodeURICo
 /**
  * Photos with author and license for `files` (`{ file, item, property? }`), in input order.
  * Files Commons has no thumbnail for are skipped.
+ *
+ * @param {{file: string, item: string, property?: string}[]} files
+ * @param {import("./catalog.js").FetchOptions} [options]
  */
 export async function commonsCredits(files, { fetch, signal } = {}) {
   if (!files.length) return [];
@@ -190,6 +193,10 @@ export async function commonsCredits(files, { fetch, signal } = {}) {
 /**
  * The URL of a `width`-wide Commons thumbnail of `file`, or null on any error.
  * Commons may round the width up to one of its standard sizes.
+ *
+ * @param {string} file
+ * @param {number} width
+ * @param {import("./catalog.js").FetchOptions} [options]
  */
 export async function commonsThumb(file, width, { fetch, signal } = {}) {
   const params = new URLSearchParams({
@@ -210,7 +217,12 @@ export async function commonsThumb(file, width, { fetch, signal } = {}) {
   }
 }
 
-/** The first image files in each Commons category, categories in order. */
+/**
+ * The first image files in each Commons category, categories in order.
+ *
+ * @param {string[]} categories
+ * @param {import("./catalog.js").FetchOptions} [options]
+ */
 export async function categoryFiles(categories, { fetch, signal } = {}) {
   const results = await Promise.all(
     categories.map(async (name) => {
@@ -291,7 +303,7 @@ export function imagerySource(data) {
   const found = results.map((result) => result?.attributes ?? {}).find(({ NICE_DESC: name }) => name && name !== "Null");
   if (!found) return null;
   const [, year, month, day] = /^(\d{4})(\d{2})(\d{2})$/.exec(found.SRC_DATE ?? "") ?? [];
-  const date = MONTHS[month - 1] ? `${Number(day)} ${MONTHS[month - 1]} ${year}` : null;
+  const date = MONTHS[Number(month) - 1] ? `${Number(day)} ${MONTHS[Number(month) - 1]} ${year}` : null;
   return { provider: found.NICE_DESC, date };
 }
 
@@ -347,6 +359,10 @@ async function gather(glacier, rings, { fetch, signal }) {
 /**
  * Photos for `glacier` (`{ props: { glims_id, bbox } }`) given the outline `rings`.
  * Resolves to `[]` without a bbox, on any error, on abort and after the timeout.
+ *
+ * @param {{rgiId?: string, props?: Record<string, any>}} glacier
+ * @param {number[][][]} rings  [lon, lat] rings
+ * @param {import("./catalog.js").FetchOptions & {timeoutMs?: number}} [options]
  */
 export async function findPhotos(glacier, rings, { fetch = globalThis.fetch, signal, timeoutMs = TIMEOUT_MS } = {}) {
   if (!glacier?.props?.bbox) return [];

@@ -1,0 +1,16 @@
+{
+  // The service worker runs with the webworker lib, not the DOM, so it is
+  // checked on its own. Lenient, as tsconfig.json is. types/sw.d.ts gives
+  // `self` the ServiceWorkerGlobalScope members sw.js uses.
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+    "strict": false,
+    "skipLibCheck": true,
+    "target": "es2023",
+    "lib": ["es2023", "webworker"],
+    "types": []
+  },
+  "files": ["sw.js", "types/sw.d.ts"]
+}

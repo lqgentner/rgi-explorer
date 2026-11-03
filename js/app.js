@@ -216,7 +216,11 @@ async function membersOf(props, glaciers) {
     .sort((a, b) => (b.area ?? -Infinity) - (a.area ?? -Infinity));
 }
 
-/** Resolve on the map's next idle, after TIMEOUT_MS, or on abort, whichever comes first. */
+/**
+ * Resolve on the map's next idle, after TIMEOUT_MS, or on abort, whichever comes first.
+ *
+ * @returns {Promise<void>}
+ */
 function nextIdle(map, signal) {
   return new Promise((resolve) => {
     const done = () => {
@@ -483,7 +487,7 @@ function wire(catalog, rgiMap, regions) {
   for (const scroller of [el("card"), el("sheet-body")]) scroller.addEventListener("scroll", used, { capture: true, passive: true });
   for (const panelRoot of [el("card"), el("sheet")]) {
     panelRoot.addEventListener("click", (event) => {
-      if (event.target.closest?.("button.info, table.members tr")) used();
+      if (/** @type {Element} */ (event.target).closest?.("button.info, table.members tr")) used();
     });
   }
   /*

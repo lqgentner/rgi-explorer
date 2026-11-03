@@ -20,7 +20,7 @@ export const scrollbarWidth = (node) => Math.max(0, (node?.offsetWidth ?? 0) - (
  * already stay so.
  */
 export function inertAround(...keep) {
-  const nodes = [...document.body.children].filter(
+  const nodes = /** @type {HTMLElement[]} */ ([...document.body.children]).filter(
     (node) => !keep.some((kept) => node.contains(kept)) && !node.matches("script, .notice") && !node.inert,
   );
   for (const node of nodes) node.inert = true;

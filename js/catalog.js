@@ -3,7 +3,18 @@
 const COLLECTION_ID = /^rgi-v(\d+)-(\d+)-(\w+)$/;
 const NAMES = ["glaciers", "regions", "complexes", "centerlines", "intersects"];
 
-/** The JSON at `url`; rejects on an HTTP error. */
+/**
+ * @typedef {object} FetchOptions
+ * @property {typeof globalThis.fetch} [fetch]
+ * @property {AbortSignal} [signal]
+ */
+
+/**
+ * The JSON at `url`; rejects on an HTTP error.
+ *
+ * @param {string | URL} url
+ * @param {FetchOptions} [options]
+ */
 export async function fetchJson(url, { fetch = globalThis.fetch, signal } = {}) {
   const response = await fetch(url, { signal });
   if (!response.ok) throw new Error(`${url}: HTTP ${response.status}`);

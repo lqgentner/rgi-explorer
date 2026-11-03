@@ -79,7 +79,7 @@ const listeners = [];
 function outerHeight(node) {
   if (!node.getClientRects().length) return 0;
   const style = getComputedStyle(node);
-  return node.offsetHeight + parseFloat(style.marginTop || 0) + parseFloat(style.marginBottom || 0);
+  return node.offsetHeight + parseFloat(style.marginTop || "0") + parseFloat(style.marginBottom || "0");
 }
 
 /*
