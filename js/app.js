@@ -119,6 +119,12 @@ function retrying(load) {
     }));
 }
 
+/** Run `fn` when the browser is idle, or soon where it cannot tell (Safari). */
+function whenIdle(fn, timeout = TIMEOUT_MS) {
+  if (typeof requestIdleCallback === "function") requestIdleCallback(() => fn(), { timeout });
+  else setTimeout(fn, 0);
+}
+
 /**
  * The glaciers GeoParquet, opened on first use, and its search index, read on
  * first use. A failed open or read is tried again on the next use.
@@ -742,6 +748,20 @@ function wire(catalog, rgiMap, regions) {
       return { lat, lon: lng, zoom: map.getZoom() };
     },
   });
+
+  /*
+   * Read the search index once the first view's tiles have loaded and the
+   * browser is idle, so it is ready before the first query and does not
+   * compete with the tiles. It takes about 140 range requests, 2-4 s on the
+   * data host. A browser that asks to save data reads it on the search's
+   * first focus instead.
+   */
+  if (!(/** @type {any} */ (navigator).connection?.saveData)) {
+    const prefetch = () =>
+      whenIdle(() => glaciers.index().catch((error) => console.warn("search index:", error.message)));
+    if (isSettled(map)) prefetch();
+    else map.once("idle", prefetch);
+  }
 
   /* A shared link's glacier opens once its row group places it; an ID the file lacks is dropped. */
   if (state.glacier) {

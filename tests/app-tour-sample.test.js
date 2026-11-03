@@ -12,24 +12,24 @@ const UPSALA = "RGI2000-v7.0-G-17-04760";
 const page = await loadPage({ fetch: servedFetch(parquetFiles()) });
 const { document, window } = page;
 window.localStorage.clear();
+/* The index is the read of exactly the search columns; it never finishes here. */
+const isIndex = (columns) => columns?.join() === "rgi_id,display_name,complex_id";
 const reads = [];
 globalThis.hyparquet = {
   ...hyparquet,
   parquetReadObjects(options) {
     reads.push(options.columns ?? []);
-    return hyparquet.parquetReadObjects(options);
+    return isIndex(options.columns) ? new Promise(() => {}) : hyparquet.parquetReadObjects(options);
   },
 };
 await load("js/app.js");
 const button = (root, label) => [...root.querySelectorAll("button")].find((b) => b.textContent === label && !b.hidden);
 
-test("Take me to a glacier finds Upsala by its row group and never reads the search index", async () => {
+test("Take me to a glacier finds Upsala by its row group while the search index is still read", async () => {
   const welcome = await waitFor(() => document.querySelector(".welcome:not([hidden])"));
   button(welcome, "Take the tour").click();
   button(document.querySelector(".tour"), "Take me to a glacier").click();
   await waitFor(() => location.search.includes(`glacier=${UPSALA}`));
   await waitFor(() => document.querySelector("#card .card-title")?.textContent === "Upsala Glacier");
-  /* The index is the one read of exactly the search columns; the card's own row read is a single row. */
-  const index = reads.filter((columns) => columns.join() === "rgi_id,display_name,complex_id");
-  assert.deepEqual(index, [], "the search index was not read");
+  assert.ok(reads.some(isIndex), "the index read had started and was held");
 });
