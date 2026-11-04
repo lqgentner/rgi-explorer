@@ -47,7 +47,10 @@ function toCollection({ url, json }) {
   const style = assets.find((a) => a.roles?.includes("default"));
   const pmtiles = json.assets?.pmtiles;
   const abs = (asset) => (asset ? resolve(asset.href, url) : null);
-  return { id: json.id, dataUrl: abs(data), pmtilesUrl: abs(pmtiles), styleUrl: abs(style), json };
+  /* The data file's size spares a HEAD request before its first read. */
+  const size = data?.["file:size"];
+  const dataSize = Number.isInteger(size) && size > 0 ? size : null;
+  return { id: json.id, dataUrl: abs(data), dataSize, pmtilesUrl: abs(pmtiles), styleUrl: abs(style), json };
 }
 
 const dataAsset = (collection) => Object.values(collection.assets ?? {}).find((a) => a.roles?.includes("data"));

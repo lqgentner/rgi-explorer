@@ -30,6 +30,18 @@ test("resolves the glaciers assets to absolute URLs", async () => {
   assert.equal(c.collections.glaciers.id, "rgi-v7-0-glaciers");
 });
 
+test("gives each data file's size from file:size, or null", async () => {
+  const c = await loadCatalog(
+    ROOT,
+    fixtureFetch((path, json) => {
+      if (path === "v7.0/glaciers/collection.json") delete json.assets.data["file:size"];
+    }),
+  );
+  assert.equal(c.collections.regions.dataSize, 955336);
+  assert.equal(c.collections.complexes.dataSize, 213284871);
+  assert.equal(c.collections.glaciers.dataSize, null);
+});
+
 test("resolves against the URL the JSON was fetched from", async () => {
   const fetched = [];
   const local = "http://localhost:8000/catalog/catalog.json";

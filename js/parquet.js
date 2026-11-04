@@ -23,11 +23,38 @@ const files = new WeakMap();
  */
 const caches = new WeakMap();
 
-/** Opens a GeoParquet from a URL or an AsyncBuffer and lists its row groups. */
-export async function openParquet(source) {
-  const { asyncBufferFromUrl, parquetMetadataAsync } = globalThis.hyparquet;
-  const file = typeof source === "string" ? await asyncBufferFromUrl({ url: source }) : source;
-  const metadata = await parquetMetadataAsync(file);
+/*
+ * Reads skip the HTTP cache. Chrome lets one request per URL write a cache
+ * entry at a time, so the parallel range reads of one file would queue behind
+ * that lock instead of running at once. The data host marks every response
+ * no-cache, so the cache could at best revalidate a read: a round trip either
+ * way.
+ */
+const requestInit = { cache: /** @type {RequestCache} */ ("no-store") };
+
+/** An AsyncBuffer over the file at `url`; without `byteLength`, a HEAD request gives the size. */
+const fromUrl = (url, byteLength) =>
+  globalThis.hyparquet.asyncBufferFromUrl(byteLength ? { url, byteLength, requestInit } : { url, requestInit });
+
+/**
+ * Opens a GeoParquet from a URL or an AsyncBuffer and lists its row groups.
+ * `byteLength`, the size a catalog gives for the URL, spares a HEAD request;
+ * when the file proves it wrong, the size comes from a HEAD request instead.
+ *
+ * @param {string | import("hyparquet").AsyncBuffer} source
+ * @param {{ byteLength?: number }} [options]
+ */
+export async function openParquet(source, { byteLength } = {}) {
+  const { parquetMetadataAsync } = globalThis.hyparquet;
+  let file = typeof source === "string" ? await fromUrl(source, byteLength) : source;
+  let metadata;
+  try {
+    metadata = await parquetMetadataAsync(file);
+  } catch (error) {
+    if (typeof source !== "string" || !byteLength) throw error;
+    file = await fromUrl(source);
+    metadata = await parquetMetadataAsync(file);
+  }
   const groups = [];
   let start = 0;
   for (const group of metadata.row_groups) {

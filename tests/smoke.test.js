@@ -60,4 +60,11 @@ test("the live catalog serves the data the page reads", { skip: process.env.SMOK
       "row group 0 holds no display_name",
     );
   });
+
+  await t.test("gives each data file's own size, which the page reads without a HEAD request", async () => {
+    for (const [name, collection] of Object.entries(catalog.collections)) {
+      const response = await fetch(collection.dataUrl, { method: "HEAD" });
+      assert.equal(collection.dataSize, Number(response.headers.get("content-length")), name);
+    }
+  });
 });

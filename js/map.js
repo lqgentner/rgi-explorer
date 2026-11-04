@@ -78,13 +78,33 @@ const WORLD = {
   },
 };
 
-let protocolRegistered = false;
+let protocol = null;
 
-function registerProtocol() {
-  if (protocolRegistered) return;
-  const protocol = new globalThis.pmtiles.Protocol();
-  globalThis.maplibregl.addProtocol("pmtiles", protocol.tile);
-  protocolRegistered = true;
+/**
+ * The archive at `url`, read with `cache: "no-store"`. Every tile is a range
+ * request to the same URL, and Chrome lets one request per URL write a cache
+ * entry at a time, so a view's tiles would queue behind that lock instead of
+ * loading at once. The data host marks its responses no-cache, so the cache
+ * could at best revalidate a read: a round trip either way. pmtiles sets this
+ * flag itself only for Chrome on Windows; the lock is not Windows-only. After
+ * an ETag mismatch, an archive replaced mid-session, pmtiles reads with
+ * cache: "reload" instead.
+ */
+function uncachedArchive(url) {
+  const { FetchSource, PMTiles } = globalThis.pmtiles;
+  const source = new FetchSource(url);
+  if (!("chromeWindowsNoCache" in source)) console.warn("pmtiles: FetchSource has no chromeWindowsNoCache flag");
+  source.chromeWindowsNoCache = true;
+  return new PMTiles(source);
+}
+
+/** Serves pmtiles:// URLs, the archive at `url` past the HTTP cache. */
+function registerProtocol(url) {
+  if (!protocol) {
+    protocol = new globalThis.pmtiles.Protocol();
+    globalThis.maplibregl.addProtocol("pmtiles", protocol.tile);
+  }
+  if (!protocol.get(url)) protocol.add(uncachedArchive(url));
 }
 
 /** Liberty's style, which needs no catalog: start it early and pass the promise to createMap. */
@@ -406,7 +426,7 @@ export async function createMap(container, catalog, state, liberty = fetchLibert
   liberty = await liberty;
   const rgi = rgiStyle(catalog.collections.glaciers.pmtilesUrl);
 
-  registerProtocol();
+  registerProtocol(catalog.collections.glaciers.pmtilesUrl);
   const { maplibregl } = globalThis;
   const view = state.view ?? startView();
   /*
