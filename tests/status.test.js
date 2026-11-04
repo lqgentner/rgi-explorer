@@ -325,13 +325,29 @@ test("on desktop the scale and the credits sit in two columns, top-aligned, and 
   assert.match(desktop, /(^|\n)\.credits-button\s*\{\s*display:\s*none;/, "the info button is the phone's");
 });
 
-test("no space separates the credit groups, so the credits wrap inside a group, not between groups", () => {
+test("a line breaks only between credits: each is one box, and a label shares its first credit's", () => {
   const root = document.createElement("div");
   const rgiMap = { map: new FakeMap({ center: [8, 46.48], zoom: 11 }), onMove: () => {} };
   mountStatus(root, rgiMap, catalog, () => ({ base: "imagery", terrain: false }));
   const list = root.querySelector(".credits");
   assert.ok(list.children.length > 1);
   assert.equal(list.childNodes.length, list.children.length, "no text nodes between the groups");
+  for (const group of list.children) {
+    const lead = group.firstElementChild;
+    assert.equal(lead.className, "credit-lead");
+    assert.equal(lead.querySelectorAll(".credit").length, 1, group.textContent);
+    /* After the lead, only ", " between credits. */
+    for (const node of [...group.childNodes].slice(1)) {
+      assert.ok(node.nodeType === 3 ? node.textContent === ", " : node.classList.contains("credit"), group.textContent);
+    }
+  }
+  const glaciers = list.querySelector(".credit-lead");
+  assert.equal(glaciers.textContent, "GlaciersRGI Consortium 2023");
+  const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
+  assert.match(css, /\.credit,\n\.credit-lead \{\s*display: inline-block;/);
+  /* The separator hangs into the previous group's margin, which a line break drops. */
+  assert.match(css, /\.credit-group:not\(:last-child\) \{\s*margin-right: 17px;/);
+  assert.match(css, /\.credit-group \+ \.credit-group > \.credit-lead \{\s*margin-left: -17px;/);
   const box = root.querySelector(".credits-box");
   assert.deepEqual([...root.children], [root.querySelector(".scale"), box], "the scale, then the credits column");
 });
@@ -343,4 +359,17 @@ test("a copyright sign stays on the line of the name it belongs to", () => {
   const signs = [...root.querySelectorAll(".credit")].map((c) => c.textContent).filter((t) => t.includes("©"));
   assert.ok(signs.length >= 2);
   for (const text of signs) assert.match(text, /©\u00a0/);
+});
+
+test("a Privacy link ends the credits and opens the privacy note", () => {
+  const root = document.createElement("div");
+  const rgiMap = { map: new FakeMap({ center: [8, 46.48], zoom: 11 }), onMove: () => {} };
+  let opened = 0;
+  const status = mountStatus(root, rgiMap, catalog, () => ({ base: "standard", terrain: false }), { onPrivacy: () => opened++ });
+  const last = () => root.querySelector(".credit-group:last-child");
+  assert.equal(last().textContent, "Privacy");
+  last().querySelector("button").click();
+  assert.equal(opened, 1);
+  status.refresh();
+  assert.equal(last().textContent, "Privacy", "a redraw keeps it last");
 });

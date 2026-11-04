@@ -370,7 +370,7 @@ function wire(catalog, rgiMap, regions) {
     if (pitch > 0) rgiMap.level();
   });
   mountZoom(el("controls"), rgiMap);
-  status = mountStatus(el("status"), rgiMap, catalog, () => state);
+  status = mountStatus(el("status"), rgiMap, catalog, () => state, { onPrivacy: openPrivacy });
 
   /*
    * The welcome shows on a first visit, unless a shared link opens straight
