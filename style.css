@@ -11,9 +11,8 @@
   --image-placeholder: #9aa0a6;
   --shadow: 0 1px 3px rgb(60 64 67 / 30%), 0 4px 8px 3px rgb(60 64 67 / 15%);
   /*
-   * Lower-priority surfaces, the phone's help and info buttons, the credits,
-   * the tour's card and the photo's arrows, credit and count, let the map or
-   * the photo through, frosted. GLACE Viewer darkens the backdrop of
+   * Lower-priority surfaces over the map, the phone's help and info buttons,
+   * the credits and the tour's card, let the map through, frosted. GLACE Viewer darkens the backdrop of
    * its dark panels so bright imagery keeps under their tint; these light
    * ones do the reverse: the filter squeezes the backdrop's contrast and
    * lifts it, so space and dark imagery show through light, not grey, and the
@@ -30,6 +29,15 @@
   --quiet-muted: #4d5156;
   /* Blue text on them, such as an outlined button's: 5:1 over space. */
   --quiet-accent: #174ea6;
+  /*
+   * Over a photo the photo is the content, so its controls take a plainer,
+   * lighter glass than the map's frost, which would wash it out: faint arrows,
+   * a light credit and a dark count.
+   */
+  --photo-glass: rgb(255 255 255 / 45%);
+  --photo-glass-strong: rgb(255 255 255 / 72%);
+  --photo-dark: rgb(32 33 36 / 62%);
+  --photo-blur: blur(6px);
   --space: #10141c;
   --card-w: 408px;
   /*
@@ -122,6 +130,10 @@ kbd {
     --quiet-filter: none;
     --quiet-muted: var(--muted);
     --quiet-accent: var(--accent);
+    --photo-glass: var(--surface);
+    --photo-glass-strong: var(--surface);
+    --photo-dark: var(--text);
+    --photo-blur: none;
   }
 }
 
@@ -2060,11 +2072,7 @@ a.external .icon {
 }
 
 /*
- * The photo's arrows, credit and count are frosted as the map's help button
- * and credits are: the arrows with the buttons' tint, the credit and the count
- * with the credits'. Each frosts its own box, not glass reaching past it as
- * over the map: the photo does not pan under them, and glass reaching past
- * the photo's edge would blur the card and the map into it. The arrows show
+ * The photo arrows are faint glass, so the photo shows through. They show
  * while the pointer or focus is on the photo, centred between the search
  * bar's bottom edge and the top of the credit row.
  */
@@ -2074,8 +2082,8 @@ a.external .icon {
   z-index: 1;
   top: calc((var(--search-top) + var(--search-h) + var(--photo-h) - var(--credit-inset) - var(--credit-row)) / 2);
   transform: translateY(-50%);
-  background: var(--quiet-button);
-  backdrop-filter: var(--quiet-filter);
+  background: var(--photo-glass);
+  backdrop-filter: var(--photo-blur);
   box-shadow: 0 1px 2px rgb(60 64 67 / 20%);
   transition: opacity 150ms ease-out;
 }
@@ -2102,7 +2110,7 @@ a.external .icon {
 
 .photo-prev:hover,
 .photo-next:hover {
-  background: var(--surface-2);
+  background: var(--photo-glass-strong);
 }
 
 /*
@@ -2117,8 +2125,8 @@ a.external .icon {
   max-width: calc(100% - 2 * var(--credit-inset) - 48px);
   padding: 2px 8px;
   border-radius: 8px;
-  background: var(--quiet-card);
-  backdrop-filter: var(--quiet-filter);
+  background: var(--photo-glass-strong);
+  backdrop-filter: var(--photo-blur);
   color: var(--text);
   font-size: 11px;
   line-height: 16px;
@@ -2144,9 +2152,8 @@ a.external .icon {
   bottom: var(--credit-inset);
   padding: 2px 8px;
   border-radius: 8px;
-  background: var(--quiet-card);
-  backdrop-filter: var(--quiet-filter);
-  color: var(--text);
+  background: var(--photo-dark);
+  color: #fff;
   font-size: 11px;
   line-height: 16px;
 }

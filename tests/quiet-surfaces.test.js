@@ -38,12 +38,13 @@ test("less transparency or more contrast makes them opaque", () => {
   }
 });
 
-test("the photo's arrows, credit and count are frosted as the map's buttons and credits, each in its own box", () => {
-  const arrows = rule("\\.photo-prev,\\n\\.photo-next");
-  assert.match(arrows, /background: var\(--quiet-button\);\s*backdrop-filter: var\(--quiet-filter\);/, "the arrows as the help button");
-  for (const chip of ["\\.photo-credit", "\\.photo-count"]) {
-    assert.match(rule(chip), /background: var\(--quiet-card\);\s*backdrop-filter: var\(--quiet-filter\);\s*color: var\(--text\);/, `${chip} as the credits`);
+test("the photo's controls take a plainer glass than the map's frost: faint arrows, a light credit, a dark count", () => {
+  assert.match(rule("\\.photo-prev,\\n\\.photo-next"), /background: var\(--photo-glass\);\s*backdrop-filter: var\(--photo-blur\);/);
+  assert.match(rule("\\.photo-credit"), /background: var\(--photo-glass-strong\);\s*backdrop-filter: var\(--photo-blur\);/);
+  assert.match(rule("\\.photo-count"), /background: var\(--photo-dark\);\s*color: #fff;/);
+  assert.doesNotMatch(css, /\.photo-[a-z]+ \{[^}]*--quiet-/, "not the map's lifted frost, which washes the photo out");
+  const block = /@media \(prefers-reduced-transparency: reduce\), \(prefers-contrast: more\) \{([\s\S]*?)\n\}/.exec(css)?.[1] ?? "";
+  for (const token of ["--photo-glass: var(--surface)", "--photo-glass-strong: var(--surface)", "--photo-dark: var(--text)", "--photo-blur: none"]) {
+    assert.ok(block.includes(token), token);
   }
-  assert.doesNotMatch(css, /\.photo-(prev|next|credit|count)::before/, "no glass past the photo's edge");
-  assert.doesNotMatch(css, /--glass|--photo-glass/, "the old glass is gone");
 });
