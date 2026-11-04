@@ -318,8 +318,8 @@ test("on desktop the scale and the credits sit in two columns, top-aligned, and 
   assert.ok(columns, "a desktop-only rule lays out #status as a row, top-aligned");
   assert.match(columns[0], /\.scale\s*\{\s*flex:\s*none;\s*\}/, "the scale keeps its width");
   assert.match(columns[0], /\.credits-box\s*\{\s*min-width:\s*0;\s*\}/, "the credits column narrows and wraps");
-  /* Outside that block nothing turns #status into a flex row, so the phone's credits box lays out as before. */
-  const rest = desktop.slice(0, columns.index) + desktop.slice(columns.index + columns[0].length) + css.slice(phoneAt);
+  /* Outside that block and the phone's own row, nothing turns #status into a flex row. */
+  const rest = desktop.slice(0, columns.index) + desktop.slice(columns.index + columns[0].length);
   assert.doesNotMatch(rest, /#status\s*\{[^}]*display:\s*(inline-)?flex/);
   assert.doesNotMatch(desktop, /(^|\n)\.credits\s*\{[^}]*display:\s*flex/, "the credits stay one text");
   assert.match(desktop, /(^|\n)\.credits-button\s*\{\s*display:\s*none;/, "the info button is the phone's");
