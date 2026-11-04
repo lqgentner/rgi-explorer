@@ -7,12 +7,26 @@ import test from "node:test";
 const css = readFileSync(new URL("../style.css", import.meta.url), "utf8");
 const rule = (selector, from = css) => new RegExp(`(^|\\n)\\s*${selector} \\{([^}]*)\\}`).exec(from)?.[2] ?? "";
 
-test("the tour card and the phone's help and info buttons take the quiet surface", () => {
-  assert.match(rule("\\.tour"), /background: var\(--quiet-card\);\s*backdrop-filter: var\(--quiet-filter\);/);
-  const phone = css.slice(css.indexOf("@media (max-width: 640px) {\n  #layers"));
-  assert.match(rule("\\.help-btn,\\n  \\.credits-box:not\\(\\.open\\)", phone), /background: var\(--quiet-button\);\s*backdrop-filter: var\(--quiet-filter\);/);
-  /* The open credits stand on white; the tour's small grey count takes the darker grey. */
+test("the frosted surfaces paint their glass past their edges and clip it back", () => {
+  const glass = rule("\\.tour::before,\\n#status::before,\\n\\.help-btn::before,\\n\\.credits-box::before");
+  assert.match(glass, /inset: calc\(-1 \* var\(--quiet-reach\)\);/, "it reaches past each edge");
+  assert.match(glass, /backdrop-filter: var\(--quiet-filter\);/);
+  assert.match(glass, /clip-path: inset\(var\(--quiet-reach\) round var\(--frost-radius\)\);/, "and is clipped back to the surface");
+  assert.match(css, /--quiet-reach: calc\(2 \* var\(--quiet-blur\)\);/, "two blur radii");
+  assert.doesNotMatch(glass, /overflow/);
+});
+
+test("the tour card everywhere, the status line on the desktop, and the help button and credits on the phone", () => {
+  assert.match(rule("\\.tour"), /--frost-tint: var\(--quiet-card\);/);
+  assert.match(rule("#status"), /--frost-tint: var\(--quiet-card\);/, "the desktop's status line");
+  const phoneAt = css.indexOf("@media (max-width: 640px) {\n  #layers");
+  const phone = css.slice(phoneAt);
+  assert.match(phone, /#status::before \{\s*content: none;/, "the phone's row is no surface");
+  assert.match(rule("\\.credits-box", phone), /--frost-tint: var\(--quiet-card\);/, "open credits, as the desktop's status line");
+  assert.match(rule("\\.help-btn,\\n  \\.credits-box:not\\(\\.open\\)", phone), /--frost-tint: var\(--quiet-button\);/);
+  assert.match(css.slice(0, phoneAt), /@media \(min-width: 641px\) \{\s*\.help-btn::before,\s*\.credits-box::before \{\s*content: none;/, "the desktop's help button stays opaque");
   assert.match(rule("\\.tour-count"), /color: var\(--quiet-muted\);/);
+  assert.match(rule("\\.credit-label"), /color: var\(--quiet-muted\);/);
   /* No white fill on the card: an outlined button lets the frost through. */
   assert.match(rule("\\.tour \\.btn:not\\(\\.primary\\)"), /background: none;\s*color: var\(--quiet-accent\);/);
 });

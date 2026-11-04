@@ -26,7 +26,10 @@
    */
   --quiet-button: rgb(255 255 255 / 60%);
   --quiet-card: rgb(255 255 255 / 70%);
-  --quiet-filter: blur(16px) contrast(0.5) brightness(1.4) saturate(1.4);
+  --quiet-blur: 16px;
+  --quiet-filter: blur(var(--quiet-blur)) contrast(0.5) brightness(1.4) saturate(1.4);
+  /* How far a frosted surface's glass reaches past its edges: two blur radii, as in GLACE Viewer. */
+  --quiet-reach: calc(2 * var(--quiet-blur));
   --quiet-muted: #4d5156;
   /* Blue text on them, such as an outlined button's: 5:1 over space. */
   --quiet-accent: #174ea6;
@@ -123,6 +126,38 @@ kbd {
     --quiet-muted: var(--muted);
     --quiet-accent: var(--accent);
   }
+}
+
+/*
+ * A frosted surface paints its glass in ::before, which reaches
+ * --quiet-reach past each edge and is clipped back to the surface, as GLACE
+ * Viewer's panels do: the blur at the edges then samples the map beyond them
+ * instead of repeating the edge's own pixels, which flicker as the map pans
+ * under them. A clip, not the surface's overflow, so a button's tap area
+ * past its edge still takes taps. Each surface sets --frost-tint and
+ * --frost-radius; the glass sits behind its content, in the stacking context
+ * the surface makes. The tour's card is frosted on both layouts, the status
+ * line on the desktop, and the help button and the credits on the phone.
+ */
+.tour,
+#status,
+.help-btn,
+.credits-box {
+  isolation: isolate;
+}
+
+.tour::before,
+#status::before,
+.help-btn::before,
+.credits-box::before {
+  content: "";
+  position: absolute;
+  inset: calc(-1 * var(--quiet-reach));
+  z-index: -1;
+  background: var(--frost-tint);
+  backdrop-filter: var(--quiet-filter);
+  clip-path: inset(var(--quiet-reach) round var(--frost-radius));
+  pointer-events: none;
 }
 
 /* Space, behind the transparent map canvas around the globe and its atmosphere. */
@@ -831,8 +866,8 @@ button:focus-visible {
   max-width: 100%;
   padding: 2px 8px;
   border-top-left-radius: 8px;
-  background: var(--glass);
-  backdrop-filter: var(--glass-blur);
+  --frost-tint: var(--quiet-card);
+  --frost-radius: 8px 0 0 0;
   color: var(--text);
   font-size: 11px;
   line-height: 16px;
@@ -863,6 +898,14 @@ button:focus-visible {
  * The credits run as one text, and no space separates their groups, so a long
  * line wraps inside a group rather than between groups.
  */
+/* The desktop's help button stands with the opaque controls; the status line is frosted, not its credits. */
+@media (min-width: 641px) {
+  .help-btn::before,
+  .credits-box::before {
+    content: none;
+  }
+}
+
 @media (min-width: 641px) {
   #status {
     display: flex;
@@ -904,7 +947,7 @@ button:focus-visible {
 /* Each group names what it credits: "Glaciers", "Basemap" and so on. */
 .credit-label {
   margin-right: 4px;
-  color: var(--muted);
+  color: var(--quiet-muted);
   font-weight: 600;
 }
 
@@ -1006,10 +1049,17 @@ button:focus-visible {
     max-width: none;
     padding: 0;
     border-radius: 0;
-    background: none;
-    backdrop-filter: none;
     font-size: 12px;
     pointer-events: none;
+  }
+
+  /* The row holds the frosted buttons and credits but is no surface itself. */
+  #status::before {
+    content: none;
+  }
+
+  .help-btn {
+    background: none;
   }
 
   #status > * {
@@ -1030,7 +1080,8 @@ button:focus-visible {
     position: relative;
     min-height: 36px;
     border-radius: 18px;
-    background: var(--surface);
+    --frost-tint: var(--quiet-card);
+    --frost-radius: 18px;
     box-shadow: var(--shadow);
   }
 
@@ -1067,15 +1118,15 @@ button:focus-visible {
     height: 20px;
   }
 
-  /* Folded to its button, the box is frosted like the help button; open, its text stands on white. */
+  /* Folded to its button, the box is frosted as the help button is; open, as the desktop's status line. */
   .credits-box:not(.open) {
     width: 36px;
   }
 
   .help-btn,
   .credits-box:not(.open) {
-    background: var(--quiet-button);
-    backdrop-filter: var(--quiet-filter);
+    --frost-tint: var(--quiet-button);
+    --frost-radius: 18px;
   }
 
   /*
@@ -1094,6 +1145,12 @@ button:focus-visible {
   .help-btn .icon {
     width: 20px;
     height: 20px;
+  }
+
+  @media (hover: hover) {
+    .help-btn:hover {
+      --frost-tint: var(--surface-2);
+    }
   }
 
   /* Both buttons show at 36 px and take a tap across 44 px. */
@@ -1190,8 +1247,8 @@ button:focus-visible {
   max-width: calc(100vw - 16px);
   padding: 12px;
   border-radius: var(--card-radius);
-  background: var(--quiet-card);
-  backdrop-filter: var(--quiet-filter);
+  --frost-tint: var(--quiet-card);
+  --frost-radius: var(--card-radius);
   box-shadow: var(--shadow);
 }
 
