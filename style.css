@@ -856,22 +856,20 @@ button:focus-visible {
 }
 
 /*
- * The credits run as one text that breaks only between two credits. Each
- * credit is one box, which wraps inside only when longer than the line, and
- * a group's label shares a box with its first credit.
+ * The credits run as one text that breaks between two credits. Each credit,
+ * with the comma after it, is one box, which wraps inside only when longer
+ * than the line, and a group's label shares its first credit's box.
  *
- * A "|" parts two groups. It sits in the box that starts the next group and
- * hangs to its left, over the previous group's right margin, which a line
- * break drops: at the start of a line it hangs outside the credits, which
- * clip it.
+ * A "|" parts two groups. It hangs to the left of the next group's first
+ * box, over the previous group's right margin, which a line break drops: at
+ * the start of a line it hangs outside the credits, which clip it.
  */
 .credits {
   display: block;
   clip-path: inset(-4px -4px -4px -3px);
 }
 
-.credit,
-.credit-lead {
+.credit-box {
   display: inline-block;
   max-width: 100%;
 }
@@ -887,14 +885,11 @@ button:focus-visible {
   margin-right: 17px;
 }
 
-.credit-group + .credit-group > .credit-lead {
-  margin-left: -17px;
-}
-
-.credit-group + .credit-group > .credit-lead::before {
+.credit-group + .credit-group > .credit-box:first-child::before {
   content: "|";
   display: inline-block;
   width: 17px;
+  margin-left: -17px;
   color: var(--muted);
   text-align: center;
 }

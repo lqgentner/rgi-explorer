@@ -325,7 +325,7 @@ test("on desktop the scale and the credits sit in two columns, top-aligned, and 
   assert.match(desktop, /(^|\n)\.credits-button\s*\{\s*display:\s*none;/, "the info button is the phone's");
 });
 
-test("a line breaks only between credits: each is one box, and a label shares its first credit's", () => {
+test("a line breaks between credits: each is a box with its comma, and a label shares its first credit's", () => {
   const root = document.createElement("div");
   const rgiMap = { map: new FakeMap({ center: [8, 46.48], zoom: 11 }), onMove: () => {} };
   mountStatus(root, rgiMap, catalog, () => ({ base: "imagery", terrain: false }));
@@ -333,21 +333,19 @@ test("a line breaks only between credits: each is one box, and a label shares it
   assert.ok(list.children.length > 1);
   assert.equal(list.childNodes.length, list.children.length, "no text nodes between the groups");
   for (const group of list.children) {
-    const lead = group.firstElementChild;
-    assert.equal(lead.className, "credit-lead");
-    assert.equal(lead.querySelectorAll(".credit").length, 1, group.textContent);
-    /* After the lead, only ", " between credits. */
-    for (const node of [...group.childNodes].slice(1)) {
-      assert.ok(node.nodeType === 3 ? node.textContent === ", " : node.classList.contains("credit"), group.textContent);
-    }
+    const boxes = [...group.children];
+    assert.ok(boxes.every((b) => b.className === "credit-box" && b.querySelectorAll(".credit").length === 1), group.textContent);
+    /* Between the boxes only spaces, where a line may break. */
+    assert.ok([...group.childNodes].every((n) => n.nodeType !== 3 || n.textContent === " "), group.textContent);
+    boxes.slice(0, -1).forEach((b) => assert.ok(b.textContent.endsWith(","), b.textContent));
   }
-  const glaciers = list.querySelector(".credit-lead");
-  assert.equal(glaciers.textContent, "GlaciersRGI Consortium 2023");
+  assert.equal(list.querySelector(".credit-box").textContent, "GlaciersRGI Consortium 2023");
+  assert.equal(list.children[1].firstElementChild.textContent, "Basemap\u00a9\u00a0OpenStreetMap contributors,");
   const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
-  assert.match(css, /\.credit,\n\.credit-lead \{\s*display: inline-block;/);
+  assert.match(css, /\.credit-box \{\s*display: inline-block;/);
   /* The separator hangs into the previous group's margin, which a line break drops. */
   assert.match(css, /\.credit-group:not\(:last-child\) \{\s*margin-right: 17px;/);
-  assert.match(css, /\.credit-group \+ \.credit-group > \.credit-lead \{\s*margin-left: -17px;/);
+  assert.match(css, /\.credit-box:first-child::before \{[^}]*width: 17px;\s*margin-left: -17px;/);
   const box = root.querySelector(".credits-box");
   assert.deepEqual([...root.children], [root.querySelector(".scale"), box], "the scale, then the credits column");
 });

@@ -197,21 +197,24 @@ export function mountStatus(root, rgiMap, catalog, getState, { onPrivacy = null 
   const privacy = onPrivacy ? h("button", { type: "button", class: "credit credit-privacy" }, "Privacy") : null;
   privacy?.addEventListener("click", () => onPrivacy());
   /*
-   * A line breaks only between two credits, never inside one unless it is
-   * longer than the line, and a group's label keeps to its first credit: each
-   * is one box, see style.css.
+   * A line breaks between two credits, and inside one only when it is longer
+   * than the line: each credit is one box, see style.css, holding the comma
+   * after it, and a group's label shares its first credit's box.
    */
+  const creditBox = (...nodes) => h("span", { class: "credit-box" }, ...nodes);
   const drawCredits = () => {
     const groups = credits({ ...getState(), catalog, imagery: imageryInView(), producers });
-    const nodes = groups.map(({ label, items: [first, ...rest] }) =>
+    const nodes = groups.map(({ label, items }) =>
       h(
         "span",
         { class: "credit-group" },
-        h("span", { class: "credit-lead" }, label ? h("span", { class: "credit-label" }, label) : null, item(first)),
-        ...rest.flatMap((credit) => [", ", item(credit)]),
+        ...items.flatMap((credit, i) => [
+          i ? " " : null,
+          creditBox(i === 0 && label ? h("span", { class: "credit-label" }, label) : null, item(credit), i < items.length - 1 ? "," : null),
+        ]),
       ),
     );
-    if (privacy) nodes.push(h("span", { class: "credit-group" }, h("span", { class: "credit-lead" }, privacy)));
+    if (privacy) nodes.push(h("span", { class: "credit-group" }, creditBox(privacy)));
     list.replaceChildren(...nodes);
   };
 
