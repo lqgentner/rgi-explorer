@@ -10,13 +10,10 @@
   /* What an image shows until it loads, or when there is none. */
   --image-placeholder: #9aa0a6;
   --shadow: 0 1px 3px rgb(60 64 67 / 30%), 0 4px 8px 3px rgb(60 64 67 / 15%);
-  /* Controls over the map and the photo let what is behind them show through. */
-  --glass: rgb(255 255 255 / 72%);
-  --glass-blur: blur(6px);
-  --photo-glass: rgb(255 255 255 / 45%);
   /*
-   * Lower-priority surfaces, the phone's help and info buttons and the tour's
-   * card, let the map through, frosted. GLACE Viewer darkens the backdrop of
+   * Lower-priority surfaces, the phone's help and info buttons, the credits,
+   * the tour's card and the photo's arrows, credit and count, let the map or
+   * the photo through, frosted. GLACE Viewer darkens the backdrop of
    * its dark panels so bright imagery keeps under their tint; these light
    * ones do the reverse: the filter squeezes the backdrop's contrast and
    * lifts it, so space and dark imagery show through light, not grey, and the
@@ -2063,7 +2060,11 @@ a.external .icon {
 }
 
 /*
- * The photo arrows are faint glass, so the photo shows through. They show
+ * The photo's arrows, credit and count are frosted as the map's help button
+ * and credits are: the arrows with the buttons' tint, the credit and the count
+ * with the credits'. Each frosts its own box, not glass reaching past it as
+ * over the map: the photo does not pan under them, and glass reaching past
+ * the photo's edge would blur the card and the map into it. The arrows show
  * while the pointer or focus is on the photo, centred between the search
  * bar's bottom edge and the top of the credit row.
  */
@@ -2073,8 +2074,8 @@ a.external .icon {
   z-index: 1;
   top: calc((var(--search-top) + var(--search-h) + var(--photo-h) - var(--credit-inset) - var(--credit-row)) / 2);
   transform: translateY(-50%);
-  background: var(--photo-glass);
-  backdrop-filter: var(--glass-blur);
+  background: var(--quiet-button);
+  backdrop-filter: var(--quiet-filter);
   box-shadow: 0 1px 2px rgb(60 64 67 / 20%);
   transition: opacity 150ms ease-out;
 }
@@ -2101,7 +2102,7 @@ a.external .icon {
 
 .photo-prev:hover,
 .photo-next:hover {
-  background: var(--glass);
+  background: var(--surface-2);
 }
 
 /*
@@ -2116,8 +2117,8 @@ a.external .icon {
   max-width: calc(100% - 2 * var(--credit-inset) - 48px);
   padding: 2px 8px;
   border-radius: 8px;
-  background: var(--glass);
-  backdrop-filter: var(--glass-blur);
+  background: var(--quiet-card);
+  backdrop-filter: var(--quiet-filter);
   color: var(--text);
   font-size: 11px;
   line-height: 16px;
@@ -2143,8 +2144,9 @@ a.external .icon {
   bottom: var(--credit-inset);
   padding: 2px 8px;
   border-radius: 8px;
-  background: rgb(32 33 36 / 62%);
-  color: #fff;
+  background: var(--quiet-card);
+  backdrop-filter: var(--quiet-filter);
+  color: var(--text);
   font-size: 11px;
   line-height: 16px;
 }

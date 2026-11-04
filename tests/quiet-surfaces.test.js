@@ -37,3 +37,13 @@ test("less transparency or more contrast makes them opaque", () => {
     assert.ok(block.includes(token), token);
   }
 });
+
+test("the photo's arrows, credit and count are frosted as the map's buttons and credits, each in its own box", () => {
+  const arrows = rule("\\.photo-prev,\\n\\.photo-next");
+  assert.match(arrows, /background: var\(--quiet-button\);\s*backdrop-filter: var\(--quiet-filter\);/, "the arrows as the help button");
+  for (const chip of ["\\.photo-credit", "\\.photo-count"]) {
+    assert.match(rule(chip), /background: var\(--quiet-card\);\s*backdrop-filter: var\(--quiet-filter\);\s*color: var\(--text\);/, `${chip} as the credits`);
+  }
+  assert.doesNotMatch(css, /\.photo-(prev|next|credit|count)::before/, "no glass past the photo's edge");
+  assert.doesNotMatch(css, /--glass|--photo-glass/, "the old glass is gone");
+});
