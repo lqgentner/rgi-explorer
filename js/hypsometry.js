@@ -6,10 +6,11 @@ import { h, svg } from "./ui.js";
 
 /*
  * The chart draws one unit to the pixel at the width it is shown, so its text
- * is the card's 14 px. Until it is shown and measured, it assumes this width.
+ * is 13 px, as the caption above it. Until it is shown and measured, it
+ * assumes this width.
  */
 const DEFAULT_WIDTH = 360;
-const FONT = 14;
+const FONT = 13;
 /* Left of the plot the rotated axis title, then the elevation ticks; right of it the median's and the mean's labels. */
 const TITLE_X = FONT + 1;
 const PLOT_LEFT = 76;

@@ -175,9 +175,11 @@ test("a large glacier's bands share the 300 px plot", () => {
   assert.ok(heights(el).every((height) => height < 6));
 });
 
-test("the axis text is 14 px, the card's text, drawn one unit to the pixel", () => {
+test("the axis text is 13 px, as the caption above, drawn one unit to the pixel", () => {
   const svg = draw().querySelector("svg");
-  for (const text of svg.querySelectorAll("text")) assert.equal(text.getAttribute("font-size"), "14", text.textContent);
+  for (const text of svg.querySelectorAll("text")) assert.equal(text.getAttribute("font-size"), "13", text.textContent);
+  const css = readFileSync(new URL("../style.css", import.meta.url), "utf8");
+  assert.match(css, /\.hypso-caption \{[^}]*font-size: 13px;/, "the caption's size");
   /* jsdom lays nothing out, so the chart keeps the width it assumes until it is measured. */
   assert.equal(svg.getAttribute("viewBox").split(" ")[2], "360");
 });
@@ -187,5 +189,5 @@ test("the labels of a mean and median at the foot of the plot stay inside it", (
   const bottom = Number(el.querySelector(".y-axis line").getAttribute("y2"));
   const at = (name) => Number([...el.querySelectorAll("text")].find((t) => t.textContent === name).getAttribute("y"));
   assert.ok(at("Median") <= bottom + 6 && at("Mean") <= bottom + 6, `${at("Median")} ${at("Mean")} ${bottom}`);
-  assert.ok(Math.abs(at("Median") - at("Mean")) >= 14);
+  assert.ok(Math.abs(at("Median") - at("Mean")) >= 13);
 });
