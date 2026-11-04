@@ -14,6 +14,22 @@
   --glass: rgb(255 255 255 / 72%);
   --glass-blur: blur(6px);
   --photo-glass: rgb(255 255 255 / 45%);
+  /*
+   * Lower-priority surfaces, the phone's help and info buttons and the tour's
+   * card, let the map through, frosted. GLACE Viewer darkens the backdrop of
+   * its dark panels so bright imagery keeps under their tint; these light
+   * ones do the reverse: the filter squeezes the backdrop's contrast and
+   * lifts it, so space and dark imagery show through light, not grey, and the
+   * blur and saturation keep only the map's colour. Over the near-black space
+   * around the globe, the worst case, the card's text measures 10:1 and its
+   * small grey count, in --quiet-muted, 5:1.
+   */
+  --quiet-button: rgb(255 255 255 / 60%);
+  --quiet-card: rgb(255 255 255 / 70%);
+  --quiet-filter: blur(16px) contrast(0.5) brightness(1.4) saturate(1.4);
+  --quiet-muted: #4d5156;
+  /* Blue text on them, such as an outlined button's: 5:1 over space. */
+  --quiet-accent: #174ea6;
   --space: #10141c;
   --card-w: 408px;
   /*
@@ -96,6 +112,17 @@ code,
 pre,
 kbd {
   font-family: var(--mono);
+}
+
+/* Readers who ask for less transparency or more contrast get opaque surfaces. */
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  :root {
+    --quiet-button: var(--surface);
+    --quiet-card: var(--surface);
+    --quiet-filter: none;
+    --quiet-muted: var(--muted);
+    --quiet-accent: var(--accent);
+  }
 }
 
 /* Space, behind the transparent map canvas around the globe and its atmosphere. */
@@ -1040,8 +1067,15 @@ button:focus-visible {
     height: 20px;
   }
 
+  /* Folded to its button, the box is frosted like the help button; open, its text stands on white. */
   .credits-box:not(.open) {
     width: 36px;
+  }
+
+  .help-btn,
+  .credits-box:not(.open) {
+    background: var(--quiet-button);
+    backdrop-filter: var(--quiet-filter);
   }
 
   /*
@@ -1174,7 +1208,8 @@ button:focus-visible {
   max-width: calc(100vw - 16px);
   padding: 12px;
   border-radius: var(--card-radius);
-  background: var(--surface);
+  background: var(--quiet-card);
+  backdrop-filter: var(--quiet-filter);
   box-shadow: var(--shadow);
 }
 
@@ -1308,7 +1343,7 @@ body:has(#search.fullscreen) .welcome {
   margin-right: auto;
   padding-left: 8px;
   white-space: nowrap;
-  color: var(--muted);
+  color: var(--quiet-muted);
   font-size: 12px;
 }
 
@@ -1316,6 +1351,25 @@ body:has(#search.fullscreen) .welcome {
   position: absolute;
   top: 12px;
   right: 12px;
+}
+
+/*
+ * On the frosted card the X has no disc of its own until hovered, and an
+ * outlined button no fill: a grey wash marks a hover on either.
+ */
+.tour-close:not(:hover) {
+  background: none;
+}
+
+.tour .btn:not(.primary) {
+  border-color: rgb(32 33 36 / 20%);
+  background: none;
+  color: var(--quiet-accent);
+}
+
+.tour .btn:not(.primary):hover,
+.tour-close:hover {
+  background: rgb(32 33 36 / 8%);
 }
 
 .tour-target {
