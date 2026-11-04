@@ -734,7 +734,7 @@ button:focus-visible {
   bottom: 0;
   z-index: 5;
   padding: 12px 16px 32px;
-  border-radius: 16px 16px 0 0;
+  /* Square: unlike the glacier's sheet, it cannot be dragged. */
   background: var(--surface);
   box-shadow: var(--shadow);
 }
@@ -759,7 +759,7 @@ button:focus-visible {
 
 .layers-pane h3 {
   margin: 0 0 12px;
-  font-size: 14px;
+  font-size: 16px;
   color: var(--muted);
 }
 
@@ -1428,15 +1428,20 @@ body:has(#search.fullscreen) .welcome {
   background: var(--image-placeholder);
 }
 
-/* Flat and light grey on the sheet's white band. */
+/* Flat and light grey on the sheet's white band, and on the phone's layers pane. */
 .card-close {
   position: absolute;
   top: 8px;
   right: 8px;
+}
+
+.card-close,
+.pane-close {
   background: var(--surface-2);
 }
 
-.card-close:hover {
+.card-close:hover,
+.pane-close:hover {
   background: #e8eaed;
 }
 

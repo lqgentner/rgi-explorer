@@ -167,7 +167,7 @@ export function mountLayers(root, { base, layers, onBase, onToggle, onPane, map 
     });
     return { key, button, img };
   });
-  const close = h("button", { type: "button", class: "icon-button", "aria-label": "Close", dataset: { tour: "layers-close" } }, icon("x"));
+  const close = h("button", { type: "button", class: "icon-button pane-close", "aria-label": "Close", dataset: { tour: "layers-close" } }, icon("x"));
   const paneToggles = h("div", { class: "tile-row" });
   /* No title: the close button sits in the first section's heading row, and a line parts the sections. */
   const pane = h(
