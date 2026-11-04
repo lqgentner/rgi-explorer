@@ -1,6 +1,7 @@
 /* GeoParquet access reads columns by row group over an AsyncBuffer and caches them. */
 
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -122,18 +123,47 @@ test("a row outside the file rejects with a RangeError", async () => {
   await assert.rejects(readRow(h, 1.5, CARD_COLUMNS), RangeError);
 });
 
-test("a string source opens through asyncBufferFromUrl", async () => {
+test("a string source opens through asyncBufferFromUrl, past the HTTP cache", async () => {
   const seen = [];
   const real = hyparquet.asyncBufferFromFile;
   const buffer = await real(file);
   globalThis.hyparquet = { ...hyparquet, asyncBufferFromUrl: async (opts) => (seen.push(opts), buffer) };
   try {
     const h = await openParquet("https://example.test/glaciers.parquet");
-    assert.deepEqual(seen, [{ url: "https://example.test/glaciers.parquet" }]);
+    assert.deepEqual(seen, [{ url: "https://example.test/glaciers.parquet", requestInit: { cache: "no-store" } }]);
     assert.equal(h.groups.length, 3);
   } finally {
     globalThis.hyparquet = hyparquet;
   }
+});
+
+/** Serves the glaciers fixture at FILE_URL over HTTP ranges, as the data host does, logging each request. */
+async function served() {
+  const { servedFetch } = await import("./helpers/served.js");
+  const log = [];
+  const bytes = readFileSync(file);
+  const fetch = servedFetch({ [FILE_URL]: bytes }, log);
+  return { fetch, log, size: bytes.length };
+}
+const FILE_URL = "https://example.test/glaciers.parquet";
+
+test("a known size reads the file without a HEAD request, every read past the HTTP cache", async (t) => {
+  const { fetch, log, size } = await served();
+  t.mock.property(globalThis, "fetch", fetch);
+  const h = await openParquet(FILE_URL, { byteLength: size });
+  await readColumns(h, SEARCH_COLUMNS);
+  assert.ok(log.length > 1);
+  assert.deepEqual(log.filter((r) => r.method === "HEAD"), []);
+  assert.deepEqual(log.filter((r) => r.cache !== "no-store"), []);
+});
+
+test("a wrong size falls back to the size a HEAD request gives", async (t) => {
+  const { fetch, log, size } = await served();
+  t.mock.property(globalThis, "fetch", fetch);
+  const h = await openParquet(FILE_URL, { byteLength: size + (1 << 20) });
+  assert.equal(h.groups.length, 3);
+  assert.equal(log.filter((r) => r.method === "HEAD").length, 1);
+  assert.deepEqual((await readColumns(h, ["rgi_id"], 0)).rgi_id[0], "RGI2000-v7.0-G-11-02596");
 });
 
 test("reads the regions fixture", async () => {

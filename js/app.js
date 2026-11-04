@@ -105,9 +105,12 @@ function rowsOf(columns) {
   return columns[names[0]].map((_, i) => Object.fromEntries(names.map((name) => [name, columns[name][i]])));
 }
 
+/** A collection's GeoParquet, opened at the size the catalog gives. */
+const openData = (collection) => openParquet(collection.dataUrl, { byteLength: collection.dataSize ?? undefined });
+
 /** The regions table as row objects. */
-async function loadRegions(url) {
-  return rowsOf(await readColumns(await openParquet(url), REGION_COLUMNS));
+async function loadRegions(collection) {
+  return rowsOf(await readColumns(await openData(collection), REGION_COLUMNS));
 }
 
 /** `load()` once: every call shares its promise, and one that rejects is tried again on the next call. */
@@ -130,12 +133,12 @@ function whenIdle(fn, timeout = TIMEOUT_MS) {
  * The glaciers GeoParquet, opened on first use, and its search index, read on
  * first use. A failed open or read is tried again on the next use.
  */
-function glacierFile(url, regionNames) {
+function glacierFile(collection, regionNames) {
   /* The search index once it is read; until then a row comes from its own row group. */
   let indexed = null;
   const file = {
     handle: null,
-    open: retrying(() => openParquet(url).then((handle) => (file.handle = handle))),
+    open: retrying(() => openData(collection).then((handle) => (file.handle = handle))),
     index: retrying(() =>
       file
         .open()
@@ -175,8 +178,8 @@ function glacierFile(url, regionNames) {
  * for a glacier. The panel, the fit and the map share that read through
  * readColumns' cache.
  */
-function complexFile(url) {
-  const open = retrying(() => openParquet(url));
+function complexFile(collection) {
+  const open = retrying(() => openData(collection));
   return {
     /** The complex's row, null when the file does not hold it; rejects when the file cannot be read. */
     async read(complexId) {
@@ -271,8 +274,8 @@ function wire(catalog, rgiMap, regions) {
   const regionNames = new Map(
     regions.filter((region) => Number(region.level) === 1).map((region) => [region.o1region, region.full_name]),
   );
-  const glaciers = glacierFile(catalog.collections.glaciers.dataUrl, regionNames);
-  const complexes = complexFile(catalog.collections.complexes.dataUrl);
+  const glaciers = glacierFile(catalog.collections.glaciers, regionNames);
+  const complexes = complexFile(catalog.collections.complexes);
   if (state.terrain) rgiMap.setTerrain(true);
 
   const notice = el("notice");
@@ -821,7 +824,7 @@ async function start() {
   }
   const [mapResult, regionsResult] = await Promise.allSettled([
     createMap(el("map"), catalog, state, liberty),
-    loadRegions(catalog.collections.regions.dataUrl),
+    loadRegions(catalog.collections.regions),
   ]);
   if (regionsResult.status === "rejected") {
     fail(CATALOG_ERROR, regionsResult.reason);

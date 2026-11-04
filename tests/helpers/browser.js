@@ -433,7 +433,25 @@ export async function loadPage({ url = PAGE_URL, fetch, phone = false } = {}) {
   };
   globalThis.pmtiles = {
     Protocol: class {
+      archives = new Map();
       tile() {}
+      add(archive) {
+        this.archives.set(archive.source.url, archive);
+      }
+      get(url) {
+        return this.archives.get(url);
+      }
+    },
+    FetchSource: class {
+      constructor(url) {
+        this.url = url;
+        this.chromeWindowsNoCache = false;
+      }
+    },
+    PMTiles: class {
+      constructor(source) {
+        this.source = source;
+      }
     },
   };
   globalThis.hyparquet = {};
