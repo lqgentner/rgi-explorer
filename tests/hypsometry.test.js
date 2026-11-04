@@ -41,7 +41,8 @@ test("one bar per band, zero bands included, in the accent color", () => {
 test("the widest bar fills the plot and the median line is dashed and red", () => {
   const el = draw();
   const widths = [...el.querySelectorAll("rect")].map((r) => Number(r.getAttribute("width")));
-  assert.equal(Math.max(...widths), 244);
+  const plot = el.querySelector(".x-axis line");
+  assert.equal(Math.max(...widths), Number(plot.getAttribute("x2")) - Number(plot.getAttribute("x1")));
   const median = el.querySelector("line.median");
   assert.equal(median.getAttribute("stroke"), "#d93025");
   assert.ok(median.getAttribute("stroke-dasharray"));
@@ -107,7 +108,8 @@ test("median and mean outside the bands are clamped to the plot", () => {
   const el = draw({ ...ALETSCH, zmed_m: 99999, zmean_m: -500 });
   const top = Number(el.querySelector("rect:last-child, .bars rect:last-child").getAttribute("y"));
   assert.ok(Number(el.querySelector("line.median").getAttribute("y1")) >= top - 0.01);
-  assert.ok(Number(el.querySelector("line.mean").getAttribute("y1")) <= 308.01);
+  const bottom = Number(el.querySelector(".y-axis line").getAttribute("y2"));
+  assert.ok(Number(el.querySelector("line.mean").getAttribute("y1")) <= bottom + 0.01);
 });
 
 test("the axes are labelled: elevation on the left, area in percent below", () => {
@@ -150,4 +152,40 @@ test("area ticks fit a band of any width", () => {
 
 test("the summary names the band size and the largest band", () => {
   assert.match(draw().querySelector("svg").getAttribute("aria-label"), /50 m elevation band.*largest band 5% at 3,425 m/);
+});
+
+const heights = (el) => [...el.querySelectorAll("rect")].map((r) => Number(r.getAttribute("height")));
+
+test("a small glacier's bands are no taller than 24 px, and its short plot pads the elevation axis evenly", () => {
+  const el = draw({ hypso_z0_m: 2875, hypso_permille: [440, 290, 230, 40], zmin_m: 2850, zmax_m: 3022, zmed_m: 2912, zmean_m: 2919 });
+  assert.ok(heights(el).every((height) => height <= 24), String(heights(el)));
+  const axis = el.querySelector(".y-axis line");
+  const [top, bottom] = [axis.getAttribute("y1"), axis.getAttribute("y2")].map(Number);
+  const rects = [...el.querySelectorAll("rect")];
+  const above = Number(rects.at(-1).getAttribute("y")) - top;
+  const below = bottom - (Number(rects[0].getAttribute("y")) + Number(rects[0].getAttribute("height")));
+  assert.ok(bottom - top >= 100, "tall enough for the axis title");
+  assert.ok(above > 0 && Math.abs(above - below) < 1, `${above} above, ${below} below`);
+});
+
+test("a large glacier's bands share the 300 px plot", () => {
+  const el = draw();
+  const axis = el.querySelector(".y-axis line");
+  assert.equal(Number(axis.getAttribute("y2")) - Number(axis.getAttribute("y1")), 300);
+  assert.ok(heights(el).every((height) => height < 6));
+});
+
+test("the axis text is 14 px, the card's text, drawn one unit to the pixel", () => {
+  const svg = draw().querySelector("svg");
+  for (const text of svg.querySelectorAll("text")) assert.equal(text.getAttribute("font-size"), "14", text.textContent);
+  /* jsdom lays nothing out, so the chart keeps the width it assumes until it is measured. */
+  assert.equal(svg.getAttribute("viewBox").split(" ")[2], "360");
+});
+
+test("the labels of a mean and median at the foot of the plot stay inside it", () => {
+  const el = draw({ hypso_z0_m: 2875, hypso_permille: [500, 500], zmed_m: 2850, zmean_m: 2851 });
+  const bottom = Number(el.querySelector(".y-axis line").getAttribute("y2"));
+  const at = (name) => Number([...el.querySelectorAll("text")].find((t) => t.textContent === name).getAttribute("y"));
+  assert.ok(at("Median") <= bottom + 6 && at("Mean") <= bottom + 6, `${at("Median")} ${at("Mean")} ${bottom}`);
+  assert.ok(Math.abs(at("Median") - at("Mean")) >= 14);
 });
