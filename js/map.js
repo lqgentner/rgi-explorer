@@ -85,8 +85,10 @@ let protocol = null;
  * request to the same URL, and Chrome lets one request per URL write a cache
  * entry at a time, so a view's tiles would queue behind that lock instead of
  * loading at once. The data host marks its responses no-cache, so the cache
- * never answered them. pmtiles sets this flag itself only for Chrome on
- * Windows; the lock is not Windows-only.
+ * could at best revalidate a read: a round trip either way. pmtiles sets this
+ * flag itself only for Chrome on Windows; the lock is not Windows-only. After
+ * an ETag mismatch, an archive replaced mid-session, pmtiles reads with
+ * cache: "reload" instead.
  */
 function uncachedArchive(url) {
   const { FetchSource, PMTiles } = globalThis.pmtiles;

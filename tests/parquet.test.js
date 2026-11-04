@@ -157,14 +157,19 @@ test("a known size reads the file without a HEAD request, every read past the HT
   assert.deepEqual(log.filter((r) => r.cache !== "no-store"), []);
 });
 
-test("a wrong size falls back to the size a HEAD request gives", async (t) => {
-  const { fetch, log, size } = await served();
-  t.mock.property(globalThis, "fetch", fetch);
-  const h = await openParquet(FILE_URL, { byteLength: size + (1 << 20) });
-  assert.equal(h.groups.length, 3);
-  assert.equal(log.filter((r) => r.method === "HEAD").length, 1);
-  assert.deepEqual((await readColumns(h, ["rgi_id"], 0)).rgi_id[0], "RGI2000-v7.0-G-11-02596");
-});
+for (const [name, delta] of [
+  ["past the end of the file", 1 << 20],
+  ["short of the file, as when it grew", -1],
+]) {
+  test(`a size ${name} falls back to the size a HEAD request gives`, async (t) => {
+    const { fetch, log, size } = await served();
+    t.mock.property(globalThis, "fetch", fetch);
+    const h = await openParquet(FILE_URL, { byteLength: size + delta });
+    assert.equal(h.groups.length, 3);
+    assert.equal(log.filter((r) => r.method === "HEAD").length, 1);
+    assert.deepEqual((await readColumns(h, ["rgi_id"], 0)).rgi_id[0], "RGI2000-v7.0-G-11-02596");
+  });
+}
 
 test("reads the regions fixture", async () => {
   const h = await openParquet(await hyparquet.asyncBufferFromFile(path.join(dir, "regions.parquet")));

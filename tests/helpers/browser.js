@@ -436,7 +436,7 @@ export async function loadPage({ url = PAGE_URL, fetch, phone = false } = {}) {
       archives = new Map();
       tile() {}
       add(archive) {
-        this.archives.set(archive.source.url, archive);
+        this.archives.set(archive.source.getKey(), archive);
       }
       get(url) {
         return this.archives.get(url);
@@ -446,6 +446,9 @@ export async function loadPage({ url = PAGE_URL, fetch, phone = false } = {}) {
       constructor(url) {
         this.url = url;
         this.chromeWindowsNoCache = false;
+      }
+      getKey() {
+        return this.url;
       }
     },
     PMTiles: class {

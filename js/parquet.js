@@ -24,10 +24,11 @@ const files = new WeakMap();
 const caches = new WeakMap();
 
 /*
- * Reads skip the HTTP cache. The data host marks every response no-cache, so
- * the cache never answers them, and Chrome lets one request per URL write a
- * cache entry at a time: the parallel range reads of one file would queue
- * behind that lock instead of running at once.
+ * Reads skip the HTTP cache. Chrome lets one request per URL write a cache
+ * entry at a time, so the parallel range reads of one file would queue behind
+ * that lock instead of running at once. The data host marks every response
+ * no-cache, so the cache could at best revalidate a read: a round trip either
+ * way.
  */
 const requestInit = { cache: /** @type {RequestCache} */ ("no-store") };
 
