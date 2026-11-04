@@ -1940,6 +1940,11 @@ a.external .icon {
   text-align: center;
 }
 
+/* The chart's text, its caption and this line share one size. */
+.hypso-range {
+  font-size: 13px;
+}
+
 /*
  * The image strip: the imagery crop, then the photos, one image per snap.
  * On the desktop each image fills the photo area under the search bar; the

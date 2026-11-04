@@ -180,6 +180,7 @@ test("the axis text is 13 px, as the caption above, drawn one unit to the pixel"
   for (const text of svg.querySelectorAll("text")) assert.equal(text.getAttribute("font-size"), "13", text.textContent);
   const css = readFileSync(new URL("../style.css", import.meta.url), "utf8");
   assert.match(css, /\.hypso-caption \{[^}]*font-size: 13px;/, "the caption's size");
+  assert.match(css, /\.hypso-range \{\s*font-size: 13px;/, "the minimum and maximum line's");
   /* jsdom lays nothing out, so the chart keeps the width it assumes until it is measured. */
   assert.equal(svg.getAttribute("viewBox").split(" ")[2], "360");
 });
