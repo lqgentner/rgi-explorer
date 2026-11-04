@@ -1145,33 +1145,15 @@ button:focus-visible {
   color: var(--muted);
 }
 
-/* Privacy small on the left, aligned with the text; Take the tour on the right, 12 px from the edges. */
+/* Take the tour on the right, 12 px from the edges. */
 .welcome-actions {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  justify-content: flex-end;
   margin-top: 8px;
 }
 
 .welcome .btn {
   display: flex;
-}
-
-.welcome-privacy {
-  padding: 4px 8px;
-  border: 0;
-  background: none;
-  color: var(--muted);
-  font: inherit;
-  font-size: 13px;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  cursor: pointer;
-}
-
-.welcome-privacy:hover {
-  color: var(--text);
 }
 
 .welcome-close {

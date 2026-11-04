@@ -382,7 +382,6 @@ function wire(catalog, rgiMap, regions) {
     title: welcomeTitle(catalog.glacierCount, catalog.version),
     autoShow: !state.glacier && !state.complex,
     onTour: () => tour.start(),
-    onPrivacy: openPrivacy,
   });
   /*
    * The tour finds its controls by their data-tour names alone, so a class or
