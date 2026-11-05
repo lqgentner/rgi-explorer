@@ -27,14 +27,20 @@ const DIM_GREY = "#5f6368";
  */
 const DIM_OPACITY = { standard: 0.15, imagery: 0 };
 /*
- * A selection's outline: red dashes over a solid white line, so that the gaps
- * show white and not the glacier's own outline below. It is as wide as an
- * outline with its casing over imagery from zoom 12, and never narrower than
- * an outline on either base map, so none shows beside it.
+ * A selection's outline: short red dashes over a solid white line, so that the
+ * gaps show white and not the glacier's own outline below. Over imagery it is
+ * exactly as wide as an outline with its casing on both sides, at every zoom
+ * (OUTLINE_WIDTH.imagery plus twice the casing in js/styles.js; a zoom curve
+ * cannot be summed in the style, so the stops are summed here). On the standard
+ * map it is a little narrower, yet never narrower than the outline it covers.
  */
-const SELECTION_WIDTH = ["interpolate", ["linear"], ["zoom"], 0, 3, 8, 2.5, 12, 3];
-const SELECTION_UNDER = { "line-color": "#ffffff", "line-width": SELECTION_WIDTH };
-const SELECTION_LINE = { "line-color": SELECTION_RED, "line-width": SELECTION_WIDTH, "line-dasharray": [1.4, 0.8] };
+const SELECTION_WIDTH = {
+  standard: ["interpolate", ["linear"], ["zoom"], 0, 1.6, 8, 1.1, 11, 2.4, 12, 2.5],
+  imagery: ["interpolate", ["linear"], ["zoom"], 0, 1.8, 8, 1.3, 11, 2.875, 12, 3],
+};
+const SELECTION_LINES = ["selection-under", "selection-outline", "complex-under", "complex-outline"];
+const SELECTION_UNDER = { "line-color": "#ffffff" };
+const SELECTION_LINE = { "line-color": SELECTION_RED, "line-dasharray": [1, 0.8] };
 const SELECTION_DOT = {
   "circle-color": SELECTION_RED,
   "circle-radius": ["interpolate", ["linear"], ["zoom"], 0, 4, 6, 5],
@@ -176,6 +182,7 @@ function buildStyle(liberty, rgi, state) {
   };
 
   const basePaint = BASE_PAINT[state.base] ?? BASE_PAINT.standard;
+  const selectionWidth = { "line-width": SELECTION_WIDTH[state.base] ?? SELECTION_WIDTH.standard };
   const rgiLayers = rgi.layers.map((layer) => {
     const name = toggleOf(layer);
     if (name) layer.layout = { ...layer.layout, visibility: visibility(state.layers.has(name)) };
@@ -239,7 +246,7 @@ function buildStyle(liberty, rgi, state) {
       source: "data",
       "source-layer": "glaciers",
       layout: NONE,
-      paint: { ...SELECTION_UNDER },
+      paint: { ...SELECTION_UNDER, ...selectionWidth },
     },
     {
       id: "selection-outline",
@@ -247,7 +254,7 @@ function buildStyle(liberty, rgi, state) {
       source: "data",
       "source-layer": "glaciers",
       layout: NONE,
-      paint: { ...SELECTION_LINE },
+      paint: { ...SELECTION_LINE, ...selectionWidth },
     },
     {
       id: "selection-dot",
@@ -274,7 +281,7 @@ function buildStyle(liberty, rgi, state) {
       source: "data",
       "source-layer": "complexes",
       layout: NONE,
-      paint: { ...SELECTION_UNDER },
+      paint: { ...SELECTION_UNDER, ...selectionWidth },
     },
     {
       id: "complex-outline",
@@ -282,7 +289,7 @@ function buildStyle(liberty, rgi, state) {
       source: "data",
       "source-layer": "complexes",
       layout: NONE,
-      paint: { ...SELECTION_LINE },
+      paint: { ...SELECTION_LINE, ...selectionWidth },
     },
     {
       id: "complex-dot",
@@ -567,6 +574,7 @@ export async function createMap(container, catalog, state, liberty = fetchLibert
           map.setPaintProperty(id, /** @type {Parameters<typeof map.setPaintProperty>[1]} */ (key), value);
         }
       }
+      for (const id of SELECTION_LINES) map.setPaintProperty(id, "line-width", SELECTION_WIDTH[base]);
       /* The selections redraw the glacier fill above the dimming. */
       map.setPaintProperty("selection-dim", "fill-opacity", DIM_OPACITY[base]);
       map.setSky(sky(base));

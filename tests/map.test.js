@@ -263,6 +263,40 @@ test("a selection draws its own centerlines again above its lift, with their tog
   assert.equal(map.layout("selection-centerlines").visibility, "none");
 });
 
+/** The value of a linear zoom curve, or of a constant, at `zoom`. */
+function atZoom(value, zoom) {
+  if (!Array.isArray(value)) return value;
+  const stops = value.slice(3);
+  if (zoom <= stops[0]) return stops[1];
+  for (let i = 2; i < stops.length; i += 2) {
+    if (zoom <= stops[i]) {
+      const [z0, v0, z1, v1] = stops.slice(i - 2, i + 2);
+      return v0 + ((v1 - v0) * (zoom - z0)) / (z1 - z0);
+    }
+  }
+  return stops.at(-1);
+}
+
+test("the selection is as wide as an outline with its casing over imagery, and a little narrower on the standard map", async () => {
+  const { rgiMap, map } = await build("?base=imagery");
+  const width = (id, key = "line-width") => map.getLayer(id).paint[key];
+  const zooms = Array.from({ length: 65 }, (_, i) => i / 4);
+  const imagery = width("selection-outline");
+  for (const zoom of zooms) {
+    const cased = atZoom(width("glaciers-outline"), zoom) + 2 * atZoom(width("glaciers-casing"), zoom);
+    assert.ok(Math.abs(atZoom(imagery, zoom) - cased) < 1e-9, `zoom ${zoom}: ${atZoom(imagery, zoom)} against ${cased}`);
+  }
+  rgiMap.setBase("standard");
+  const standard = width("selection-outline");
+  for (const zoom of zooms) {
+    assert.ok(atZoom(standard, zoom) < atZoom(imagery, zoom), `narrower at zoom ${zoom}`);
+    assert.ok(atZoom(standard, zoom) >= atZoom(width("glaciers-outline"), zoom), `covers the outline at zoom ${zoom}`);
+  }
+  for (const id of ["selection-under", "complex-under", "complex-outline"]) assert.deepEqual(width(id), standard, id);
+  rgiMap.setBase("imagery");
+  for (const id of ["selection-under", "selection-outline", "complex-under", "complex-outline"]) assert.deepEqual(width(id), imagery, id);
+});
+
 test("selection draws a red dashed outline filtered to the ID", async () => {
   const { rgiMap, map } = await build();
   assert.equal(map.layout("selection-outline").visibility, "none");
@@ -271,8 +305,7 @@ test("selection draws a red dashed outline filtered to the ID", async () => {
   assert.deepEqual(outline.filter, ["==", ["get", "rgi_id"], rgiId]);
   assert.equal(outline["source-layer"], "glaciers");
   assert.equal(outline.paint["line-color"], "#cc3311");
-  assert.deepEqual(outline.paint["line-width"], ["interpolate", ["linear"], ["zoom"], 0, 3, 8, 2.5, 12, 3]);
-  assert.deepEqual(outline.paint["line-dasharray"], [1.4, 0.8]);
+  assert.deepEqual(outline.paint["line-dasharray"], [1, 0.8], "short dashes");
   const under = map.getLayer("selection-under");
   assert.deepEqual(under.filter, outline.filter, "a white line fills the gaps between the dashes");
   assert.equal(under.paint["line-color"], "#ffffff");
