@@ -279,20 +279,23 @@ function atZoom(value, zoom) {
   return stops.at(-1);
 }
 
-test("the selection is as wide as an outline with its casing over imagery, and a little narrower on the standard map", async () => {
+test("the selection is the same on both maps to zoom 10, wider than an outline with its casing, and from zoom 11 as wide as it over imagery", async () => {
   const { rgiMap, map } = await build("?base=imagery");
   const width = (id, key = "line-width") => map.getLayer(id).paint[key];
   const zooms = Array.from({ length: 65 }, (_, i) => i / 4);
   const imagery = width("selection-outline");
   for (const zoom of zooms) {
     const cased = atZoom(width("glaciers-outline"), zoom) + 2 * atZoom(width("glaciers-casing"), zoom);
-    assert.ok(Math.abs(atZoom(imagery, zoom) - cased) < 1e-9, `zoom ${zoom}: ${atZoom(imagery, zoom)} against ${cased}`);
+    const selected = atZoom(imagery, zoom);
+    if (zoom >= 11) assert.ok(Math.abs(selected - cased) < 1e-9, `zoom ${zoom}: ${selected} against ${cased}`);
+    else assert.ok(selected >= cased, `no casing shows beside it at zoom ${zoom}: ${selected} against ${cased}`);
   }
   rgiMap.setBase("standard");
   const standard = width("selection-outline");
   for (const zoom of zooms) {
-    assert.ok(atZoom(standard, zoom) < atZoom(imagery, zoom), `narrower at zoom ${zoom}`);
-    assert.ok(atZoom(standard, zoom) >= atZoom(width("glaciers-outline"), zoom), `covers the outline at zoom ${zoom}`);
+    if (zoom <= 10) assert.equal(atZoom(standard, zoom), atZoom(imagery, zoom), `the same at zoom ${zoom}`);
+    else assert.ok(atZoom(standard, zoom) < atZoom(imagery, zoom), `narrower at zoom ${zoom}`);
+    assert.ok(atZoom(standard, zoom) > atZoom(width("glaciers-outline"), zoom), `covers the outline at zoom ${zoom}`);
   }
   for (const id of ["selection-under", "complex-under", "complex-outline"]) assert.deepEqual(width(id), standard, id);
   rgiMap.setBase("imagery");

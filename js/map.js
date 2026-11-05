@@ -28,15 +28,17 @@ const DIM_GREY = "#5f6368";
 const DIM_OPACITY = { standard: 0.15, imagery: 0 };
 /*
  * A selection's outline: short red dashes over a solid white line, so that the
- * gaps show white and not the glacier's own outline below. Over imagery it is
- * exactly as wide as an outline with its casing on both sides, at every zoom
+ * gaps show white and not the glacier's own outline below. Up to zoom 10 it is
+ * the same on both base maps, a little wider than an outline with its casing,
+ * so a small glacier's selection reads at a glance. From zoom 11 over imagery
+ * it is exactly as wide as an outline with its casing on both sides
  * (OUTLINE_WIDTH.imagery plus twice the casing in js/styles.js; a zoom curve
- * cannot be summed in the style, so the stops are summed here). On the standard
- * map it is a little narrower, yet never narrower than the outline it covers.
+ * cannot be summed in the style, so the stops are summed here), and on the
+ * standard map a little narrower, yet wider than the outline it covers.
  */
 const SELECTION_WIDTH = {
-  standard: ["interpolate", ["linear"], ["zoom"], 0, 1.6, 8, 1.1, 11, 2.4, 12, 2.5],
-  imagery: ["interpolate", ["linear"], ["zoom"], 0, 1.8, 8, 1.3, 11, 2.875, 12, 3],
+  standard: ["interpolate", ["linear"], ["zoom"], 0, 2.2, 8, 1.8, 10, 2.4, 12, 2.5],
+  imagery: ["interpolate", ["linear"], ["zoom"], 0, 2.2, 8, 1.8, 10, 2.4, 11, 2.875, 12, 3],
 };
 const SELECTION_LINES = ["selection-under", "selection-outline", "complex-under", "complex-outline"];
 const SELECTION_UNDER = { "line-color": "#ffffff" };
