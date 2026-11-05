@@ -821,3 +821,50 @@ test("onMove reports the view after the map moves", async () => {
   map.jumpTo({ center: [7, 46], zoom: 9 });
   assert.deepEqual(seen, [{ zoom: 9, lat: 46, lon: 7 }]);
 });
+
+test("a glacier is RGI's point below the zoom at which its bbox spans 3 pixels of a 512-pixel tile, as in the catalog", async () => {
+  await loadPage();
+  const { shapeMinzoom } = await load("js/map.js");
+  /* At zoom 9 a pixel is 40,075,017 m / (512 * 2^9), 152.9 m, at the equator. */
+  const degrees = (metres) => (metres * 180) / (Math.PI * 6378137);
+  const wide = (metres) => ({ xmin: 0, ymin: 0, xmax: degrees(metres), ymax: 0 });
+  assert.equal(shapeMinzoom(wide(3 * 152.88)), 9);
+  assert.equal(shapeMinzoom(wide(3 * 152.86)), 10, "a little short: an outline only once every glacier is");
+  assert.equal(shapeMinzoom(wide(3 * 2 * 152.88)), 8);
+  assert.equal(shapeMinzoom({ xmin: 7.7, ymin: 46.44, xmax: 7.7, ymax: 46.44 }), 10);
+  assert.equal(shapeMinzoom({ xmin: -50, ymin: 60, xmax: -20, ymax: 83 }), 0, "Greenland's ice sheet from the start");
+  /* Mercator stretches north-south: a bbox of the same degrees spans more metres further north. */
+  const tall = (lat) => shapeMinzoom({ xmin: 0, ymin: lat, xmax: 0, ymax: lat + 0.01 });
+  assert.ok(tall(70) < tall(0));
+});
+
+test("the selection draws its own dot at RGI's point below its outline's zoom, which another selection clears", async () => {
+  const { rgiMap, map } = await build();
+  const layer = map.getLayer("selection-point");
+  assert.equal(layer.source, "selection-point");
+  assert.deepEqual(layer.filter, ["<", ["zoom"], ["get", "outline_zoom"]]);
+  assert.deepEqual(layer.paint, map.getLayer("selection-dot").paint);
+  assert.ok(map.indexOf("selection-point") > map.indexOf("complex-dot"));
+  const data = () => map.getSource("selection-point").data;
+  const row = { cenlon: 7.7674, cenlat: 46.441, bbox: { xmin: 7.766, ymin: 46.4402, xmax: 7.769, ymax: 46.4418 } };
+
+  rgiMap.select(rgiId);
+  rgiMap.selectPoint(rgiId, row);
+  assert.deepEqual(data().geometry.coordinates, [7.7674, 46.441]);
+  assert.equal(data().properties.outline_zoom, 10, "a small glacier is a point until every glacier is an outline");
+  rgiMap.select(rgiId);
+  assert.ok(data().geometry, "selecting the same glacier keeps it");
+  rgiMap.select("RGI2000-v7.0-G-11-00002");
+  assert.deepEqual(data().features, [], "another glacier clears it");
+
+  rgiMap.selectComplex("RGI2000-v7.0-C-11-00001");
+  rgiMap.selectPoint("RGI2000-v7.0-C-11-00001", { ...row, bbox: { xmin: 5, ymin: 45, xmax: 10, ymax: 48 } });
+  assert.equal(data().properties.outline_zoom, 0);
+  rgiMap.selectComplex("RGI2000-v7.0-C-11-00001", ["RGI2000-v7.0-G-11-00001"]);
+  assert.ok(data().geometry, "the complex's members arriving keep it");
+  rgiMap.selectComplex(null);
+  assert.deepEqual(data().features, []);
+
+  rgiMap.selectPoint(rgiId, { cenlon: 7.7, cenlat: 46.4 });
+  assert.deepEqual(data().features, [], "no bbox, no dot");
+});

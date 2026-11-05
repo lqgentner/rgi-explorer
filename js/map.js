@@ -77,6 +77,36 @@ const NONE = { visibility: "none" };
  */
 const SELECTION_OVERLAYS = ["centerlines"];
 const EMPTY = { type: "FeatureCollection", features: [] };
+/*
+ * The catalog's overview rule (rgi-catalog, tiles.py): below zoom 10 a glacier
+ * or complex is its outline from the first zoom at which the longer side of its
+ * Web Mercator bbox spans 3 pixels of a 512-pixel tile, and RGI's point before.
+ * The tiles keep one point per cell of about a pixel, the largest glacier's, so
+ * a small selection can be missing from them: the selection draws its own.
+ */
+const SHAPE_COMPLETE_ZOOM = 10;
+const SHAPE_MIN_PX = 3;
+const TILE_PX = 512;
+const EARTH_RADIUS_M = 6378137;
+const MERCATOR_MAX_LAT = 85.0511287798;
+
+/**
+ * The zoom from which the tiles hold a glacier or complex as its outline, by
+ * the catalog's rule.
+ *
+ * @param {{ xmin: number, ymin: number, xmax: number, ymax: number }} bbox in degrees
+ */
+export function shapeMinzoom({ xmin, ymin, xmax, ymax }) {
+  const x = (lon) => (EARTH_RADIUS_M * lon * Math.PI) / 180;
+  const y = (lat) => {
+    const clamped = Math.max(-MERCATOR_MAX_LAT, Math.min(MERCATOR_MAX_LAT, lat));
+    return EARTH_RADIUS_M * Math.log(Math.tan(Math.PI / 4 + (clamped * Math.PI) / 360));
+  };
+  const extent = Math.max(x(xmax) - x(xmin), y(ymax) - y(ymin));
+  const pixel = (zoom) => (2 * Math.PI * EARTH_RADIUS_M) / (TILE_PX * 2 ** zoom);
+  for (let zoom = 0; zoom < SHAPE_COMPLETE_ZOOM; zoom++) if (extent >= SHAPE_MIN_PX * pixel(zoom)) return zoom;
+  return SHAPE_COMPLETE_ZOOM;
+}
 const WORLD = {
   type: "Feature",
   properties: {},
@@ -302,6 +332,18 @@ function buildStyle(liberty, rgi, state) {
       layout: NONE,
       paint: { ...SELECTION_DOT },
     },
+    /*
+     * The selection's own dot at RGI's point, below the zoom at which the tiles
+     * hold its outline: there whether or not the tiles kept its point. A filter
+     * reads the zoom at whole zooms, as the tiles change.
+     */
+    {
+      id: "selection-point",
+      type: "circle",
+      source: "selection-point",
+      filter: ["<", ["zoom"], ["get", "outline_zoom"]],
+      paint: { ...SELECTION_DOT },
+    },
     /* The selected glacier's name, in red over its outline. It wins the label collisions, so the plain label of the same name gives way. */
     {
       id: "selection-label",
@@ -342,6 +384,7 @@ function buildStyle(liberty, rgi, state) {
       esri: { type: "raster", tiles: [ESRI_TILES], tileSize: 256 },
       world: { type: "geojson", data: WORLD },
       pin: { type: "geojson", data: EMPTY },
+      "selection-point": { type: "geojson", data: EMPTY },
     },
     layers: [
       ...base.slice(0, cut),
@@ -508,6 +551,12 @@ export async function createMap(container, catalog, state, liberty = fetchLibert
   /* The toggles that are on, and the glaciers whose centerlines the selection draws again. */
   const toggles = new Set(state.layers);
   let picked = null;
+  /* The glacier or complex whose own dot the selection-point layer draws. */
+  let pointId = null;
+  const setPoint = (id, feature) => {
+    pointId = id;
+    /** @type {import("maplibre-gl").GeoJSONSource} */ (map.getSource("selection-point")).setData(feature ?? EMPTY);
+  };
   const OVERLAY_FILTERS = {
     centerlines: (ids) => ["in", ["get", "rgi_g_id"], ["literal", ids]],
   };
@@ -593,6 +642,7 @@ export async function createMap(container, catalog, state, liberty = fetchLibert
 
     select(rgiId) {
       const on = rgiId !== null && rgiId !== undefined;
+      if (rgiId !== pointId) setPoint(null);
       if (on) {
         map.setFilter("selection-fill", idFilter(rgiId));
         map.setFilter("selection-under", idFilter(rgiId));
@@ -613,6 +663,7 @@ export async function createMap(container, catalog, state, liberty = fetchLibert
      */
     selectComplex(complexId, glacierIds = []) {
       const on = complexId !== null && complexId !== undefined;
+      if (complexId !== pointId) setPoint(null);
       if (on) {
         map.setFilter("complex-fill", idFilter(complexId));
         map.setFilter("complex-members", ["==", ["get", "complex_id"], complexId]);
@@ -624,6 +675,30 @@ export async function createMap(container, catalog, state, liberty = fetchLibert
       for (const id of COMPLEX) show(id, on);
       picked = on ? glacierIds : null;
       showOverlays();
+    },
+
+    /**
+     * Draw the dot of the selected glacier or complex `id` from its row, at
+     * RGI's point and below the zoom of its outline, as the catalog's tiles
+     * do. A row without a point or bbox draws none. Selecting another ID or
+     * none clears it.
+     *
+     * @param {string} id
+     * @param {{ cenlon?: number, cenlat?: number, bbox?: { xmin: number, ymin: number, xmax: number, ymax: number } } | null} row
+     */
+    selectPoint(id, row) {
+      const { cenlon, cenlat, bbox } = row ?? {};
+      const known = [cenlon, cenlat].every(Number.isFinite) && bbox && ["xmin", "ymin", "xmax", "ymax"].every((key) => Number.isFinite(bbox[key]));
+      setPoint(
+        id,
+        known
+          ? {
+              type: "Feature",
+              properties: { outline_zoom: shapeMinzoom(bbox) },
+              geometry: { type: "Point", coordinates: [cenlon, cenlat] },
+            }
+          : null,
+      );
     },
 
     pin(lonLat) {

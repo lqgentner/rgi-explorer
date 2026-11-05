@@ -54,7 +54,7 @@ const NOTICE_MS = 2000;
 /* The gap between a control and the notice that points at it, in px. */
 const NOTICE_GAP = 8;
 const REGION_COLUMNS = ["level", "o1region", "o2region", "full_name", "bbox"];
-const FACT_COLUMNS = ["bbox", "glims_id"];
+const FACT_COLUMNS = ["bbox", "glims_id", "cenlon", "cenlat"];
 const COMPLEX_COLUMNS = ["rgi_id", "o1region", "o2region", "cenlon", "cenlat", "utm_zone", "area_km2", "glacier_ids", "bbox"];
 const CATALOG_ERROR = "The catalog could not be loaded.";
 const MAP_ERROR = "The map could not be loaded.";
@@ -162,7 +162,7 @@ function glacierFile(collection, regionNames) {
         return null;
       }
     },
-    /** The bbox and GLIMS ID of a glacier, `{}` when its row is unknown. */
+    /** The bbox, GLIMS ID and RGI point of a glacier, `{}` when its row is unknown. */
     async factsOf(glacier) {
       const row = glacier.row ?? (await file.rowOf(glacier.rgiId));
       if (row === null || row === undefined) return {};
@@ -673,7 +673,9 @@ function wire(catalog, rgiMap, regions) {
     rgiMap.selectComplex(complexId);
     complexes.read(complexId).then(
       (props) => {
-        if (shownComplex === complexId && props?.glacier_ids) rgiMap.selectComplex(complexId, props.glacier_ids);
+        if (shownComplex !== complexId) return;
+        if (props?.glacier_ids) rgiMap.selectComplex(complexId, props.glacier_ids);
+        rgiMap.selectPoint(complexId, props);
       },
       () => {},
     );
@@ -715,6 +717,12 @@ function wire(catalog, rgiMap, regions) {
     save();
     rgiMap.pin(null);
     rgiMap.select(glacier.rgiId);
+    glaciers.factsOf(glacier).then(
+      (facts) => {
+        if (shown === glacier) rgiMap.selectPoint(glacier.rgiId, facts);
+      },
+      () => {},
+    );
     showCard(true);
     search.setClosable(closeGlacier);
     fitting = fit ? fitGlacierLater(glacier, fit) : null;
