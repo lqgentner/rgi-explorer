@@ -11,6 +11,8 @@
   --accent-tint: #e3f0f6;
   --red: #cc3311;
   --bar: #4a9ac2;
+  /* The tour's ring: the bars' brighter blue, which the map's imagery and the dark accent do not swallow. */
+  --ring: #4a9ac2;
   --surface: #fff;
   --text: #14232b;
   --muted: #4f6570;
@@ -1433,7 +1435,7 @@ body:has(#search.fullscreen) .welcome {
 }
 
 .tour-target {
-  outline: 3px solid var(--accent);
+  outline: 3px solid var(--ring);
   outline-offset: 2px;
 }
 
@@ -1506,7 +1508,7 @@ body:has(#search.fullscreen) .welcome {
     width: var(--card-w);
     z-index: 10;
     box-sizing: border-box;
-    border: 3px solid var(--accent);
+    border: 3px solid var(--ring);
     pointer-events: none;
   }
 }
@@ -1514,7 +1516,7 @@ body:has(#search.fullscreen) .welcome {
 /* The search bar keeps its ring while focused, over its own "no outline" focus style. */
 #search input.tour-target,
 #search input.tour-target:focus {
-  outline: 3px solid var(--accent);
+  outline: 3px solid var(--ring);
   outline-offset: 2px;
 }
 
@@ -1532,15 +1534,15 @@ body:has(#search.fullscreen) .welcome {
   /*
    * The scroller itself is clear, so its gutter shows the map and only the
    * thumb floats there; the panel inside, --card-w wide, is the white sheet.
+   * The scroller would clip a shadow on the panel: #sidebar::after casts it.
    */
-  scrollbar-color: var(--image-placeholder) transparent;
+  scrollbar-color: var(--muted) transparent;
 }
 
 #card > .card {
   box-sizing: border-box;
   min-height: 100%;
   background: var(--surface);
-  box-shadow: var(--shadow);
 }
 
 /*
@@ -1552,6 +1554,22 @@ body:has(#search.fullscreen) .welcome {
 @media (min-width: 641px) {
   #card {
     transition: translate var(--slide), visibility var(--slide);
+  }
+
+  /* The white panel's shadow, under the sidebar and sliding with it. */
+  #sidebar::after {
+    content: "";
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 2;
+    width: var(--card-w);
+    box-shadow: var(--shadow);
+    pointer-events: none;
+    transition: translate var(--slide);
+  }
+
+  #sidebar:has(> #card[hidden])::after {
+    translate: calc(-100% - 16px) 0;
   }
 
   #card[hidden] {
@@ -1587,6 +1605,7 @@ body:has(#search.fullscreen) .welcome {
 
 @media (prefers-reduced-motion: reduce) {
   #card,
+  #sidebar::after,
   #layers,
   #status {
     transition: none;

@@ -420,7 +420,14 @@ test("the text runs to the card's padding; only the heading keeps clear of the X
 
 test("the ring on a focused search input survives the search's own focus style", () => {
   const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
-  assert.match(css, /#search input\.tour-target,\s*#search input\.tour-target:focus \{\s*outline: 3px solid var\(--accent\);/);
+  assert.match(css, /#search input\.tour-target,\s*#search input\.tour-target:focus \{\s*outline: 3px solid var\(--ring\);/);
+});
+
+test("the tour rings each part in the brighter blue", () => {
+  const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
+  assert.match(css, /--ring: #4a9ac2;/);
+  assert.match(css, /\.tour-target \{\s*outline: 3px solid var\(--ring\);/);
+  assert.doesNotMatch(css, /3px solid var\(--accent\)/);
 });
 
 test("on the desktop the card's ring is a frame above the photo and the sticky tabs, fixed while the card scrolls", () => {
@@ -433,6 +440,6 @@ test("on the desktop the card's ring is a frame above the photo and the sticky t
   assert.match(frame, /inset: 0 auto 0 0;/);
   assert.match(frame, /width: var\(--card-w\);/, "the white panel, not the clear scrollbar gutter beside it");
   assert.match(frame, /z-index: 10;/, "above the photo and the sticky tabs");
-  assert.match(frame, /border: 3px solid var\(--accent\);/);
+  assert.match(frame, /border: 3px solid var\(--ring\);/);
   assert.match(frame, /pointer-events: none;/);
 });
