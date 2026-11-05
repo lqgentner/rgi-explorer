@@ -431,7 +431,7 @@ test("on the desktop the card's ring is a frame above the photo and the sticky t
   assert.match(frame, /content: "";/);
   assert.match(frame, /position: fixed;/, "fixed: the open card has no translate, so it holds still as the card scrolls");
   assert.match(frame, /inset: 0 auto 0 0;/);
-  assert.match(frame, /width: var\(--sidebar-w\);/);
+  assert.match(frame, /width: var\(--card-w\);/, "the white panel, not the clear scrollbar gutter beside it");
   assert.match(frame, /z-index: 10;/, "above the photo and the sticky tabs");
   assert.match(frame, /border: 3px solid var\(--accent\);/);
   assert.match(frame, /pointer-events: none;/);
