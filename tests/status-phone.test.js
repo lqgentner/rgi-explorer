@@ -74,5 +74,10 @@ test("the phone hides the scale bar and folds the credits through style.css alon
   const phone = css.slice(css.indexOf("@media (max-width: 640px)"));
   assert.match(phone, /\.scale\s*\{\s*display:\s*none;/);
   assert.match(phone, /\.credits-box:not\(\.open\) \.credits\s*\{\s*display:\s*none;/);
-  assert.match(phone, /#status\s*\{\s*right:\s*12px;\s*bottom:\s*12px;/, "in the bottom right corner");
+  const row = /\n  #status \{([^}]*)\}/.exec(phone)[1];
+  assert.match(row, /left: 12px;\s*right: 12px;\s*bottom: 12px;\s*display: flex;/, "a row across the bottom");
+  assert.match(row, /justify-content: space-between;/, "help in the left corner, info in the right");
+  assert.match(row, /pointer-events: none;/, "taps between the buttons reach the map");
+  assert.match(phone, /\.help-btn \{[^}]*width: 36px;\s*height: 36px;/);
+  assert.match(phone, /\.credits-button \{[^}]*width: 36px;\s*height: 36px;/);
 });

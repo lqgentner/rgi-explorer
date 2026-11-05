@@ -4,7 +4,7 @@
  */
 
 import { clampLat, EARTH_RADIUS, ESRI_ATTRIBUTION, TERRAIN_COVERAGE, TILE_SIZE } from "./config.js";
-import { PHONE, h, icon, joined } from "./ui.js";
+import { PHONE, h, icon } from "./ui.js";
 
 const EARTH_CIRCUMFERENCE = 2 * Math.PI * EARTH_RADIUS;
 const OSM = { text: "© OpenStreetMap contributors", href: "https://www.openstreetmap.org/copyright" };
@@ -12,7 +12,8 @@ const OPENFREEMAP = { text: "OpenFreeMap", href: "https://openfreemap.org/" };
 const OPENMAPTILES = { text: "© OpenMapTiles", href: "https://www.openmaptiles.org/" };
 /* Esri asks for "Powered by Esri" on interactive maps, then the data's sources: its copyrightText without "Esri". */
 const ESRI = { text: "Powered by Esri", href: "https://www.esri.com" };
-const ESRI_SOURCES = { text: "Vantor, Earthstar Geographics, and the GIS User Community" };
+/* Three credits, so a line can break between them as between the others. */
+const ESRI_SOURCES = [{ text: "Vantor" }, { text: "Earthstar Geographics" }, { text: "and the GIS User Community" }];
 const MAPTERHORN = { text: "© Mapterhorn", href: "https://mapterhorn.com/attribution" };
 /* MapLibre's own control credits it last, with this link; the license asks for no credit, so it is a courtesy. */
 const MAPLIBRE = { text: "MapLibre", href: "https://maplibre.org/" };
@@ -148,14 +149,15 @@ export function credits({ base, terrain, catalog, imagery = null, producers = nu
     /* The DOI's landing page names the license. */
     { label: "Glaciers", items: [{ text: rgiCredit(catalog.citation), href: doi }] },
     { label: "Basemap", items: [OSM, OPENFREEMAP, OPENMAPTILES] },
-    base === "imagery" ? { label: "Imagery", items: [ESRI, ...(imagery ?? [ESRI_SOURCES])] } : null,
+    base === "imagery" ? { label: "Imagery", items: [ESRI, ...(imagery ?? ESRI_SOURCES)] } : null,
     terrain ? { label: "Terrain", items: [MAPTERHORN, ...(producers ?? [])] } : null,
     { label: null, items: [MAPLIBRE] },
   ].filter(Boolean);
 }
 
 /**
- * Draw the scale bar and the credits.
+ * Draw the scale bar and the credits, and after them a Privacy link that
+ * calls `onPrivacy`, when given.
  *
  * @param getState  returns the current `{ base, terrain }`
  * @returns {{fold(): void, refresh(): void}}  fold folds the phone's credits
@@ -168,7 +170,7 @@ export function credits({ base, terrain, catalog, imagery = null, producers = nu
  * view, from Esri's list, read once; until it arrives, or when it fails, Esri's
  * fixed sources stand, and the next move reads it again.
  */
-export function mountStatus(root, rgiMap, catalog, getState) {
+export function mountStatus(root, rgiMap, catalog, getState, { onPrivacy = null } = {}) {
   const list = h("span", { class: "credits" });
   const scaleLabel = h("span", { class: "scale-label" });
   const scaleLine = h("span", { class: "scale-bar" });
@@ -192,18 +194,28 @@ export function mountStatus(root, rgiMap, catalog, getState) {
     contributors && getState().base === "imagery"
       ? imageryContributors(contributors, view(), Math.round(rgiMap.map.getZoom()) + 1)
       : null;
+  const privacy = onPrivacy ? h("button", { type: "button", class: "credit credit-privacy" }, "Privacy") : null;
+  privacy?.addEventListener("click", () => onPrivacy());
+  /*
+   * A line breaks between two credits, and inside one only when it is longer
+   * than the line: each credit is one box, see style.css, holding the comma
+   * after it, and a group's label shares its first credit's box.
+   */
+  const creditBox = (...nodes) => h("span", { class: "credit-box" }, ...nodes);
   const drawCredits = () => {
     const groups = credits({ ...getState(), catalog, imagery: imageryInView(), producers });
-    list.replaceChildren(
-      ...groups.map(({ label, items }) =>
-        h(
-          "span",
-          { class: "credit-group" },
-          label ? h("span", { class: "credit-label" }, label) : null,
-          ...joined(items.map(item), ", "),
-        ),
+    const nodes = groups.map(({ label, items }) =>
+      h(
+        "span",
+        { class: "credit-group" },
+        ...items.flatMap((credit, i) => [
+          i ? " " : null,
+          creditBox(i === 0 && label ? h("span", { class: "credit-label" }, label) : null, item(credit), i < items.length - 1 ? "," : null),
+        ]),
       ),
     );
+    if (privacy) nodes.push(h("span", { class: "credit-group" }, creditBox(privacy)));
+    list.replaceChildren(...nodes);
   };
 
   const drawScale = (lat, zoom) => {

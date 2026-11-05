@@ -342,6 +342,25 @@ test("the card column rises above the status line and the search above the card"
   assert.match(css, /#card\s*{[^}]*scrollbar-gutter:\s*stable/);
 });
 
+test("the sidebar's scrollbar gutter is clear, so the map shows there and only the thumb floats over it", () => {
+  const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
+  const sidebar = /\n#card \{([^}]*)\}/.exec(css)[1];
+  assert.doesNotMatch(sidebar, /background|box-shadow/, "a white scroller paints its gutter white");
+  assert.match(sidebar, /scrollbar-color: var\(--muted\) transparent;/, "a dark grey thumb");
+  const panel = /\n#card > \.card \{([^}]*)\}/.exec(css)[1];
+  assert.match(panel, /background: var\(--surface\);/);
+  assert.doesNotMatch(panel, /box-shadow/, "the scroller clips its children's shadows");
+  const shadow = /\n  #sidebar::after \{([^}]*)\}/.exec(css)[1];
+  assert.match(shadow, /position: fixed;/);
+  assert.match(shadow, /width: var\(--card-w\);/, "the white panel's width, so the shadow falls into the gutter");
+  assert.match(shadow, /box-shadow: var\(--shadow\);/);
+  assert.match(shadow, /z-index: 2;/, "under the sidebar's 3");
+  assert.match(shadow, /transition: translate var\(--slide\);/);
+  assert.match(css, /#sidebar:has\(> #card\[hidden\]\)::after \{\s*translate: calc\(-100% - 16px\) 0;/, "it slides out with the card");
+  assert.match(panel, /min-height: 100%;/, "white to the foot of the sidebar, however short the panel");
+  assert.match(panel, /box-sizing: border-box;/, "its bottom padding inside that height, so a short panel does not scroll");
+});
+
 test("the buttons take the outer radius, the tiles and table the tile radius, and the ⓘ sits concentric", () => {
   const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
   const rule = (sel) => new RegExp(`(^|\\n)${sel}\\s*{([^}]*)}`).exec(css)?.[2] ?? "";

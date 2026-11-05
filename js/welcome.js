@@ -1,7 +1,7 @@
 /*
  * The first-visit welcome: what the map shows, how to start, the RGI user
- * guide, the tour and the privacy note. Once closed it stays gone on later
- * visits; the help button brings it back.
+ * guide and the tour; the credits link the privacy note. Once closed it
+ * stays gone on later visits; the help button brings it back.
  */
 
 import { formatInt } from "./columns.js";
@@ -35,22 +35,20 @@ export function welcomeTitle(count, version) {
 
 /**
  * Mount the welcome in `root`, hidden. It shows on mount when `autoShow` is
- * true and this browser hasn't closed it before. Privacy, small on the left
- * of the tour's row, calls `onPrivacy` and leaves the welcome open.
+ * true and this browser hasn't closed it before.
  *
  * @returns {{show(): void, dismiss(): void, readonly shown: boolean, readonly node: Element}}
  */
-export function mountWelcome(root, { title, autoShow, onTour, onPrivacy }) {
+export function mountWelcome(root, { title, autoShow, onTour }) {
   const close = h("button", { type: "button", class: "icon-button welcome-close", "aria-label": "Close" }, icon("x"));
   const tour = h("button", { type: "button", class: "btn primary" }, "Take the tour");
-  const privacy = h("button", { type: "button", class: "welcome-privacy" }, "Privacy");
   const node = h(
     "section",
     { class: "welcome", "aria-labelledby": "welcome-title", hidden: true },
     h("h2", { id: "welcome-title" }, title),
     /* One paragraph, to save a line on the phone. */
     h("p", {}, "Search for a glacier or click one on the map. New to RGI? ", externalLink(USER_GUIDE, "Read the user guide"), "."),
-    h("div", { class: "welcome-actions" }, privacy, tour),
+    h("div", { class: "welcome-actions" }, tour),
     close,
   );
   root.append(node);
@@ -71,7 +69,6 @@ export function mountWelcome(root, { title, autoShow, onTour, onPrivacy }) {
     node,
   };
   close.addEventListener("click", () => api.dismiss());
-  privacy.addEventListener("click", () => onPrivacy());
   tour.addEventListener("click", () => {
     api.dismiss();
     onTour();

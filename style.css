@@ -1,19 +1,57 @@
 :root {
-  --accent: #1a73e8;
-  --red: #d93025;
+  /*
+   * The Glacial palette: a deep glacier blue for what can be pressed, signal
+   * red for the selection, and blue-grey neutrals. The data bars are a lighter
+   * blue than the buttons, one colour for every bar.
+   */
+  --accent: #00668a;
+  /* A pressed or hovered primary button, between --accent and --quiet-accent. */
+  --accent-strong: #00577a;
+  /* A highlighted row, such as the search's chosen result. */
+  --accent-tint: #e3f0f6;
+  --red: #cc3311;
+  --bar: #4a9ac2;
+  /* The tour's ring: the bars' brighter blue, which the map's imagery and the dark accent do not swallow. */
+  --ring: #4a9ac2;
   --surface: #fff;
-  --text: #202124;
-  --muted: #5f6368;
-  --line: #dadce0;
+  --text: #14232b;
+  --muted: #4f6570;
+  --line: #d3dee4;
   /* A hover, and a box of code, on white. */
-  --surface-2: #f1f3f4;
+  --surface-2: #edf3f6;
+  /* The close disc's hover, a step darker than --surface-2. */
+  --surface-3: #e1eaef;
   /* What an image shows until it loads, or when there is none. */
-  --image-placeholder: #9aa0a6;
+  --image-placeholder: #93a5ae;
   --shadow: 0 1px 3px rgb(60 64 67 / 30%), 0 4px 8px 3px rgb(60 64 67 / 15%);
-  /* Controls over the map and the photo let what is behind them show through. */
-  --glass: rgb(255 255 255 / 72%);
-  --glass-blur: blur(6px);
+  /*
+   * Lower-priority surfaces over the map, the phone's help and info buttons,
+   * the credits and the tour's card, let the map through, frosted. GLACE Viewer darkens the backdrop of
+   * its dark panels so bright imagery keeps under their tint; these light
+   * ones do the reverse: the filter squeezes the backdrop's contrast and
+   * lifts it, so space and dark imagery show through light, not grey, and the
+   * blur and saturation keep only the map's colour. Over the near-black space
+   * around the globe, the worst case, the card's text measures 10:1 and its
+   * small grey count, in --quiet-muted, 5:1.
+   */
+  --quiet-button: rgb(255 255 255 / 60%);
+  --quiet-card: rgb(255 255 255 / 70%);
+  --quiet-blur: 16px;
+  --quiet-filter: blur(var(--quiet-blur)) contrast(0.5) brightness(1.4) saturate(1.4);
+  /* How far a frosted surface's glass reaches past its edges: two blur radii, as in GLACE Viewer. */
+  --quiet-reach: calc(2 * var(--quiet-blur));
+  --quiet-muted: #44555e;
+  /* Blue text on them, such as an outlined button's: 5:1 over space. */
+  --quiet-accent: #004f6b;
+  /*
+   * Over a photo the photo is the content, so its controls take a plainer,
+   * lighter glass than the map's frost, which would wash it out: faint arrows,
+   * a light credit and a dark count.
+   */
   --photo-glass: rgb(255 255 255 / 45%);
+  --photo-glass-strong: rgb(255 255 255 / 72%);
+  --photo-dark: rgb(20 35 43 / 62%);
+  --photo-blur: blur(6px);
   --space: #10141c;
   --card-w: 408px;
   /*
@@ -38,8 +76,8 @@
   --sheet-x-inset: 16px;
   --tile-radius: 12px;
   /* What darkens the page behind a pane or dialog: light for panes, strong behind the image viewer. */
-  --scrim: rgb(32 33 36 / 40%);
-  --scrim-strong: rgb(32 33 36 / 80%);
+  --scrim: rgb(20 35 43 / 40%);
+  --scrim-strong: rgb(20 35 43 / 80%);
   /* The search bar's place, which the desktop photo's arrows are centred against. */
   --search-top: 16px;
   --search-h: 48px;
@@ -96,6 +134,53 @@ code,
 pre,
 kbd {
   font-family: var(--mono);
+}
+
+/* Readers who ask for less transparency or more contrast get opaque surfaces. */
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  :root {
+    --quiet-button: var(--surface);
+    --quiet-card: var(--surface);
+    --quiet-filter: none;
+    --quiet-muted: var(--muted);
+    --quiet-accent: var(--accent);
+    --photo-glass: var(--surface);
+    --photo-glass-strong: var(--surface);
+    --photo-dark: var(--text);
+    --photo-blur: none;
+  }
+}
+
+/*
+ * A frosted surface paints its glass in ::before, which reaches
+ * --quiet-reach past each edge and is clipped back to the surface, as GLACE
+ * Viewer's panels do: the blur at the edges then samples the map beyond them
+ * instead of repeating the edge's own pixels, which flicker as the map pans
+ * under them. A clip, not the surface's overflow, so a button's tap area
+ * past its edge still takes taps. Each surface sets --frost-tint and
+ * --frost-radius; the glass sits behind its content, in the stacking context
+ * the surface makes. The tour's card is frosted on both layouts, the status
+ * line on the desktop, and the help button and the credits on the phone.
+ */
+.tour,
+#status,
+.help-btn,
+.credits-box {
+  isolation: isolate;
+}
+
+.tour::before,
+#status::before,
+.help-btn::before,
+.credits-box::before {
+  content: "";
+  position: absolute;
+  inset: calc(-1 * var(--quiet-reach));
+  z-index: -1;
+  background: var(--frost-tint);
+  backdrop-filter: var(--quiet-filter);
+  clip-path: inset(var(--quiet-reach) round var(--frost-radius));
+  pointer-events: none;
 }
 
 /* Space, behind the transparent map canvas around the globe and its atmosphere. */
@@ -207,7 +292,7 @@ kbd {
 
 #search li[aria-selected="true"],
 #search li:hover {
-  background: #e8f0fe;
+  background: var(--accent-tint);
 }
 
 /* Shared control parts */
@@ -544,7 +629,7 @@ button:focus-visible {
 
 .layer-toggle:hover .layer-preview,
 .base-tile:hover img {
-  outline: 2px solid #9aa0a6;
+  outline: 2px solid var(--image-placeholder);
   outline-offset: -2px;
 }
 
@@ -713,7 +798,7 @@ button:focus-visible {
 }
 
 .needle-south {
-  fill: #bdc1c6;
+  fill: #b7c6cd;
 }
 
 /* Layers pane, phone */
@@ -734,7 +819,7 @@ button:focus-visible {
   bottom: 0;
   z-index: 5;
   padding: 12px 16px 32px;
-  border-radius: 16px 16px 0 0;
+  /* Square: unlike the glacier's sheet, it cannot be dragged. */
   background: var(--surface);
   box-shadow: var(--shadow);
 }
@@ -759,7 +844,7 @@ button:focus-visible {
 
 .layers-pane h3 {
   margin: 0 0 12px;
-  font-size: 14px;
+  font-size: 16px;
   color: var(--muted);
 }
 
@@ -804,8 +889,8 @@ button:focus-visible {
   max-width: 100%;
   padding: 2px 8px;
   border-top-left-radius: 8px;
-  background: var(--glass);
-  backdrop-filter: var(--glass-blur);
+  --frost-tint: var(--quiet-card);
+  --frost-radius: 8px 0 0 0;
   color: var(--text);
   font-size: 11px;
   line-height: 16px;
@@ -836,6 +921,14 @@ button:focus-visible {
  * The credits run as one text, and no space separates their groups, so a long
  * line wraps inside a group rather than between groups.
  */
+/* The desktop's help button stands with the opaque controls; the status line is frosted, not its credits. */
+@media (min-width: 641px) {
+  .help-btn::before,
+  .credits-box::before {
+    content: none;
+  }
+}
+
 @media (min-width: 641px) {
   #status {
     display: flex;
@@ -855,17 +948,53 @@ button:focus-visible {
   display: none;
 }
 
+/*
+ * The credits run as one text that breaks between two credits. Each credit,
+ * with the comma after it, is one box, which wraps inside only when longer
+ * than the line, and a group's label shares its first credit's box.
+ *
+ * A "|" parts two groups. It hangs to the left of the next group's first
+ * box, over the previous group's right margin, which a line break drops: at
+ * the start of a line it hangs outside the credits, which clip it.
+ */
+.credits {
+  display: block;
+  clip-path: inset(-4px -4px -4px -3px);
+}
+
+.credit-box {
+  display: inline-block;
+  max-width: 100%;
+}
+
 /* Each group names what it credits: "Glaciers", "Basemap" and so on. */
 .credit-label {
   margin-right: 4px;
-  color: var(--muted);
+  color: var(--quiet-muted);
   font-weight: 600;
 }
 
-.credit-group + .credit-group::before {
+.credit-group:not(:last-child) {
+  margin-right: 17px;
+}
+
+.credit-group + .credit-group > .credit-box:first-child::before {
   content: "|";
-  margin: 0 8px;
+  display: inline-block;
+  width: 17px;
+  margin-left: -17px;
   color: var(--muted);
+  text-align: center;
+}
+
+/* The privacy note opens in the page: a button, set as the links beside it. */
+.credit-privacy {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
 }
 
 @media (max-width: 640px) {
@@ -927,15 +1056,37 @@ button:focus-visible {
     display: none;
   }
 
+  /*
+   * A row across the bottom: the help button in the left corner, the credits'
+   * info button in the right. Open, the credits fill the row between them.
+   * The row lets taps between the buttons through to the map.
+   */
   #status {
+    left: 12px;
     right: 12px;
     bottom: 12px;
-    max-width: calc(100% - 24px);
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 8px;
+    max-width: none;
     padding: 0;
     border-radius: 0;
-    background: none;
-    backdrop-filter: none;
     font-size: 12px;
+    pointer-events: none;
+  }
+
+  /* The row holds the frosted buttons and credits but is no surface itself. */
+  #status::before {
+    content: none;
+  }
+
+  .help-btn {
+    background: none;
+  }
+
+  #status > * {
+    pointer-events: auto;
   }
 
   .scale {
@@ -943,21 +1094,24 @@ button:focus-visible {
   }
 
   /*
-   * The info button, a round button like the others, sits in the bottom right
-   * corner and grows into the credits from there: open, the box holds the
-   * text to the button's left.
+   * The info button, 36 px and round, sits in the bottom right corner and
+   * grows into the credits from there: open, the box holds the text to the
+   * button's left.
    */
   .credits-box {
     display: block;
     position: relative;
-    min-height: 44px;
-    border-radius: 22px;
-    background: var(--surface);
+    min-height: 36px;
+    border-radius: 18px;
+    --frost-tint: var(--quiet-card);
+    --frost-radius: 18px;
     box-shadow: var(--shadow);
   }
 
   .credits-box.open {
-    padding: 6px 44px 6px 16px;
+    flex: 1;
+    min-width: 0;
+    padding: 6px 36px 6px 14px;
     display: flex;
     align-items: center;
   }
@@ -971,8 +1125,8 @@ button:focus-visible {
     position: absolute;
     right: 0;
     bottom: 0;
-    width: 44px;
-    height: 44px;
+    width: 36px;
+    height: 36px;
     align-items: center;
     justify-content: center;
     border: 0;
@@ -983,30 +1137,51 @@ button:focus-visible {
   }
 
   .credits-button .icon {
-    width: 24px;
-    height: 24px;
+    width: 20px;
+    height: 20px;
   }
 
+  /* Folded to its button, the box is frosted as the help button is; open, as the desktop's status line. */
   .credits-box:not(.open) {
-    width: 44px;
+    width: 36px;
+  }
+
+  .help-btn,
+  .credits-box:not(.open) {
+    --frost-tint: var(--quiet-button);
+    --frost-radius: 18px;
   }
 
   /*
-   * In the status line, above the credits' info button with its right edge
-   * aligned, so it rides up with the credits over the sheet and hides with
-   * them.
+   * In the status line's left corner, so it rides up with the credits over
+   * the sheet and hides with them.
    */
   .help-btn {
+    position: relative;
     display: flex;
-    width: 44px;
-    height: 44px;
-    margin: 0 0 8px auto;
+    flex: none;
+    width: 36px;
+    height: 36px;
     border-radius: 50%;
   }
 
   .help-btn .icon {
-    width: 24px;
-    height: 24px;
+    width: 20px;
+    height: 20px;
+  }
+
+  @media (hover: hover) {
+    .help-btn:hover {
+      --frost-tint: var(--surface-2);
+    }
+  }
+
+  /* Both buttons show at 36 px and take a tap across 44 px. */
+  .help-btn::after,
+  .credits-button::after {
+    content: "";
+    position: absolute;
+    inset: -4px;
   }
 }
 
@@ -1050,33 +1225,15 @@ button:focus-visible {
   color: var(--muted);
 }
 
-/* Privacy small on the left, aligned with the text; Take the tour on the right, 12 px from the edges. */
+/* Take the tour on the right, 12 px from the edges. */
 .welcome-actions {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  justify-content: flex-end;
   margin-top: 8px;
 }
 
 .welcome .btn {
   display: flex;
-}
-
-.welcome-privacy {
-  padding: 4px 8px;
-  border: 0;
-  background: none;
-  color: var(--muted);
-  font: inherit;
-  font-size: 13px;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  cursor: pointer;
-}
-
-.welcome-privacy:hover {
-  color: var(--text);
 }
 
 .welcome-close {
@@ -1113,7 +1270,8 @@ button:focus-visible {
   max-width: calc(100vw - 16px);
   padding: 12px;
   border-radius: var(--card-radius);
-  background: var(--surface);
+  --frost-tint: var(--quiet-card);
+  --frost-radius: var(--card-radius);
   box-shadow: var(--shadow);
 }
 
@@ -1247,7 +1405,7 @@ body:has(#search.fullscreen) .welcome {
   margin-right: auto;
   padding-left: 8px;
   white-space: nowrap;
-  color: var(--muted);
+  color: var(--quiet-muted);
   font-size: 12px;
 }
 
@@ -1257,8 +1415,27 @@ body:has(#search.fullscreen) .welcome {
   right: 12px;
 }
 
+/*
+ * On the frosted card the X has no disc of its own until hovered, and an
+ * outlined button no fill: a grey wash marks a hover on either.
+ */
+.tour-close:not(:hover) {
+  background: none;
+}
+
+.tour .btn:not(.primary) {
+  border-color: rgb(20 35 43 / 20%);
+  background: none;
+  color: var(--quiet-accent);
+}
+
+.tour .btn:not(.primary):hover,
+.tour-close:hover {
+  background: rgb(20 35 43 / 8%);
+}
+
 .tour-target {
-  outline: 3px solid var(--accent);
+  outline: 3px solid var(--ring);
   outline-offset: 2px;
 }
 
@@ -1328,10 +1505,10 @@ body:has(#search.fullscreen) .welcome {
     content: "";
     position: fixed;
     inset: 0 auto 0 0;
-    width: var(--sidebar-w);
+    width: var(--card-w);
     z-index: 10;
     box-sizing: border-box;
-    border: 3px solid var(--accent);
+    border: 3px solid var(--ring);
     pointer-events: none;
   }
 }
@@ -1339,7 +1516,7 @@ body:has(#search.fullscreen) .welcome {
 /* The search bar keeps its ring while focused, over its own "no outline" focus style. */
 #search input.tour-target,
 #search input.tour-target:focus {
-  outline: 3px solid var(--accent);
+  outline: 3px solid var(--ring);
   outline-offset: 2px;
 }
 
@@ -1354,8 +1531,18 @@ body:has(#search.fullscreen) .welcome {
   width: var(--sidebar-w);
   overflow-y: auto;
   scrollbar-gutter: stable;
+  /*
+   * The scroller itself is clear, so its gutter shows the map and only the
+   * thumb floats there; the panel inside, --card-w wide, is the white sheet.
+   * The scroller would clip a shadow on the panel: #sidebar::after casts it.
+   */
+  scrollbar-color: var(--muted) transparent;
+}
+
+#card > .card {
+  box-sizing: border-box;
+  min-height: 100%;
   background: var(--surface);
-  box-shadow: var(--shadow);
 }
 
 /*
@@ -1367,6 +1554,22 @@ body:has(#search.fullscreen) .welcome {
 @media (min-width: 641px) {
   #card {
     transition: translate var(--slide), visibility var(--slide);
+  }
+
+  /* The white panel's shadow, under the sidebar and sliding with it. */
+  #sidebar::after {
+    content: "";
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 2;
+    width: var(--card-w);
+    box-shadow: var(--shadow);
+    pointer-events: none;
+    transition: translate var(--slide);
+  }
+
+  #sidebar:has(> #card[hidden])::after {
+    translate: calc(-100% - 16px) 0;
   }
 
   #card[hidden] {
@@ -1402,6 +1605,7 @@ body:has(#search.fullscreen) .welcome {
 
 @media (prefers-reduced-motion: reduce) {
   #card,
+  #sidebar::after,
   #layers,
   #status {
     transition: none;
@@ -1428,16 +1632,21 @@ body:has(#search.fullscreen) .welcome {
   background: var(--image-placeholder);
 }
 
-/* Flat and light grey on the sheet's white band. */
+/* Flat and light grey on the sheet's white band, and on the phone's layers pane. */
 .card-close {
   position: absolute;
   top: 8px;
   right: 8px;
+}
+
+.card-close,
+.pane-close {
   background: var(--surface-2);
 }
 
-.card-close:hover {
-  background: #e8eaed;
+.card-close:hover,
+.pane-close:hover {
+  background: var(--surface-3);
 }
 
 .search-close,
@@ -1520,7 +1729,7 @@ body:has(#search.fullscreen) .welcome {
 }
 
 .btn.primary:hover {
-  background: #1765cc;
+  background: var(--accent-strong);
 }
 
 .tabs {
@@ -1829,13 +2038,18 @@ a.external .icon {
 }
 
 .hypsometry .bar {
-  fill: var(--accent);
+  fill: var(--bar);
 }
 
 .hypso-range,
 .muted {
   color: var(--muted);
   text-align: center;
+}
+
+/* The chart's text, its caption and this line share one size. */
+.hypso-range {
+  font-size: 13px;
 }
 
 /*
@@ -1910,7 +2124,7 @@ a.external .icon {
   top: calc((var(--search-top) + var(--search-h) + var(--photo-h) - var(--credit-inset) - var(--credit-row)) / 2);
   transform: translateY(-50%);
   background: var(--photo-glass);
-  backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--photo-blur);
   box-shadow: 0 1px 2px rgb(60 64 67 / 20%);
   transition: opacity 150ms ease-out;
 }
@@ -1937,7 +2151,7 @@ a.external .icon {
 
 .photo-prev:hover,
 .photo-next:hover {
-  background: var(--glass);
+  background: var(--photo-glass-strong);
 }
 
 /*
@@ -1952,8 +2166,8 @@ a.external .icon {
   max-width: calc(100% - 2 * var(--credit-inset) - 48px);
   padding: 2px 8px;
   border-radius: 8px;
-  background: var(--glass);
-  backdrop-filter: var(--glass-blur);
+  background: var(--photo-glass-strong);
+  backdrop-filter: var(--photo-blur);
   color: var(--text);
   font-size: 11px;
   line-height: 16px;
@@ -1979,7 +2193,7 @@ a.external .icon {
   bottom: var(--credit-inset);
   padding: 2px 8px;
   border-radius: 8px;
-  background: rgb(32 33 36 / 62%);
+  background: var(--photo-dark);
   color: #fff;
   font-size: 11px;
   line-height: 16px;
@@ -2119,7 +2333,7 @@ dialog.viewer::backdrop {
 }
 
 .viewer-credit a {
-  color: #8ab4f8;
+  color: #7fc3e3;
 }
 
 .viewer-credit .photo-credit {
@@ -2613,7 +2827,7 @@ dialog.usedata::backdrop {
    * the strip does: no arrows.
    */
   dialog.viewer {
-    background: #202124;
+    background: var(--text);
   }
 
   /* A gap between images while swiping, where the blur shows through. */

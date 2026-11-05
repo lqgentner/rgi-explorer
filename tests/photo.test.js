@@ -366,7 +366,7 @@ test("a photo's credit reads author · license, as text, with safe links", async
 test("the photo credit floats inside the image's bottom left, set like the map's credits", () => {
   const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
   const rule = /(^|\n)\.photo-credit\s*\{([^}]*)\}/.exec(css)?.[2] ?? "";
-  for (const declaration of [/left:\s*var\(--credit-inset\)/, /bottom:\s*var\(--credit-inset\)/, /border-radius:\s*8px/, /font-size:\s*11px/, /background:\s*var\(--glass\)/]) {
+  for (const declaration of [/left:\s*var\(--credit-inset\)/, /bottom:\s*var\(--credit-inset\)/, /border-radius:\s*8px/, /font-size:\s*11px/, /background:\s*var\(--photo-glass-strong\)/, /backdrop-filter:\s*var\(--photo-blur\)/]) {
     assert.match(rule, declaration);
   }
   assert.doesNotMatch(css, /\.photo-attrib/, "the fold-out credit is gone");

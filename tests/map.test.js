@@ -86,6 +86,10 @@ test("over imagery glaciers are white outlines without a fill, and region outlin
   assert.equal(paint("selection-dim", "fill-opacity"), 0, "a clear fill cannot lift a selection out of the dimming");
   assert.equal(paint("glaciers-outline", "line-color"), "#ffffff");
   for (const id of ["glaciers-casing", "intersects-casing"]) assert.equal(paint(id, "line-opacity"), 1);
+  assert.equal(paint("centerlines", "line-color"), "#ddaa33");
+  assert.equal(paint("selection-centerlines", "line-color"), "#ddaa33");
+  const imageryWidth = paint("glaciers-outline", "line-width");
+  assert.deepEqual(paint("intersects", "line-width"), imageryWidth);
   assert.equal(paint("regions-outline-1", "line-color"), "#f1f3f4");
   assert.equal(paint("regions-outline-2", "line-color"), "#bdc1c6");
   assert.equal(map.getSky()["atmosphere-blend"], 0.8, "MapLibre draws the atmosphere");
@@ -95,6 +99,11 @@ test("over imagery glaciers are white outlines without a fill, and region outlin
   assert.equal(paint("selection-dim", "fill-opacity"), 0.15);
   assert.equal(paint("glaciers-outline", "line-color"), "#80868b");
   for (const id of ["glaciers-casing", "intersects-casing"]) assert.equal(paint(id, "line-opacity"), 0);
+  assert.equal(paint("centerlines", "line-color"), "#b8860b");
+  assert.equal(paint("selection-centerlines", "line-color"), "#b8860b");
+  assert.notDeepEqual(paint("glaciers-outline", "line-width"), imageryWidth, "wider on the standard map");
+  assert.deepEqual(paint("intersects", "line-width"), paint("glaciers-outline", "line-width"));
+  assert.deepEqual(paint("glaciers-casing", "line-gap-width"), paint("glaciers-outline", "line-width"));
   assert.equal(paint("regions-outline-1", "line-color"), "#5f6368");
   assert.equal(map.getSky()["atmosphere-blend"], 0.5, "fainter over the light map");
   rgiMap.setBase("imagery");
@@ -128,7 +137,7 @@ test("imagery shows esri above Liberty's fills and lines and below its borders a
   assert.equal(map.layout("esri").visibility, "none");
 });
 
-test("imagery switches off the Liberty layers it covers, which then fetch nothing", async () => {
+test("imagery switches off the Liberty layers it covers and the borders, which then fetch nothing", async () => {
   const { rgiMap, map } = await build();
   rgiMap.setBase("imagery");
   assert.equal(map.layout("water").visibility, "none");
@@ -136,9 +145,11 @@ test("imagery switches off the Liberty layers it covers, which then fetch nothin
   assert.equal(map.layout("road_one_way_arrow").visibility, "none");
   assert.equal(map.layout("background").visibility, undefined, "the background shows while the imagery loads");
   assert.equal(map.getLayer("background").paint["background-color"], "#3c4043", "dark grey until the imagery loads");
-  assert.equal(map.layout("boundary").visibility, undefined);
+  assert.equal(map.layout("boundary").visibility, "none", "the borders belong to the standard map");
+  assert.equal(map.layout("label_place").visibility, undefined, "the labels stay");
   rgiMap.setBase("standard");
   assert.equal(map.layout("water").visibility, "visible");
+  assert.equal(map.layout("boundary").visibility, "visible");
   assert.equal(map.layout("road_major").visibility, "visible");
   assert.equal(map.layout("landcover_ice").visibility, "none", "Liberty's glaciers stay hidden");
   assert.equal(map.getLayer("background").paint["background-color"], "#f8f4f0");
@@ -254,6 +265,43 @@ test("a selection draws its own centerlines again above its lift, with their tog
   assert.equal(map.layout("selection-centerlines").visibility, "none");
 });
 
+/** The value of a linear zoom curve, or of a constant, at `zoom`. */
+function atZoom(value, zoom) {
+  if (!Array.isArray(value)) return value;
+  const stops = value.slice(3);
+  if (zoom <= stops[0]) return stops[1];
+  for (let i = 2; i < stops.length; i += 2) {
+    if (zoom <= stops[i]) {
+      const [z0, v0, z1, v1] = stops.slice(i - 2, i + 2);
+      return v0 + ((v1 - v0) * (zoom - z0)) / (z1 - z0);
+    }
+  }
+  return stops.at(-1);
+}
+
+test("the selection is the same on both maps to zoom 10, wider than an outline with its casing, and from zoom 11 as wide as it over imagery", async () => {
+  const { rgiMap, map } = await build("?base=imagery");
+  const width = (id, key = "line-width") => map.getLayer(id).paint[key];
+  const zooms = Array.from({ length: 65 }, (_, i) => i / 4);
+  const imagery = width("selection-outline");
+  for (const zoom of zooms) {
+    const cased = atZoom(width("glaciers-outline"), zoom) + 2 * atZoom(width("glaciers-casing"), zoom);
+    const selected = atZoom(imagery, zoom);
+    if (zoom >= 11) assert.ok(Math.abs(selected - cased) < 1e-9, `zoom ${zoom}: ${selected} against ${cased}`);
+    else assert.ok(selected >= cased, `no casing shows beside it at zoom ${zoom}: ${selected} against ${cased}`);
+  }
+  rgiMap.setBase("standard");
+  const standard = width("selection-outline");
+  for (const zoom of zooms) {
+    if (zoom <= 10) assert.equal(atZoom(standard, zoom), atZoom(imagery, zoom), `the same at zoom ${zoom}`);
+    else assert.ok(atZoom(standard, zoom) < atZoom(imagery, zoom), `narrower at zoom ${zoom}`);
+    assert.ok(atZoom(standard, zoom) > atZoom(width("glaciers-outline"), zoom), `covers the outline at zoom ${zoom}`);
+  }
+  for (const id of ["selection-under", "complex-under", "complex-outline"]) assert.deepEqual(width(id), standard, id);
+  rgiMap.setBase("imagery");
+  for (const id of ["selection-under", "selection-outline", "complex-under", "complex-outline"]) assert.deepEqual(width(id), imagery, id);
+});
+
 test("selection draws a red dashed outline filtered to the ID", async () => {
   const { rgiMap, map } = await build();
   assert.equal(map.layout("selection-outline").visibility, "none");
@@ -261,16 +309,22 @@ test("selection draws a red dashed outline filtered to the ID", async () => {
   const outline = map.getLayer("selection-outline");
   assert.deepEqual(outline.filter, ["==", ["get", "rgi_id"], rgiId]);
   assert.equal(outline["source-layer"], "glaciers");
-  assert.equal(outline.paint["line-color"], "#d93025");
-  assert.equal(outline.paint["line-width"], 2);
-  assert.deepEqual(outline.paint["line-dasharray"], [2, 1.2]);
+  assert.equal(outline.paint["line-color"], "#cc3311");
+  assert.deepEqual(outline.paint["line-dasharray"], [1, 0.8], "short dashes");
+  const under = map.getLayer("selection-under");
+  assert.deepEqual(under.filter, outline.filter, "a white line fills the gaps between the dashes");
+  assert.equal(under.paint["line-color"], "#ffffff");
+  assert.deepEqual(under.paint["line-width"], outline.paint["line-width"]);
+  assert.equal(map.indexOf("selection-under"), map.indexOf("selection-outline") - 1);
   assert.deepEqual(map.getLayer("selection-fill").filter, ["==", ["get", "rgi_id"], rgiId]);
   assert.deepEqual(map.getLayer("selection-fill").paint, map.getLayer("glaciers-fill").paint);
   assert.equal(map.getLayer("selection-dim").paint["fill-opacity"], 0.15);
-  for (const id of ["selection-dim", "selection-fill", "selection-outline", "selection-dot"]) {
+  for (const id of ["selection-dim", "selection-fill", "selection-under", "selection-outline", "selection-dot"]) {
     assert.equal(map.layout(id).visibility, "visible", id);
   }
   assert.ok(map.indexOf("selection-outline") > map.indexOf("glacier-labels"));
+  rgiMap.select(null);
+  assert.equal(map.layout("selection-under").visibility, "none");
 });
 
 test("the selected glacier's name is red and drawn above the selection", async () => {
@@ -278,7 +332,7 @@ test("the selected glacier's name is red and drawn above the selection", async (
   const label = map.getLayer("selection-label");
   assert.equal(label.type, "symbol");
   assert.equal(label["source-layer"], "glacier-labels");
-  assert.equal(label.paint["text-color"], "#d93025");
+  assert.equal(label.paint["text-color"], "#cc3311");
   assert.deepEqual(label.layout["text-field"], map.getLayer("glacier-labels").layout["text-field"]);
   assert.equal(map.layout("selection-label").visibility, "none");
   for (const id of ["selection-dim", "selection-fill", "selection-outline"]) {
@@ -297,7 +351,7 @@ test("a selected glacier drawn as a dot shows a red dot with a white ring", asyn
   assert.equal(dot.type, "circle");
   assert.equal(dot["source-layer"], "glaciers");
   assert.equal(map.layout("selection-dot").visibility, "none");
-  assert.equal(dot.paint["circle-color"], "#d93025");
+  assert.equal(dot.paint["circle-color"], "#cc3311");
   assert.equal(dot.paint["circle-stroke-color"], "#ffffff");
   const radius = (paint, zoom) => paint["circle-radius"][paint["circle-radius"].indexOf(zoom, 3) + 1];
   const dots = map.getLayer("glaciers-dots").paint;
@@ -341,7 +395,7 @@ test("select(null) hides the selection and clears the pin", async () => {
   rgiMap.select(rgiId);
   rgiMap.pin([10, 20]);
   assert.deepEqual(map.getSource("pin").data.geometry.coordinates, [10, 20]);
-  assert.equal(map.getLayer("terminus-pin").paint["circle-color"], "#d93025");
+  assert.equal(map.getLayer("terminus-pin").paint["circle-color"], "#cc3311");
 
   rgiMap.select(null);
   for (const id of ["selection-dim", "selection-fill", "selection-outline", "selection-dot"]) {
@@ -482,7 +536,11 @@ test("a complex is selected like a glacier: dimmed map, lifted complex, red outl
   assert.equal(map.getLayer("complex-outline")["source-layer"], "complexes");
   assert.equal(map.getLayer("complex-members")["source-layer"], "glaciers");
   assert.deepEqual(map.getLayer("complex-outline").paint, map.getLayer("selection-outline").paint);
-  assert.equal(map.getLayer("complex-outline").paint["line-color"], "#d93025");
+  assert.deepEqual(map.getLayer("complex-under").paint, map.getLayer("selection-under").paint);
+  assert.deepEqual(map.getLayer("complex-under").filter, ["==", ["get", "rgi_id"], id]);
+  assert.equal(map.indexOf("complex-under"), map.indexOf("complex-outline") - 1);
+  assert.equal(map.layout("complex-under").visibility, "visible");
+  assert.equal(map.getLayer("complex-outline").paint["line-color"], "#cc3311");
   assert.equal(map.getLayer("complex-members").paint["line-color"], "#80868b");
   assert.ok(map.indexOf("complex-fill") > map.indexOf("selection-dim"));
   assert.ok(map.indexOf("complex-members") > map.indexOf("complex-fill"));
@@ -495,6 +553,7 @@ test("a complex is selected like a glacier: dimmed map, lifted complex, red outl
   rgiMap.setBase("imagery");
   assert.equal(map.getLayer("complex-fill").paint["fill-opacity"], 0);
   assert.equal(map.getLayer("complex-members").paint["line-color"], "#ffffff");
+  assert.deepEqual(map.getLayer("complex-members").paint, map.getLayer("glaciers-outline").paint, "and as wide");
 
   rgiMap.select(rgiId);
   assert.equal(map.layout("complex-outline").visibility, "none", "a glacier replaces the complex");
@@ -761,4 +820,89 @@ test("onMove reports the view after the map moves", async () => {
   rgiMap.onMove((view) => seen.push(view));
   map.jumpTo({ center: [7, 46], zoom: 9 });
   assert.deepEqual(seen, [{ zoom: 9, lat: 46, lon: 7 }]);
+});
+
+test("a glacier is RGI's point below the zoom at which its bbox spans 3 pixels of a 512-pixel tile, as in the catalog", async () => {
+  await loadPage();
+  const { shapeMinzoom } = await load("js/map.js");
+  /* At zoom 9 a pixel is 40,075,017 m / (512 * 2^9), 152.9 m, at the equator. */
+  const degrees = (metres) => (metres * 180) / (Math.PI * 6378137);
+  const wide = (metres) => ({ xmin: 0, ymin: 0, xmax: degrees(metres), ymax: 0 });
+  assert.equal(shapeMinzoom(wide(3 * 152.88)), 9);
+  assert.equal(shapeMinzoom(wide(3 * 152.86)), 10, "a little short: an outline only once every glacier is");
+  assert.equal(shapeMinzoom(wide(3 * 2 * 152.88)), 8);
+  assert.equal(shapeMinzoom({ xmin: 7.7, ymin: 46.44, xmax: 7.7, ymax: 46.44 }), 10);
+  assert.equal(shapeMinzoom({ xmin: -50, ymin: 60, xmax: -20, ymax: 83 }), 0, "Greenland's ice sheet from the start");
+  /* Mercator stretches north-south: a bbox of the same degrees spans more metres further north. */
+  const tall = (lat) => shapeMinzoom({ xmin: 0, ymin: lat, xmax: 0, ymax: lat + 0.01 });
+  assert.ok(tall(70) < tall(0));
+});
+
+test("the selection draws its own dot at RGI's point below its outline's zoom, which another selection clears", async () => {
+  const { rgiMap, map } = await build();
+  const layer = map.getLayer("selection-point");
+  assert.equal(layer.source, "selection-point");
+  assert.deepEqual(layer.filter, ["<", ["zoom"], ["get", "outline_zoom"]]);
+  assert.deepEqual(layer.paint, map.getLayer("selection-dot").paint);
+  assert.ok(map.indexOf("selection-point") > map.indexOf("complex-dot"));
+  const data = () => map.getSource("selection-point").data;
+  const row = { cenlon: 7.7674, cenlat: 46.441, bbox: { xmin: 7.766, ymin: 46.4402, xmax: 7.769, ymax: 46.4418 } };
+
+  rgiMap.select(rgiId);
+  rgiMap.selectPoint(rgiId, row);
+  assert.deepEqual(data().geometry.coordinates, [7.7674, 46.441]);
+  assert.equal(data().properties.outline_zoom, 10, "a small glacier is a point until every glacier is an outline");
+  rgiMap.select(rgiId);
+  assert.ok(data().geometry, "selecting the same glacier keeps it");
+  rgiMap.select("RGI2000-v7.0-G-11-00002");
+  assert.deepEqual(data().features, [], "another glacier clears it");
+
+  rgiMap.selectComplex("RGI2000-v7.0-C-11-00001");
+  rgiMap.selectPoint("RGI2000-v7.0-C-11-00001", { ...row, bbox: { xmin: 5, ymin: 45, xmax: 10, ymax: 48 } });
+  assert.equal(data().properties.outline_zoom, 0);
+  rgiMap.selectComplex("RGI2000-v7.0-C-11-00001", ["RGI2000-v7.0-G-11-00001"]);
+  assert.ok(data().geometry, "the complex's members arriving keep it");
+  rgiMap.selectComplex(null);
+  assert.deepEqual(data().features, []);
+
+  rgiMap.selectPoint(rgiId, { cenlon: 7.7, cenlat: 46.4 });
+  assert.deepEqual(data().features, [], "no bbox, no dot");
+});
+
+test("a colour's lightness turns round, its hue, saturation and alpha kept, in hex, rgb(), hsl() and expressions", async () => {
+  await loadPage();
+  const { invertLightness } = await load("js/map.js");
+  assert.equal(invertLightness("#000"), "rgba(255, 255, 255, 1)");
+  assert.equal(invertLightness("#ffffff"), "rgba(0, 0, 0, 1)");
+  assert.equal(invertLightness("rgba(255,255,255,0.7)"), "rgba(0, 0, 0, 0.7)");
+  assert.equal(invertLightness("#666"), "rgba(153, 153, 153, 1)");
+  /* Liberty's water label, a mid blue (#495e91), becomes a lighter blue of the same hue. */
+  assert.equal(invertLightness("#495e91"), "rgba(110, 131, 182, 1)");
+  assert.equal(invertLightness("hsl(30,23%,62%)"), invertLightness("hsl(30, 23%, 62%)"));
+  assert.match(invertLightness("hsl(30,23%,62%)"), /^rgba\(\d+, \d+, \d+, 1\)$/);
+  assert.deepEqual(invertLightness(["interpolate", ["linear"], ["zoom"], 5, "#000", 10, "#fff"]), ["interpolate", ["linear"], ["zoom"], 5, "rgba(255, 255, 255, 1)", 10, "rgba(0, 0, 0, 1)"]);
+  assert.equal(invertLightness(invertLightness("#3c4043")), "rgba(60, 64, 67, 1)", "turned round twice, it is back");
+  /* For text the lightness goes into the light half and the saturation rises half again. */
+  assert.equal(invertLightness("#000", true), "rgba(255, 255, 255, 1)");
+  assert.equal(invertLightness("#333", true), "rgba(230, 230, 230, 1)", "a grey name, light");
+  assert.equal(invertLightness("#495e91", true), "rgba(174, 189, 227, 1)", "a lake's name, a light blue");
+  assert.equal(invertLightness("#74aee9", true), "rgba(128, 191, 255, 1)", "a river's name, a clear blue at the 75 % floor, not a dark one");
+});
+
+test("over imagery each label's colours turn round in lightness, and the standard map gets its own back", async () => {
+  const { rgiMap, map } = await build("?base=imagery");
+  const paint = (id, key) => map.getLayer(id).paint[key];
+  for (const id of ["glacier-labels", "complex-labels"]) {
+    assert.equal(paint(id, "text-color"), "#ffffff", `${id}: white, as the towns`);
+    assert.equal(paint(id, "text-halo-color"), "rgba(0, 0, 0, 1)", id);
+  }
+  assert.equal(paint("selection-label", "text-color"), "#cc3311", "the selection's label keeps its red");
+  for (const id of ["glacier-labels", "label_place"]) assert.equal(paint(id, "text-halo-blur"), 0, `${id}: a hard halo over imagery`);
+  rgiMap.setBase("standard");
+  assert.equal(paint("glacier-labels", "text-halo-blur"), 1, "Liberty's soft place-label halo on the standard map");
+  assert.equal(paint("glacier-labels", "text-color"), "#3c4043", "the region labels' dark grey");
+  assert.equal(paint("glacier-labels", "text-halo-color"), "#ffffff");
+  assert.equal(paint("complex-labels", "text-color"), "#3c4043");
+  rgiMap.setBase("imagery");
+  assert.equal(paint("glacier-labels", "text-color"), "#ffffff");
 });

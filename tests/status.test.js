@@ -318,20 +318,34 @@ test("on desktop the scale and the credits sit in two columns, top-aligned, and 
   assert.ok(columns, "a desktop-only rule lays out #status as a row, top-aligned");
   assert.match(columns[0], /\.scale\s*\{\s*flex:\s*none;\s*\}/, "the scale keeps its width");
   assert.match(columns[0], /\.credits-box\s*\{\s*min-width:\s*0;\s*\}/, "the credits column narrows and wraps");
-  /* Outside that block nothing turns #status into a flex row, so the phone's credits box lays out as before. */
-  const rest = desktop.slice(0, columns.index) + desktop.slice(columns.index + columns[0].length) + css.slice(phoneAt);
+  /* Outside that block and the phone's own row, nothing turns #status into a flex row. */
+  const rest = desktop.slice(0, columns.index) + desktop.slice(columns.index + columns[0].length);
   assert.doesNotMatch(rest, /#status\s*\{[^}]*display:\s*(inline-)?flex/);
   assert.doesNotMatch(desktop, /(^|\n)\.credits\s*\{[^}]*display:\s*flex/, "the credits stay one text");
   assert.match(desktop, /(^|\n)\.credits-button\s*\{\s*display:\s*none;/, "the info button is the phone's");
 });
 
-test("no space separates the credit groups, so the credits wrap inside a group, not between groups", () => {
+test("a line breaks between credits: each is a box with its comma, and a label shares its first credit's", () => {
   const root = document.createElement("div");
   const rgiMap = { map: new FakeMap({ center: [8, 46.48], zoom: 11 }), onMove: () => {} };
   mountStatus(root, rgiMap, catalog, () => ({ base: "imagery", terrain: false }));
   const list = root.querySelector(".credits");
   assert.ok(list.children.length > 1);
   assert.equal(list.childNodes.length, list.children.length, "no text nodes between the groups");
+  for (const group of list.children) {
+    const boxes = [...group.children];
+    assert.ok(boxes.every((b) => b.className === "credit-box" && b.querySelectorAll(".credit").length === 1), group.textContent);
+    /* Between the boxes only spaces, where a line may break. */
+    assert.ok([...group.childNodes].every((n) => n.nodeType !== 3 || n.textContent === " "), group.textContent);
+    boxes.slice(0, -1).forEach((b) => assert.ok(b.textContent.endsWith(","), b.textContent));
+  }
+  assert.equal(list.querySelector(".credit-box").textContent, "GlaciersRGI Consortium 2023");
+  assert.equal(list.children[1].firstElementChild.textContent, "Basemap\u00a9\u00a0OpenStreetMap contributors,");
+  const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
+  assert.match(css, /\.credit-box \{\s*display: inline-block;/);
+  /* The separator hangs into the previous group's margin, which a line break drops. */
+  assert.match(css, /\.credit-group:not\(:last-child\) \{\s*margin-right: 17px;/);
+  assert.match(css, /\.credit-box:first-child::before \{[^}]*width: 17px;\s*margin-left: -17px;/);
   const box = root.querySelector(".credits-box");
   assert.deepEqual([...root.children], [root.querySelector(".scale"), box], "the scale, then the credits column");
 });
@@ -343,4 +357,17 @@ test("a copyright sign stays on the line of the name it belongs to", () => {
   const signs = [...root.querySelectorAll(".credit")].map((c) => c.textContent).filter((t) => t.includes("©"));
   assert.ok(signs.length >= 2);
   for (const text of signs) assert.match(text, /©\u00a0/);
+});
+
+test("a Privacy link ends the credits and opens the privacy note", () => {
+  const root = document.createElement("div");
+  const rgiMap = { map: new FakeMap({ center: [8, 46.48], zoom: 11 }), onMove: () => {} };
+  let opened = 0;
+  const status = mountStatus(root, rgiMap, catalog, () => ({ base: "standard", terrain: false }), { onPrivacy: () => opened++ });
+  const last = () => root.querySelector(".credit-group:last-child");
+  assert.equal(last().textContent, "Privacy");
+  last().querySelector("button").click();
+  assert.equal(opened, 1);
+  status.refresh();
+  assert.equal(last().textContent, "Privacy", "a redraw keeps it last");
 });

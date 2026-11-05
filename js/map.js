@@ -18,7 +18,7 @@ import { PREVIEW_SPAN } from "./viewpreview.js";
 
 /** @typedef {import("maplibre-gl").ExpressionSpecification} ExpressionSpecification */
 
-const SELECTION_RED = "#d93025";
+const SELECTION_RED = "#cc3311";
 const DIM_GREY = "#5f6368";
 /*
  * How much a selection dims the map around it, per base map. A selection is
@@ -26,7 +26,23 @@ const DIM_GREY = "#5f6368";
  * fill is clear, so the dimming would cover the glacier too: imagery has none.
  */
 const DIM_OPACITY = { standard: 0.15, imagery: 0 };
-const SELECTION_LINE = { "line-color": SELECTION_RED, "line-width": 2, "line-dasharray": [2, 1.2] };
+/*
+ * A selection's outline: short red dashes over a solid white line, so that the
+ * gaps show white and not the glacier's own outline below. Up to zoom 10 it is
+ * the same on both base maps, a little wider than an outline with its casing,
+ * so a small glacier's selection reads at a glance. From zoom 11 over imagery
+ * it is exactly as wide as an outline with its casing on both sides
+ * (OUTLINE_WIDTH.imagery plus twice the casing in js/styles.js; a zoom curve
+ * cannot be summed in the style, so the stops are summed here), and on the
+ * standard map a little narrower, yet wider than the outline it covers.
+ */
+const SELECTION_WIDTH = {
+  standard: ["interpolate", ["linear"], ["zoom"], 0, 2.2, 8, 1.8, 10, 2.4, 12, 2.5],
+  imagery: ["interpolate", ["linear"], ["zoom"], 0, 2.2, 8, 1.8, 10, 2.4, 11, 2.875, 12, 3],
+};
+const SELECTION_LINES = ["selection-under", "selection-outline", "complex-under", "complex-outline"];
+const SELECTION_UNDER = { "line-color": "#ffffff" };
+const SELECTION_LINE = { "line-color": SELECTION_RED, "line-dasharray": [1, 0.8] };
 const SELECTION_DOT = {
   "circle-color": SELECTION_RED,
   "circle-radius": ["interpolate", ["linear"], ["zoom"], 0, 4, 6, 5],
@@ -48,6 +64,100 @@ const sky = (base) => ({
 });
 /* The background on imagery, where the imagery has not loaded yet. */
 const IMAGERY_BACKGROUND = "#3c4043";
+/*
+ * Over imagery each label's colours turn round in lightness, hue kept: dark
+ * text in a white halo becomes white text in a dark halo. The text goes into
+ * the light half and takes more saturation, so a grey name is a light grey and
+ * a water label's blue a light, clear blue. The selection's label and the
+ * road shields keep theirs. MapLibre draws text black and halos clear when a
+ * style gives none.
+ */
+const LABEL_DEFAULTS = { "text-color": "#000000", "text-halo-color": "rgba(0, 0, 0, 0)" };
+
+/** The [r, g, b, a] of a CSS hex, rgb() or hsl() colour, 0-1; null for any other value. */
+function parseColor(value) {
+  if (typeof value !== "string") return null;
+  const color = value.trim().toLowerCase();
+  const hex = /^#([0-9a-f]{3,8})$/.exec(color);
+  if (hex) {
+    let digits = hex[1];
+    if (digits.length === 3 || digits.length === 4) digits = [...digits].map((d) => d + d).join("");
+    if (digits.length !== 6 && digits.length !== 8) return null;
+    const [r, g, b, a = 255] = digits.match(/../g).map((pair) => parseInt(pair, 16));
+    return [r / 255, g / 255, b / 255, a / 255];
+  }
+  const fn = /^(rgba?|hsla?)\(([^)]*)\)$/.exec(color);
+  if (!fn) return null;
+  const parts = fn[2].split(/[\s,/]+/).filter(Boolean);
+  if (parts.length < 3) return null;
+  const number = (part, scale) => (part.endsWith("%") ? parseFloat(part) / 100 : parseFloat(part) / scale);
+  const alpha = parts[3] === undefined ? 1 : number(parts[3], 1);
+  if (fn[1].startsWith("rgb")) return [number(parts[0], 255), number(parts[1], 255), number(parts[2], 255), alpha];
+  const [h, sat, l] = [parseFloat(parts[0]) / 360, number(parts[1], 100), number(parts[2], 100)];
+  return [...hslToRgb(h, sat, l), alpha];
+}
+
+function hslToRgb(h, s, l) {
+  const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+  const p = 2 * l - q;
+  const channel = (t) => {
+    t = ((t % 1) + 1) % 1;
+    if (t < 1 / 6) return p + (q - p) * 6 * t;
+    if (t < 1 / 2) return q;
+    if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+    return p;
+  };
+  return [channel(h + 1 / 3), channel(h), channel(h - 1 / 3)];
+}
+
+/* The least lightness of lifted text: a river's blue then sits near Mapbox's satellite water labels'. */
+const LIFT_MIN = 0.75;
+
+/**
+ * A colour with its HSL lightness turned round, l to 1 - l, as rgba(); an
+ * expression with each colour in it turned round; any other value as it is.
+ * With `lift`, for text, the lightness goes into the light half, 1 - l / 2 but
+ * at least LIFT_MIN, and the saturation half again, so grey and blue names
+ * stand out of dark ground.
+ */
+export function invertLightness(value, lift = false) {
+  if (Array.isArray(value)) return value.map((item) => invertLightness(item, lift));
+  const rgba = parseColor(value);
+  if (!rgba) return value;
+  const [r, g, b, a] = rgba;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  const d = max - min;
+  let h = 0;
+  if (d) {
+    if (max === r) h = ((g - b) / d + 6) % 6;
+    else if (max === g) h = (b - r) / d + 2;
+    else h = (r - g) / d + 4;
+    h /= 6;
+  }
+  const s = d ? d / (1 - Math.abs(2 * l - 1)) : 0;
+  const [r2, g2, b2] = (lift ? hslToRgb(h, Math.min(1, s * 1.5), Math.max(LIFT_MIN, 1 - l / 2)) : hslToRgb(h, s, 1 - l)).map((c) =>
+    Math.round(c * 255),
+  );
+  return `rgba(${r2}, ${g2}, ${b2}, ${Math.round(a * 1000) / 1000})`;
+}
+
+/** A label's colours for `base`, from its standard map colours. */
+/* The glacier names, the map's subject, are white over imagery, as the towns' are. */
+const WHITE_ON_IMAGERY = new Set(["glacier-labels", "complex-labels"]);
+const labelPaint = (id, paint, base) =>
+  base === "imagery"
+    ? {
+        "text-color": WHITE_ON_IMAGERY.has(id)
+          ? "#ffffff"
+          : invertLightness(paint["text-color"] ?? LABEL_DEFAULTS["text-color"], true),
+        "text-halo-color": invertLightness(paint["text-halo-color"] ?? LABEL_DEFAULTS["text-halo-color"]),
+        /* Hard over imagery, as Esri's and VersaTiles' halos: a soft one loses light text on snow. */
+        "text-halo-blur": 0,
+      }
+    : paint;
+const LABEL_KEYS = /** @type {const} */ (["text-color", "text-halo-color", "text-halo-blur"]);
 /* A fit that would fly longer than this, in ms, jumps there: a far flight is a long wait. */
 const FLY_MAX_MS = 2000;
 /** @type {ExpressionSpecification} */
@@ -61,6 +171,36 @@ const NONE = { visibility: "none" };
  */
 const SELECTION_OVERLAYS = ["centerlines"];
 const EMPTY = { type: "FeatureCollection", features: [] };
+/*
+ * The catalog's overview rule (rgi-catalog, tiles.py): below zoom 10 a glacier
+ * or complex is its outline from the first zoom at which the longer side of its
+ * Web Mercator bbox spans 3 pixels of a 512-pixel tile, and RGI's point before.
+ * The tiles keep one point per cell of about a pixel, the largest glacier's, so
+ * a small selection can be missing from them: the selection draws its own.
+ */
+const SHAPE_COMPLETE_ZOOM = 10;
+const SHAPE_MIN_PX = 3;
+const TILE_PX = 512;
+const EARTH_RADIUS_M = 6378137;
+const MERCATOR_MAX_LAT = 85.0511287798;
+
+/**
+ * The zoom from which the tiles hold a glacier or complex as its outline, by
+ * the catalog's rule.
+ *
+ * @param {{ xmin: number, ymin: number, xmax: number, ymax: number }} bbox in degrees
+ */
+export function shapeMinzoom({ xmin, ymin, xmax, ymax }) {
+  const x = (lon) => (EARTH_RADIUS_M * lon * Math.PI) / 180;
+  const y = (lat) => {
+    const clamped = Math.max(-MERCATOR_MAX_LAT, Math.min(MERCATOR_MAX_LAT, lat));
+    return EARTH_RADIUS_M * Math.log(Math.tan(Math.PI / 4 + (clamped * Math.PI) / 360));
+  };
+  const extent = Math.max(x(xmax) - x(xmin), y(ymax) - y(ymin));
+  const pixel = (zoom) => (2 * Math.PI * EARTH_RADIUS_M) / (TILE_PX * 2 ** zoom);
+  for (let zoom = 0; zoom < SHAPE_COMPLETE_ZOOM; zoom++) if (extent >= SHAPE_MIN_PX * pixel(zoom)) return zoom;
+  return SHAPE_COMPLETE_ZOOM;
+}
 const WORLD = {
   type: "Feature",
   properties: {},
@@ -111,6 +251,23 @@ function registerProtocol(url) {
 export const fetchLiberty = () => fetchJson(LIBERTY_STYLE);
 
 const isSymbol = (layer) => layer.type === "symbol";
+
+/**
+ * The standard map's colours of the text labels, Liberty's and RGI's, by
+ * layer ID. A complex's member names copy the glacier labels.
+ *
+ * @returns {Map<string, Record<string, unknown>>}
+ */
+function labelColors(liberty, rgi) {
+  const labels = new Map(
+    [...libertyLayers(liberty), ...rgi.layers]
+      /* A road shield's text sits on its own white icon, which it keeps on imagery. */
+      .filter((layer) => isSymbol(layer) && layer.layout?.["text-field"] && !layer.id.includes("shield"))
+      .map((layer) => [layer.id, Object.fromEntries(LABEL_KEYS.map((key) => [key, layer.paint?.[key]]))]),
+  );
+  if (labels.has("glacier-labels")) labels.set("complex-labels", labels.get("glacier-labels"));
+  return labels;
+}
 const visibility = (on) => (on ? "visible" : "none");
 
 /** The catalog layers that belong to a toggle, by source layer. */
@@ -130,8 +287,9 @@ function libertyLayers(liberty) {
 /**
  * Liberty's layers split where the imagery goes: above its fills and lines
  * but below its country borders, which Liberty draws last, and its labels.
- * `covered` names the layers the imagery hides, so they are switched off on
- * imagery and draw nothing and fetch nothing there. The background stays, as
+ * `covered` names the layers switched off on imagery, which then draw and
+ * fetch nothing: all but the labels, the borders too, which belong to the
+ * standard map and not to a photo of the ground. The background stays, as
  * it shows while the imagery loads; it turns dark grey there.
  */
 function splitLiberty(liberty) {
@@ -140,8 +298,7 @@ function splitLiberty(liberty) {
   const firstBorder = base.findIndex((layer) => layer["source-layer"] === "boundary");
   const cut = firstBorder !== -1 && firstBorder <= lastFlat ? firstBorder : lastFlat + 1;
   const covered = base
-    .slice(0, cut)
-    .filter((layer) => layer.type !== "background" && layer.layout?.visibility !== "none")
+    .filter((layer, index) => (index < cut || !isSymbol(layer)) && layer.type !== "background" && layer.layout?.visibility !== "none")
     .map((layer) => layer.id);
   const background = base.find((layer) => layer.type === "background");
   return { base, cut, covered, background };
@@ -155,6 +312,7 @@ function splitLiberty(liberty) {
  * @returns {import("maplibre-gl").StyleSpecification}
  */
 function buildStyle(liberty, rgi, state) {
+  const labels = labelColors(liberty, rgi);
   const { base, cut, covered, background } = splitLiberty(liberty);
   if (state.base === "imagery") {
     for (const layer of base) if (covered.includes(layer.id)) layer.layout = { ...layer.layout, ...NONE };
@@ -168,6 +326,7 @@ function buildStyle(liberty, rgi, state) {
   };
 
   const basePaint = BASE_PAINT[state.base] ?? BASE_PAINT.standard;
+  const selectionWidth = { "line-width": SELECTION_WIDTH[state.base] ?? SELECTION_WIDTH.standard };
   const rgiLayers = rgi.layers.map((layer) => {
     const name = toggleOf(layer);
     if (name) layer.layout = { ...layer.layout, visibility: visibility(state.layers.has(name)) };
@@ -226,12 +385,20 @@ function buildStyle(liberty, rgi, state) {
       };
     }),
     {
+      id: "selection-under",
+      type: "line",
+      source: "data",
+      "source-layer": "glaciers",
+      layout: NONE,
+      paint: { ...SELECTION_UNDER, ...selectionWidth },
+    },
+    {
       id: "selection-outline",
       type: "line",
       source: "data",
       "source-layer": "glaciers",
       layout: NONE,
-      paint: { ...SELECTION_LINE },
+      paint: { ...SELECTION_LINE, ...selectionWidth },
     },
     {
       id: "selection-dot",
@@ -253,12 +420,20 @@ function buildStyle(liberty, rgi, state) {
       paint: structuredClone(glacierLabels?.paint ?? {}),
     },
     {
+      id: "complex-under",
+      type: "line",
+      source: "data",
+      "source-layer": "complexes",
+      layout: NONE,
+      paint: { ...SELECTION_UNDER, ...selectionWidth },
+    },
+    {
       id: "complex-outline",
       type: "line",
       source: "data",
       "source-layer": "complexes",
       layout: NONE,
-      paint: { ...SELECTION_LINE },
+      paint: { ...SELECTION_LINE, ...selectionWidth },
     },
     {
       id: "complex-dot",
@@ -267,6 +442,18 @@ function buildStyle(liberty, rgi, state) {
       "source-layer": "complexes",
       filter: POINTS,
       layout: NONE,
+      paint: { ...SELECTION_DOT },
+    },
+    /*
+     * The selection's own dot at RGI's point, below the zoom at which the tiles
+     * hold its outline: there whether or not the tiles kept its point. A filter
+     * reads the zoom at whole zooms, as the tiles change.
+     */
+    {
+      id: "selection-point",
+      type: "circle",
+      source: "selection-point",
+      filter: ["<", ["zoom"], ["get", "outline_zoom"]],
       paint: { ...SELECTION_DOT },
     },
     /* The selected glacier's name, in red over its outline. It wins the label collisions, so the plain label of the same name gives way. */
@@ -309,6 +496,7 @@ function buildStyle(liberty, rgi, state) {
       esri: { type: "raster", tiles: [ESRI_TILES], tileSize: 256 },
       world: { type: "geojson", data: WORLD },
       pin: { type: "geojson", data: EMPTY },
+      "selection-point": { type: "geojson", data: EMPTY },
     },
     layers: [
       ...base.slice(0, cut),
@@ -317,7 +505,7 @@ function buildStyle(liberty, rgi, state) {
       ...base.slice(cut),
       ...rgiLayers.filter(isSymbol),
       ...selection,
-    ],
+    ].map((layer) => (state.base === "imagery" && labels.has(layer.id) ? { ...layer, paint: { ...layer.paint, ...labelPaint(layer.id, labels.get(layer.id), "imagery") } } : layer)),
   };
 }
 
@@ -425,6 +613,7 @@ function standardPictures(liberty) {
 export async function createMap(container, catalog, state, liberty = fetchLiberty()) {
   liberty = await liberty;
   const rgi = rgiStyle(catalog.collections.glaciers.pmtilesUrl);
+  const labels = labelColors(liberty, rgi);
 
   registerProtocol(catalog.collections.glaciers.pmtilesUrl);
   const { maplibregl } = globalThis;
@@ -469,12 +658,18 @@ export async function createMap(container, catalog, state, liberty = fetchLibert
   const rgiToggles = rgi.layers.map((layer) => [layer.id, toggleOf(layer)]).filter(([, n]) => n);
   /** @type {(id: string) => ExpressionSpecification} */
   const idFilter = (id) => ["==", ["get", "rgi_id"], id];
-  const SELECTION = ["selection-dim", "selection-fill", "selection-outline", "selection-dot", "selection-label"];
-  const COMPLEX = ["complex-fill", "complex-members", "complex-labels", "complex-outline", "complex-dot"];
+  const SELECTION = ["selection-dim", "selection-fill", "selection-under", "selection-outline", "selection-dot", "selection-label"];
+  const COMPLEX = ["complex-fill", "complex-members", "complex-labels", "complex-under", "complex-outline", "complex-dot"];
   const show = (id, on) => map.setLayoutProperty(id, "visibility", visibility(on));
   /* The toggles that are on, and the glaciers whose centerlines the selection draws again. */
   const toggles = new Set(state.layers);
   let picked = null;
+  /* The glacier or complex whose own dot the selection-point layer draws. */
+  let pointId = null;
+  const setPoint = (id, feature) => {
+    pointId = id;
+    /** @type {import("maplibre-gl").GeoJSONSource} */ (map.getSource("selection-point")).setData(feature ?? EMPTY);
+  };
   const OVERLAY_FILTERS = {
     centerlines: (ids) => ["in", ["get", "rgi_g_id"], ["literal", ids]],
   };
@@ -536,17 +731,24 @@ export async function createMap(container, catalog, state, liberty = fetchLibert
         map.setPaintProperty(background.id, "background-color", color);
       }
       const paint = BASE_PAINT[base];
-      for (const [id, properties] of Object.entries(paint)) {
-        for (const [key, value] of Object.entries(properties)) {
+      /* A selection's centerlines and a complex's member outlines copy the plain layers' paint. */
+      const copies = [["complex-members", "glaciers-outline"], ...SELECTION_OVERLAYS.map((id) => [`selection-${id}`, id])];
+      for (const [id, plain] of [...Object.keys(paint).map((id) => [id, id]), ...copies]) {
+        for (const [key, value] of Object.entries(paint[plain] ?? {})) {
           map.setPaintProperty(id, /** @type {Parameters<typeof map.setPaintProperty>[1]} */ (key), value);
         }
       }
-      /* The selections redraw the glacier fill, and a complex its members' outlines, above the dimming. */
+      for (const id of SELECTION_LINES) map.setPaintProperty(id, "line-width", SELECTION_WIDTH[base]);
+      for (const [id, colors] of labels) {
+        for (const [key, value] of Object.entries(labelPaint(id, colors, base))) {
+          map.setPaintProperty(id, /** @type {Parameters<typeof map.setPaintProperty>[1]} */ (key), value);
+        }
+      }
+      /* The selections redraw the glacier fill above the dimming. */
       map.setPaintProperty("selection-dim", "fill-opacity", DIM_OPACITY[base]);
       map.setSky(sky(base));
       map.setPaintProperty("selection-fill", "fill-opacity", paint["glaciers-fill"]["fill-opacity"]);
       map.setPaintProperty("complex-fill", "fill-opacity", paint["glaciers-fill"]["fill-opacity"]);
-      map.setPaintProperty("complex-members", "line-color", paint["glaciers-outline"]["line-color"]);
     },
 
     setToggle(name, on) {
@@ -558,8 +760,10 @@ export async function createMap(container, catalog, state, liberty = fetchLibert
 
     select(rgiId) {
       const on = rgiId !== null && rgiId !== undefined;
+      if (rgiId !== pointId) setPoint(null);
       if (on) {
         map.setFilter("selection-fill", idFilter(rgiId));
+        map.setFilter("selection-under", idFilter(rgiId));
         map.setFilter("selection-outline", idFilter(rgiId));
         map.setFilter("selection-dot", ["all", POINTS, idFilter(rgiId)]);
         map.setFilter("selection-label", idFilter(rgiId));
@@ -577,9 +781,11 @@ export async function createMap(container, catalog, state, liberty = fetchLibert
      */
     selectComplex(complexId, glacierIds = []) {
       const on = complexId !== null && complexId !== undefined;
+      if (complexId !== pointId) setPoint(null);
       if (on) {
         map.setFilter("complex-fill", idFilter(complexId));
         map.setFilter("complex-members", ["==", ["get", "complex_id"], complexId]);
+        map.setFilter("complex-under", idFilter(complexId));
         map.setFilter("complex-outline", idFilter(complexId));
         map.setFilter("complex-dot", ["all", POINTS, idFilter(complexId)]);
       }
@@ -587,6 +793,30 @@ export async function createMap(container, catalog, state, liberty = fetchLibert
       for (const id of COMPLEX) show(id, on);
       picked = on ? glacierIds : null;
       showOverlays();
+    },
+
+    /**
+     * Draw the dot of the selected glacier or complex `id` from its row, at
+     * RGI's point and below the zoom of its outline, as the catalog's tiles
+     * do. A row without a point or bbox draws none. Selecting another ID or
+     * none clears it.
+     *
+     * @param {string} id
+     * @param {{ cenlon?: number, cenlat?: number, bbox?: { xmin: number, ymin: number, xmax: number, ymax: number } } | null} row
+     */
+    selectPoint(id, row) {
+      const { cenlon, cenlat, bbox } = row ?? {};
+      const known = [cenlon, cenlat].every(Number.isFinite) && bbox && ["xmin", "ymin", "xmax", "ymax"].every((key) => Number.isFinite(bbox[key]));
+      setPoint(
+        id,
+        known
+          ? {
+              type: "Feature",
+              properties: { outline_zoom: shapeMinzoom(bbox) },
+              geometry: { type: "Point", coordinates: [cenlon, cenlat] },
+            }
+          : null,
+      );
     },
 
     pin(lonLat) {
