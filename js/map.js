@@ -26,7 +26,15 @@ const DIM_GREY = "#5f6368";
  * fill is clear, so the dimming would cover the glacier too: imagery has none.
  */
 const DIM_OPACITY = { standard: 0.15, imagery: 0 };
-const SELECTION_LINE = { "line-color": SELECTION_RED, "line-width": 2, "line-dasharray": [2, 1.2] };
+/*
+ * A selection's outline: red dashes over a solid white line, so that the gaps
+ * show white and not the glacier's own outline below. It is as wide as an
+ * outline with its casing over imagery from zoom 12, and never narrower than
+ * an outline on either base map, so none shows beside it.
+ */
+const SELECTION_WIDTH = ["interpolate", ["linear"], ["zoom"], 0, 3, 8, 2.5, 12, 3];
+const SELECTION_UNDER = { "line-color": "#ffffff", "line-width": SELECTION_WIDTH };
+const SELECTION_LINE = { "line-color": SELECTION_RED, "line-width": SELECTION_WIDTH, "line-dasharray": [1.4, 0.8] };
 const SELECTION_DOT = {
   "circle-color": SELECTION_RED,
   "circle-radius": ["interpolate", ["linear"], ["zoom"], 0, 4, 6, 5],
@@ -226,6 +234,14 @@ function buildStyle(liberty, rgi, state) {
       };
     }),
     {
+      id: "selection-under",
+      type: "line",
+      source: "data",
+      "source-layer": "glaciers",
+      layout: NONE,
+      paint: { ...SELECTION_UNDER },
+    },
+    {
       id: "selection-outline",
       type: "line",
       source: "data",
@@ -251,6 +267,14 @@ function buildStyle(liberty, rgi, state) {
       ...(glacierLabels?.filter ? { filter: structuredClone(glacierLabels.filter) } : {}),
       layout: { ...structuredClone(glacierLabels?.layout ?? {}), ...NONE },
       paint: structuredClone(glacierLabels?.paint ?? {}),
+    },
+    {
+      id: "complex-under",
+      type: "line",
+      source: "data",
+      "source-layer": "complexes",
+      layout: NONE,
+      paint: { ...SELECTION_UNDER },
     },
     {
       id: "complex-outline",
@@ -469,8 +493,8 @@ export async function createMap(container, catalog, state, liberty = fetchLibert
   const rgiToggles = rgi.layers.map((layer) => [layer.id, toggleOf(layer)]).filter(([, n]) => n);
   /** @type {(id: string) => ExpressionSpecification} */
   const idFilter = (id) => ["==", ["get", "rgi_id"], id];
-  const SELECTION = ["selection-dim", "selection-fill", "selection-outline", "selection-dot", "selection-label"];
-  const COMPLEX = ["complex-fill", "complex-members", "complex-labels", "complex-outline", "complex-dot"];
+  const SELECTION = ["selection-dim", "selection-fill", "selection-under", "selection-outline", "selection-dot", "selection-label"];
+  const COMPLEX = ["complex-fill", "complex-members", "complex-labels", "complex-under", "complex-outline", "complex-dot"];
   const show = (id, on) => map.setLayoutProperty(id, "visibility", visibility(on));
   /* The toggles that are on, and the glaciers whose centerlines the selection draws again. */
   const toggles = new Set(state.layers);
@@ -536,17 +560,18 @@ export async function createMap(container, catalog, state, liberty = fetchLibert
         map.setPaintProperty(background.id, "background-color", color);
       }
       const paint = BASE_PAINT[base];
-      for (const [id, properties] of Object.entries(paint)) {
-        for (const [key, value] of Object.entries(properties)) {
+      /* A selection's centerlines and a complex's member outlines copy the plain layers' paint. */
+      const copies = [["complex-members", "glaciers-outline"], ...SELECTION_OVERLAYS.map((id) => [`selection-${id}`, id])];
+      for (const [id, plain] of [...Object.keys(paint).map((id) => [id, id]), ...copies]) {
+        for (const [key, value] of Object.entries(paint[plain] ?? {})) {
           map.setPaintProperty(id, /** @type {Parameters<typeof map.setPaintProperty>[1]} */ (key), value);
         }
       }
-      /* The selections redraw the glacier fill, and a complex its members' outlines, above the dimming. */
+      /* The selections redraw the glacier fill above the dimming. */
       map.setPaintProperty("selection-dim", "fill-opacity", DIM_OPACITY[base]);
       map.setSky(sky(base));
       map.setPaintProperty("selection-fill", "fill-opacity", paint["glaciers-fill"]["fill-opacity"]);
       map.setPaintProperty("complex-fill", "fill-opacity", paint["glaciers-fill"]["fill-opacity"]);
-      map.setPaintProperty("complex-members", "line-color", paint["glaciers-outline"]["line-color"]);
     },
 
     setToggle(name, on) {
@@ -560,6 +585,7 @@ export async function createMap(container, catalog, state, liberty = fetchLibert
       const on = rgiId !== null && rgiId !== undefined;
       if (on) {
         map.setFilter("selection-fill", idFilter(rgiId));
+        map.setFilter("selection-under", idFilter(rgiId));
         map.setFilter("selection-outline", idFilter(rgiId));
         map.setFilter("selection-dot", ["all", POINTS, idFilter(rgiId)]);
         map.setFilter("selection-label", idFilter(rgiId));
@@ -580,6 +606,7 @@ export async function createMap(container, catalog, state, liberty = fetchLibert
       if (on) {
         map.setFilter("complex-fill", idFilter(complexId));
         map.setFilter("complex-members", ["==", ["get", "complex_id"], complexId]);
+        map.setFilter("complex-under", idFilter(complexId));
         map.setFilter("complex-outline", idFilter(complexId));
         map.setFilter("complex-dot", ["all", POINTS, idFilter(complexId)]);
       }

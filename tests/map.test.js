@@ -86,6 +86,10 @@ test("over imagery glaciers are white outlines without a fill, and region outlin
   assert.equal(paint("selection-dim", "fill-opacity"), 0, "a clear fill cannot lift a selection out of the dimming");
   assert.equal(paint("glaciers-outline", "line-color"), "#ffffff");
   for (const id of ["glaciers-casing", "intersects-casing"]) assert.equal(paint(id, "line-opacity"), 1);
+  assert.equal(paint("centerlines", "line-color"), "#ddaa33");
+  assert.equal(paint("selection-centerlines", "line-color"), "#ddaa33");
+  const imageryWidth = paint("glaciers-outline", "line-width");
+  assert.deepEqual(paint("intersects", "line-width"), imageryWidth);
   assert.equal(paint("regions-outline-1", "line-color"), "#f1f3f4");
   assert.equal(paint("regions-outline-2", "line-color"), "#bdc1c6");
   assert.equal(map.getSky()["atmosphere-blend"], 0.8, "MapLibre draws the atmosphere");
@@ -95,6 +99,11 @@ test("over imagery glaciers are white outlines without a fill, and region outlin
   assert.equal(paint("selection-dim", "fill-opacity"), 0.15);
   assert.equal(paint("glaciers-outline", "line-color"), "#80868b");
   for (const id of ["glaciers-casing", "intersects-casing"]) assert.equal(paint(id, "line-opacity"), 0);
+  assert.equal(paint("centerlines", "line-color"), "#b8860b");
+  assert.equal(paint("selection-centerlines", "line-color"), "#b8860b");
+  assert.notDeepEqual(paint("glaciers-outline", "line-width"), imageryWidth, "wider on the standard map");
+  assert.deepEqual(paint("intersects", "line-width"), paint("glaciers-outline", "line-width"));
+  assert.deepEqual(paint("glaciers-casing", "line-gap-width"), paint("glaciers-outline", "line-width"));
   assert.equal(paint("regions-outline-1", "line-color"), "#5f6368");
   assert.equal(map.getSky()["atmosphere-blend"], 0.5, "fainter over the light map");
   rgiMap.setBase("imagery");
@@ -262,15 +271,22 @@ test("selection draws a red dashed outline filtered to the ID", async () => {
   assert.deepEqual(outline.filter, ["==", ["get", "rgi_id"], rgiId]);
   assert.equal(outline["source-layer"], "glaciers");
   assert.equal(outline.paint["line-color"], "#d93025");
-  assert.equal(outline.paint["line-width"], 2);
-  assert.deepEqual(outline.paint["line-dasharray"], [2, 1.2]);
+  assert.deepEqual(outline.paint["line-width"], ["interpolate", ["linear"], ["zoom"], 0, 3, 8, 2.5, 12, 3]);
+  assert.deepEqual(outline.paint["line-dasharray"], [1.4, 0.8]);
+  const under = map.getLayer("selection-under");
+  assert.deepEqual(under.filter, outline.filter, "a white line fills the gaps between the dashes");
+  assert.equal(under.paint["line-color"], "#ffffff");
+  assert.deepEqual(under.paint["line-width"], outline.paint["line-width"]);
+  assert.equal(map.indexOf("selection-under"), map.indexOf("selection-outline") - 1);
   assert.deepEqual(map.getLayer("selection-fill").filter, ["==", ["get", "rgi_id"], rgiId]);
   assert.deepEqual(map.getLayer("selection-fill").paint, map.getLayer("glaciers-fill").paint);
   assert.equal(map.getLayer("selection-dim").paint["fill-opacity"], 0.15);
-  for (const id of ["selection-dim", "selection-fill", "selection-outline", "selection-dot"]) {
+  for (const id of ["selection-dim", "selection-fill", "selection-under", "selection-outline", "selection-dot"]) {
     assert.equal(map.layout(id).visibility, "visible", id);
   }
   assert.ok(map.indexOf("selection-outline") > map.indexOf("glacier-labels"));
+  rgiMap.select(null);
+  assert.equal(map.layout("selection-under").visibility, "none");
 });
 
 test("the selected glacier's name is red and drawn above the selection", async () => {
@@ -482,6 +498,10 @@ test("a complex is selected like a glacier: dimmed map, lifted complex, red outl
   assert.equal(map.getLayer("complex-outline")["source-layer"], "complexes");
   assert.equal(map.getLayer("complex-members")["source-layer"], "glaciers");
   assert.deepEqual(map.getLayer("complex-outline").paint, map.getLayer("selection-outline").paint);
+  assert.deepEqual(map.getLayer("complex-under").paint, map.getLayer("selection-under").paint);
+  assert.deepEqual(map.getLayer("complex-under").filter, ["==", ["get", "rgi_id"], id]);
+  assert.equal(map.indexOf("complex-under"), map.indexOf("complex-outline") - 1);
+  assert.equal(map.layout("complex-under").visibility, "visible");
   assert.equal(map.getLayer("complex-outline").paint["line-color"], "#d93025");
   assert.equal(map.getLayer("complex-members").paint["line-color"], "#80868b");
   assert.ok(map.indexOf("complex-fill") > map.indexOf("selection-dim"));
@@ -495,6 +515,7 @@ test("a complex is selected like a glacier: dimmed map, lifted complex, red outl
   rgiMap.setBase("imagery");
   assert.equal(map.getLayer("complex-fill").paint["fill-opacity"], 0);
   assert.equal(map.getLayer("complex-members").paint["line-color"], "#ffffff");
+  assert.deepEqual(map.getLayer("complex-members").paint, map.getLayer("glaciers-outline").paint, "and as wide");
 
   rgiMap.select(rgiId);
   assert.equal(map.layout("complex-outline").visibility, "none", "a glacier replaces the complex");

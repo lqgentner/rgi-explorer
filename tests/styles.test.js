@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { PREVIEWS, GLACIERS } from "../js/previews.js";
-import { LINE_WIDTH, rgiStyle, TOGGLES } from "../js/styles.js";
+import { BASE_PAINT, OUTLINE_WIDTH, PALETTE, rgiStyle, TOGGLES } from "../js/styles.js";
 
 const PMTILES = "https://data.source.coop/lqgentner/rgi/v7.0/rgi7.0.pmtiles";
 
@@ -40,15 +40,40 @@ test("rgiStyle draws each casing outside its line, below every line", () => {
     ["glaciers-casing", "glaciers-outline"],
     ["intersects-casing", "intersects"],
   ]) {
+    for (const paint of Object.values(BASE_PAINT)) {
+      assert.deepEqual(paint[casing]["line-gap-width"], paint[line]["line-width"], "the gap is as wide as the line");
+    }
     const paint = layers[index(casing)].paint;
-    assert.deepEqual(paint["line-gap-width"], LINE_WIDTH[line], "the gap is as wide as the line");
-    assert.deepEqual(layers[index(line)].paint["line-width"], LINE_WIDTH[line]);
+    assert.deepEqual(paint["line-gap-width"], layers[index(line)].paint["line-width"]);
     assert.equal(paint["line-color"], layers[index("glaciers-casing")].paint["line-color"], "the casings match");
-    assert.equal(paint["line-width"], layers[index("glaciers-casing")].paint["line-width"]);
+    assert.deepEqual(paint["line-width"], layers[index("glaciers-casing")].paint["line-width"]);
     assert.equal(layers[index(casing)]["source-layer"], layers[index(line)]["source-layer"]);
     assert.ok(index(casing) < index("glaciers-outline"), casing);
   }
   assert.ok(!layers.some((l) => l["source-layer"] === "centerlines" && l.id !== "centerlines"), "centerlines need no casing");
+});
+
+test("the divides are as wide as the glacier outlines, which are wider on the standard map", () => {
+  const { layers } = rgiStyle(PMTILES);
+  const paint = (id) => layers.find((l) => l.id === id).paint;
+  assert.deepEqual(paint("glaciers-outline")["line-width"], OUTLINE_WIDTH.standard, "the style starts on the standard map");
+  assert.deepEqual(paint("intersects")["line-width"], OUTLINE_WIDTH.standard);
+  for (const [base, width] of Object.entries(OUTLINE_WIDTH)) {
+    assert.deepEqual(BASE_PAINT[base]["glaciers-outline"]["line-width"], width, base);
+    assert.deepEqual(BASE_PAINT[base].intersects["line-width"], width, base);
+  }
+  const stops = (width) => width.slice(3).filter((_, i) => i % 2 === 1);
+  stops(OUTLINE_WIDTH.standard).forEach((w, i) => assert.ok(w > stops(OUTLINE_WIDTH.imagery)[i]));
+});
+
+test("the casing thins at low zoom, and the centerlines are a lighter gold over imagery", () => {
+  const { layers } = rgiStyle(PMTILES);
+  const paint = (id) => layers.find((l) => l.id === id).paint;
+  assert.deepEqual(paint("glaciers-casing")["line-width"], ["interpolate", ["linear"], ["zoom"], 8, 0.4, 11, 1]);
+  assert.equal(paint("glaciers-casing")["line-color"], PALETTE.casing);
+  assert.equal(paint("centerlines")["line-color"], PALETTE.centerline);
+  assert.equal(BASE_PAINT.imagery.centerlines["line-color"], PALETTE.centerlineOnImagery);
+  assert.notEqual(PALETTE.centerline, PALETTE.centerlineOnImagery);
 });
 
 test("rgiStyle uses only fonts the glyph server holds", () => {
