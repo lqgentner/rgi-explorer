@@ -90,3 +90,12 @@ test("the layer previews hold a path for every part they draw", () => {
     for (const [part, d] of Object.entries(parts)) assert.match(d, path, `${name} ${part}`);
   }
 });
+
+test("the RGI labels take the halo of Liberty's place labels: 1 px, blurred 1 px", () => {
+  const labels = rgiStyle("https://example.org/rgi.pmtiles").layers.filter((layer) => layer.type === "symbol");
+  assert.ok(labels.length >= 3);
+  for (const layer of labels) {
+    assert.equal(layer.paint["text-halo-width"], 1, layer.id);
+    assert.equal(layer.paint["text-halo-blur"], 1, layer.id);
+  }
+});

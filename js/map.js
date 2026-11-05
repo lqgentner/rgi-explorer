@@ -64,6 +64,100 @@ const sky = (base) => ({
 });
 /* The background on imagery, where the imagery has not loaded yet. */
 const IMAGERY_BACKGROUND = "#3c4043";
+/*
+ * Over imagery each label's colours turn round in lightness, hue kept: dark
+ * text in a white halo becomes white text in a dark halo. The text goes into
+ * the light half and takes more saturation, so a grey name is a light grey and
+ * a water label's blue a light, clear blue. The selection's label and the
+ * road shields keep theirs. MapLibre draws text black and halos clear when a
+ * style gives none.
+ */
+const LABEL_DEFAULTS = { "text-color": "#000000", "text-halo-color": "rgba(0, 0, 0, 0)" };
+
+/** The [r, g, b, a] of a CSS hex, rgb() or hsl() colour, 0-1; null for any other value. */
+function parseColor(value) {
+  if (typeof value !== "string") return null;
+  const color = value.trim().toLowerCase();
+  const hex = /^#([0-9a-f]{3,8})$/.exec(color);
+  if (hex) {
+    let digits = hex[1];
+    if (digits.length === 3 || digits.length === 4) digits = [...digits].map((d) => d + d).join("");
+    if (digits.length !== 6 && digits.length !== 8) return null;
+    const [r, g, b, a = 255] = digits.match(/../g).map((pair) => parseInt(pair, 16));
+    return [r / 255, g / 255, b / 255, a / 255];
+  }
+  const fn = /^(rgba?|hsla?)\(([^)]*)\)$/.exec(color);
+  if (!fn) return null;
+  const parts = fn[2].split(/[\s,/]+/).filter(Boolean);
+  if (parts.length < 3) return null;
+  const number = (part, scale) => (part.endsWith("%") ? parseFloat(part) / 100 : parseFloat(part) / scale);
+  const alpha = parts[3] === undefined ? 1 : number(parts[3], 1);
+  if (fn[1].startsWith("rgb")) return [number(parts[0], 255), number(parts[1], 255), number(parts[2], 255), alpha];
+  const [h, sat, l] = [parseFloat(parts[0]) / 360, number(parts[1], 100), number(parts[2], 100)];
+  return [...hslToRgb(h, sat, l), alpha];
+}
+
+function hslToRgb(h, s, l) {
+  const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+  const p = 2 * l - q;
+  const channel = (t) => {
+    t = ((t % 1) + 1) % 1;
+    if (t < 1 / 6) return p + (q - p) * 6 * t;
+    if (t < 1 / 2) return q;
+    if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+    return p;
+  };
+  return [channel(h + 1 / 3), channel(h), channel(h - 1 / 3)];
+}
+
+/* The least lightness of lifted text: a river's blue then sits near Mapbox's satellite water labels'. */
+const LIFT_MIN = 0.75;
+
+/**
+ * A colour with its HSL lightness turned round, l to 1 - l, as rgba(); an
+ * expression with each colour in it turned round; any other value as it is.
+ * With `lift`, for text, the lightness goes into the light half, 1 - l / 2 but
+ * at least LIFT_MIN, and the saturation half again, so grey and blue names
+ * stand out of dark ground.
+ */
+export function invertLightness(value, lift = false) {
+  if (Array.isArray(value)) return value.map((item) => invertLightness(item, lift));
+  const rgba = parseColor(value);
+  if (!rgba) return value;
+  const [r, g, b, a] = rgba;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  const d = max - min;
+  let h = 0;
+  if (d) {
+    if (max === r) h = ((g - b) / d + 6) % 6;
+    else if (max === g) h = (b - r) / d + 2;
+    else h = (r - g) / d + 4;
+    h /= 6;
+  }
+  const s = d ? d / (1 - Math.abs(2 * l - 1)) : 0;
+  const [r2, g2, b2] = (lift ? hslToRgb(h, Math.min(1, s * 1.5), Math.max(LIFT_MIN, 1 - l / 2)) : hslToRgb(h, s, 1 - l)).map((c) =>
+    Math.round(c * 255),
+  );
+  return `rgba(${r2}, ${g2}, ${b2}, ${Math.round(a * 1000) / 1000})`;
+}
+
+/** A label's colours for `base`, from its standard map colours. */
+/* The glacier names, the map's subject, are white over imagery, as the towns' are. */
+const WHITE_ON_IMAGERY = new Set(["glacier-labels", "complex-labels"]);
+const labelPaint = (id, paint, base) =>
+  base === "imagery"
+    ? {
+        "text-color": WHITE_ON_IMAGERY.has(id)
+          ? "#ffffff"
+          : invertLightness(paint["text-color"] ?? LABEL_DEFAULTS["text-color"], true),
+        "text-halo-color": invertLightness(paint["text-halo-color"] ?? LABEL_DEFAULTS["text-halo-color"]),
+        /* Hard over imagery, as Esri's and VersaTiles' halos: a soft one loses light text on snow. */
+        "text-halo-blur": 0,
+      }
+    : paint;
+const LABEL_KEYS = /** @type {const} */ (["text-color", "text-halo-color", "text-halo-blur"]);
 /* A fit that would fly longer than this, in ms, jumps there: a far flight is a long wait. */
 const FLY_MAX_MS = 2000;
 /** @type {ExpressionSpecification} */
@@ -157,6 +251,23 @@ function registerProtocol(url) {
 export const fetchLiberty = () => fetchJson(LIBERTY_STYLE);
 
 const isSymbol = (layer) => layer.type === "symbol";
+
+/**
+ * The standard map's colours of the text labels, Liberty's and RGI's, by
+ * layer ID. A complex's member names copy the glacier labels.
+ *
+ * @returns {Map<string, Record<string, unknown>>}
+ */
+function labelColors(liberty, rgi) {
+  const labels = new Map(
+    [...libertyLayers(liberty), ...rgi.layers]
+      /* A road shield's text sits on its own white icon, which it keeps on imagery. */
+      .filter((layer) => isSymbol(layer) && layer.layout?.["text-field"] && !layer.id.includes("shield"))
+      .map((layer) => [layer.id, Object.fromEntries(LABEL_KEYS.map((key) => [key, layer.paint?.[key]]))]),
+  );
+  if (labels.has("glacier-labels")) labels.set("complex-labels", labels.get("glacier-labels"));
+  return labels;
+}
 const visibility = (on) => (on ? "visible" : "none");
 
 /** The catalog layers that belong to a toggle, by source layer. */
@@ -201,6 +312,7 @@ function splitLiberty(liberty) {
  * @returns {import("maplibre-gl").StyleSpecification}
  */
 function buildStyle(liberty, rgi, state) {
+  const labels = labelColors(liberty, rgi);
   const { base, cut, covered, background } = splitLiberty(liberty);
   if (state.base === "imagery") {
     for (const layer of base) if (covered.includes(layer.id)) layer.layout = { ...layer.layout, ...NONE };
@@ -393,7 +505,7 @@ function buildStyle(liberty, rgi, state) {
       ...base.slice(cut),
       ...rgiLayers.filter(isSymbol),
       ...selection,
-    ],
+    ].map((layer) => (state.base === "imagery" && labels.has(layer.id) ? { ...layer, paint: { ...layer.paint, ...labelPaint(layer.id, labels.get(layer.id), "imagery") } } : layer)),
   };
 }
 
@@ -501,6 +613,7 @@ function standardPictures(liberty) {
 export async function createMap(container, catalog, state, liberty = fetchLiberty()) {
   liberty = await liberty;
   const rgi = rgiStyle(catalog.collections.glaciers.pmtilesUrl);
+  const labels = labelColors(liberty, rgi);
 
   registerProtocol(catalog.collections.glaciers.pmtilesUrl);
   const { maplibregl } = globalThis;
@@ -626,6 +739,11 @@ export async function createMap(container, catalog, state, liberty = fetchLibert
         }
       }
       for (const id of SELECTION_LINES) map.setPaintProperty(id, "line-width", SELECTION_WIDTH[base]);
+      for (const [id, colors] of labels) {
+        for (const [key, value] of Object.entries(labelPaint(id, colors, base))) {
+          map.setPaintProperty(id, /** @type {Parameters<typeof map.setPaintProperty>[1]} */ (key), value);
+        }
+      }
       /* The selections redraw the glacier fill above the dimming. */
       map.setPaintProperty("selection-dim", "fill-opacity", DIM_OPACITY[base]);
       map.setSky(sky(base));

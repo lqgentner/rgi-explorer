@@ -868,3 +868,41 @@ test("the selection draws its own dot at RGI's point below its outline's zoom, w
   rgiMap.selectPoint(rgiId, { cenlon: 7.7, cenlat: 46.4 });
   assert.deepEqual(data().features, [], "no bbox, no dot");
 });
+
+test("a colour's lightness turns round, its hue, saturation and alpha kept, in hex, rgb(), hsl() and expressions", async () => {
+  await loadPage();
+  const { invertLightness } = await load("js/map.js");
+  assert.equal(invertLightness("#000"), "rgba(255, 255, 255, 1)");
+  assert.equal(invertLightness("#ffffff"), "rgba(0, 0, 0, 1)");
+  assert.equal(invertLightness("rgba(255,255,255,0.7)"), "rgba(0, 0, 0, 0.7)");
+  assert.equal(invertLightness("#666"), "rgba(153, 153, 153, 1)");
+  /* Liberty's water label, a mid blue (#495e91), becomes a lighter blue of the same hue. */
+  assert.equal(invertLightness("#495e91"), "rgba(110, 131, 182, 1)");
+  assert.equal(invertLightness("hsl(30,23%,62%)"), invertLightness("hsl(30, 23%, 62%)"));
+  assert.match(invertLightness("hsl(30,23%,62%)"), /^rgba\(\d+, \d+, \d+, 1\)$/);
+  assert.deepEqual(invertLightness(["interpolate", ["linear"], ["zoom"], 5, "#000", 10, "#fff"]), ["interpolate", ["linear"], ["zoom"], 5, "rgba(255, 255, 255, 1)", 10, "rgba(0, 0, 0, 1)"]);
+  assert.equal(invertLightness(invertLightness("#3c4043")), "rgba(60, 64, 67, 1)", "turned round twice, it is back");
+  /* For text the lightness goes into the light half and the saturation rises half again. */
+  assert.equal(invertLightness("#000", true), "rgba(255, 255, 255, 1)");
+  assert.equal(invertLightness("#333", true), "rgba(230, 230, 230, 1)", "a grey name, light");
+  assert.equal(invertLightness("#495e91", true), "rgba(174, 189, 227, 1)", "a lake's name, a light blue");
+  assert.equal(invertLightness("#74aee9", true), "rgba(128, 191, 255, 1)", "a river's name, a clear blue at the 75 % floor, not a dark one");
+});
+
+test("over imagery each label's colours turn round in lightness, and the standard map gets its own back", async () => {
+  const { rgiMap, map } = await build("?base=imagery");
+  const paint = (id, key) => map.getLayer(id).paint[key];
+  for (const id of ["glacier-labels", "complex-labels"]) {
+    assert.equal(paint(id, "text-color"), "#ffffff", `${id}: white, as the towns`);
+    assert.equal(paint(id, "text-halo-color"), "rgba(0, 0, 0, 1)", id);
+  }
+  assert.equal(paint("selection-label", "text-color"), "#cc3311", "the selection's label keeps its red");
+  for (const id of ["glacier-labels", "label_place"]) assert.equal(paint(id, "text-halo-blur"), 0, `${id}: a hard halo over imagery`);
+  rgiMap.setBase("standard");
+  assert.equal(paint("glacier-labels", "text-halo-blur"), 1, "Liberty's soft place-label halo on the standard map");
+  assert.equal(paint("glacier-labels", "text-color"), "#3c4043", "the region labels' dark grey");
+  assert.equal(paint("glacier-labels", "text-halo-color"), "#ffffff");
+  assert.equal(paint("complex-labels", "text-color"), "#3c4043");
+  rgiMap.setBase("imagery");
+  assert.equal(paint("glacier-labels", "text-color"), "#ffffff");
+});

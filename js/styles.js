@@ -30,6 +30,8 @@ export const PALETTE = {
   centerlineOnImagery: "#ddaa33",
   divide: "#009e73",
   label: "#3c4043",
+  /* The glacier names share the region labels' dark grey: near the outlines' grey, at 10:1 on white. */
+  glacierLabel: "#3c4043",
   halo: "#ffffff",
   casing: "#202124",
 };
@@ -99,7 +101,14 @@ const CASING = { "line-color": PALETTE.casing, "line-width": ["interpolate", ["l
 export function rgiStyle(pmtilesUrl) {
   const layer = (id, type, sourceLayer, rest) => ({ id, type, source: "data", "source-layer": sourceLayer, ...rest });
   const casing = (id, sourceLayer) => layer(id, "line", sourceLayer, { paint: { ...CASING, ...BASE_PAINT.standard[id] } });
-  const label = (rest) => ({ "text-color": PALETTE.label, "text-halo-color": PALETTE.halo, "text-halo-width": 1.2, ...rest });
+  /* The labels' halo is Liberty's place labels': 1 px, softened by 1 px of blur. */
+  const label = (rest) => ({
+    "text-color": PALETTE.label,
+    "text-halo-color": PALETTE.halo,
+    "text-halo-width": 1,
+    "text-halo-blur": 1,
+    ...rest,
+  });
   return {
     sources: { data: { type: "vector", url: `pmtiles://${pmtilesUrl}` } },
     layers: [
@@ -170,7 +179,7 @@ export function rgiStyle(pmtilesUrl) {
           "text-size": 12,
           "symbol-sort-key": ["-", ["get", "area_km2"]],
         },
-        paint: label({ "text-color": "#202124" }),
+        paint: label({ "text-color": PALETTE.glacierLabel }),
       }),
     ],
   };
