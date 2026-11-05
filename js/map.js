@@ -144,8 +144,9 @@ function libertyLayers(liberty) {
 /**
  * Liberty's layers split where the imagery goes: above its fills and lines
  * but below its country borders, which Liberty draws last, and its labels.
- * `covered` names the layers the imagery hides, so they are switched off on
- * imagery and draw nothing and fetch nothing there. The background stays, as
+ * `covered` names the layers switched off on imagery, which then draw and
+ * fetch nothing: all but the labels, the borders too, which belong to the
+ * standard map and not to a photo of the ground. The background stays, as
  * it shows while the imagery loads; it turns dark grey there.
  */
 function splitLiberty(liberty) {
@@ -154,8 +155,7 @@ function splitLiberty(liberty) {
   const firstBorder = base.findIndex((layer) => layer["source-layer"] === "boundary");
   const cut = firstBorder !== -1 && firstBorder <= lastFlat ? firstBorder : lastFlat + 1;
   const covered = base
-    .slice(0, cut)
-    .filter((layer) => layer.type !== "background" && layer.layout?.visibility !== "none")
+    .filter((layer, index) => (index < cut || !isSymbol(layer)) && layer.type !== "background" && layer.layout?.visibility !== "none")
     .map((layer) => layer.id);
   const background = base.find((layer) => layer.type === "background");
   return { base, cut, covered, background };

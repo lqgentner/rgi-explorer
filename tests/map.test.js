@@ -137,7 +137,7 @@ test("imagery shows esri above Liberty's fills and lines and below its borders a
   assert.equal(map.layout("esri").visibility, "none");
 });
 
-test("imagery switches off the Liberty layers it covers, which then fetch nothing", async () => {
+test("imagery switches off the Liberty layers it covers and the borders, which then fetch nothing", async () => {
   const { rgiMap, map } = await build();
   rgiMap.setBase("imagery");
   assert.equal(map.layout("water").visibility, "none");
@@ -145,9 +145,11 @@ test("imagery switches off the Liberty layers it covers, which then fetch nothin
   assert.equal(map.layout("road_one_way_arrow").visibility, "none");
   assert.equal(map.layout("background").visibility, undefined, "the background shows while the imagery loads");
   assert.equal(map.getLayer("background").paint["background-color"], "#3c4043", "dark grey until the imagery loads");
-  assert.equal(map.layout("boundary").visibility, undefined);
+  assert.equal(map.layout("boundary").visibility, "none", "the borders belong to the standard map");
+  assert.equal(map.layout("label_place").visibility, undefined, "the labels stay");
   rgiMap.setBase("standard");
   assert.equal(map.layout("water").visibility, "visible");
+  assert.equal(map.layout("boundary").visibility, "visible");
   assert.equal(map.layout("road_major").visibility, "visible");
   assert.equal(map.layout("landcover_ice").visibility, "none", "Liberty's glaciers stay hidden");
   assert.equal(map.getLayer("background").paint["background-color"], "#f8f4f0");
