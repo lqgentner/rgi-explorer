@@ -896,6 +896,14 @@ button:focus-visible {
   line-height: 16px;
 }
 
+/*
+ * One line's height, 16px and the padding, until status.js measures the line:
+ * the controls draw before it and stand where it will leave them.
+ */
+:root {
+  --status-h: 20px;
+}
+
 #status a {
   color: inherit;
 }

@@ -63,7 +63,7 @@ const sky = (base) => ({
   "atmosphere-blend": ATMOSPHERE[base] ?? ATMOSPHERE.standard,
 });
 /* The background on imagery, where the imagery has not loaded yet. */
-const IMAGERY_BACKGROUND = "#3c4043";
+export const IMAGERY_BACKGROUND = "#3c4043";
 /*
  * Over imagery each label's colours turn round in lightness, hue kept: dark
  * text in a white halo becomes white text in a dark halo. The text goes into
