@@ -1,14 +1,26 @@
 :root {
-  --accent: #1a73e8;
-  --red: #d93025;
+  /*
+   * The Glacial palette: a deep glacier blue for what can be pressed, signal
+   * red for the selection, and blue-grey neutrals. The data bars are a lighter
+   * blue than the buttons, one colour for every bar.
+   */
+  --accent: #00668a;
+  /* A pressed or hovered primary button, between --accent and --quiet-accent. */
+  --accent-strong: #00577a;
+  /* A highlighted row, such as the search's chosen result. */
+  --accent-tint: #e3f0f6;
+  --red: #cc3311;
+  --bar: #4a9ac2;
   --surface: #fff;
-  --text: #202124;
-  --muted: #5f6368;
-  --line: #dadce0;
+  --text: #14232b;
+  --muted: #4f6570;
+  --line: #d3dee4;
   /* A hover, and a box of code, on white. */
-  --surface-2: #f1f3f4;
+  --surface-2: #edf3f6;
+  /* The close disc's hover, a step darker than --surface-2. */
+  --surface-3: #e1eaef;
   /* What an image shows until it loads, or when there is none. */
-  --image-placeholder: #9aa0a6;
+  --image-placeholder: #93a5ae;
   --shadow: 0 1px 3px rgb(60 64 67 / 30%), 0 4px 8px 3px rgb(60 64 67 / 15%);
   /*
    * Lower-priority surfaces over the map, the phone's help and info buttons,
@@ -26,9 +38,9 @@
   --quiet-filter: blur(var(--quiet-blur)) contrast(0.5) brightness(1.4) saturate(1.4);
   /* How far a frosted surface's glass reaches past its edges: two blur radii, as in GLACE Viewer. */
   --quiet-reach: calc(2 * var(--quiet-blur));
-  --quiet-muted: #4d5156;
+  --quiet-muted: #44555e;
   /* Blue text on them, such as an outlined button's: 5:1 over space. */
-  --quiet-accent: #174ea6;
+  --quiet-accent: #004f6b;
   /*
    * Over a photo the photo is the content, so its controls take a plainer,
    * lighter glass than the map's frost, which would wash it out: faint arrows,
@@ -36,7 +48,7 @@
    */
   --photo-glass: rgb(255 255 255 / 45%);
   --photo-glass-strong: rgb(255 255 255 / 72%);
-  --photo-dark: rgb(32 33 36 / 62%);
+  --photo-dark: rgb(20 35 43 / 62%);
   --photo-blur: blur(6px);
   --space: #10141c;
   --card-w: 408px;
@@ -62,8 +74,8 @@
   --sheet-x-inset: 16px;
   --tile-radius: 12px;
   /* What darkens the page behind a pane or dialog: light for panes, strong behind the image viewer. */
-  --scrim: rgb(32 33 36 / 40%);
-  --scrim-strong: rgb(32 33 36 / 80%);
+  --scrim: rgb(20 35 43 / 40%);
+  --scrim-strong: rgb(20 35 43 / 80%);
   /* The search bar's place, which the desktop photo's arrows are centred against. */
   --search-top: 16px;
   --search-h: 48px;
@@ -278,7 +290,7 @@ kbd {
 
 #search li[aria-selected="true"],
 #search li:hover {
-  background: #e8f0fe;
+  background: var(--accent-tint);
 }
 
 /* Shared control parts */
@@ -615,7 +627,7 @@ button:focus-visible {
 
 .layer-toggle:hover .layer-preview,
 .base-tile:hover img {
-  outline: 2px solid #9aa0a6;
+  outline: 2px solid var(--image-placeholder);
   outline-offset: -2px;
 }
 
@@ -784,7 +796,7 @@ button:focus-visible {
 }
 
 .needle-south {
-  fill: #bdc1c6;
+  fill: #b7c6cd;
 }
 
 /* Layers pane, phone */
@@ -1410,14 +1422,14 @@ body:has(#search.fullscreen) .welcome {
 }
 
 .tour .btn:not(.primary) {
-  border-color: rgb(32 33 36 / 20%);
+  border-color: rgb(20 35 43 / 20%);
   background: none;
   color: var(--quiet-accent);
 }
 
 .tour .btn:not(.primary):hover,
 .tour-close:hover {
-  background: rgb(32 33 36 / 8%);
+  background: rgb(20 35 43 / 8%);
 }
 
 .tour-target {
@@ -1605,7 +1617,7 @@ body:has(#search.fullscreen) .welcome {
 
 .card-close:hover,
 .pane-close:hover {
-  background: #e8eaed;
+  background: var(--surface-3);
 }
 
 .search-close,
@@ -1688,7 +1700,7 @@ body:has(#search.fullscreen) .welcome {
 }
 
 .btn.primary:hover {
-  background: #1765cc;
+  background: var(--accent-strong);
 }
 
 .tabs {
@@ -1997,7 +2009,7 @@ a.external .icon {
 }
 
 .hypsometry .bar {
-  fill: var(--accent);
+  fill: var(--bar);
 }
 
 .hypso-range,
@@ -2292,7 +2304,7 @@ dialog.viewer::backdrop {
 }
 
 .viewer-credit a {
-  color: #8ab4f8;
+  color: #7fc3e3;
 }
 
 .viewer-credit .photo-credit {
@@ -2786,7 +2798,7 @@ dialog.usedata::backdrop {
    * the strip does: no arrows.
    */
   dialog.viewer {
-    background: #202124;
+    background: var(--text);
   }
 
   /* A gap between images while swiping, where the blur shows through. */

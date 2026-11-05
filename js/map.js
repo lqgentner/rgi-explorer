@@ -18,7 +18,7 @@ import { PREVIEW_SPAN } from "./viewpreview.js";
 
 /** @typedef {import("maplibre-gl").ExpressionSpecification} ExpressionSpecification */
 
-const SELECTION_RED = "#d93025";
+const SELECTION_RED = "#cc3311";
 const DIM_GREY = "#5f6368";
 /*
  * How much a selection dims the map around it, per base map. A selection is

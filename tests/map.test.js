@@ -270,7 +270,7 @@ test("selection draws a red dashed outline filtered to the ID", async () => {
   const outline = map.getLayer("selection-outline");
   assert.deepEqual(outline.filter, ["==", ["get", "rgi_id"], rgiId]);
   assert.equal(outline["source-layer"], "glaciers");
-  assert.equal(outline.paint["line-color"], "#d93025");
+  assert.equal(outline.paint["line-color"], "#cc3311");
   assert.deepEqual(outline.paint["line-width"], ["interpolate", ["linear"], ["zoom"], 0, 3, 8, 2.5, 12, 3]);
   assert.deepEqual(outline.paint["line-dasharray"], [1.4, 0.8]);
   const under = map.getLayer("selection-under");
@@ -294,7 +294,7 @@ test("the selected glacier's name is red and drawn above the selection", async (
   const label = map.getLayer("selection-label");
   assert.equal(label.type, "symbol");
   assert.equal(label["source-layer"], "glacier-labels");
-  assert.equal(label.paint["text-color"], "#d93025");
+  assert.equal(label.paint["text-color"], "#cc3311");
   assert.deepEqual(label.layout["text-field"], map.getLayer("glacier-labels").layout["text-field"]);
   assert.equal(map.layout("selection-label").visibility, "none");
   for (const id of ["selection-dim", "selection-fill", "selection-outline"]) {
@@ -313,7 +313,7 @@ test("a selected glacier drawn as a dot shows a red dot with a white ring", asyn
   assert.equal(dot.type, "circle");
   assert.equal(dot["source-layer"], "glaciers");
   assert.equal(map.layout("selection-dot").visibility, "none");
-  assert.equal(dot.paint["circle-color"], "#d93025");
+  assert.equal(dot.paint["circle-color"], "#cc3311");
   assert.equal(dot.paint["circle-stroke-color"], "#ffffff");
   const radius = (paint, zoom) => paint["circle-radius"][paint["circle-radius"].indexOf(zoom, 3) + 1];
   const dots = map.getLayer("glaciers-dots").paint;
@@ -357,7 +357,7 @@ test("select(null) hides the selection and clears the pin", async () => {
   rgiMap.select(rgiId);
   rgiMap.pin([10, 20]);
   assert.deepEqual(map.getSource("pin").data.geometry.coordinates, [10, 20]);
-  assert.equal(map.getLayer("terminus-pin").paint["circle-color"], "#d93025");
+  assert.equal(map.getLayer("terminus-pin").paint["circle-color"], "#cc3311");
 
   rgiMap.select(null);
   for (const id of ["selection-dim", "selection-fill", "selection-outline", "selection-dot"]) {
@@ -502,7 +502,7 @@ test("a complex is selected like a glacier: dimmed map, lifted complex, red outl
   assert.deepEqual(map.getLayer("complex-under").filter, ["==", ["get", "rgi_id"], id]);
   assert.equal(map.indexOf("complex-under"), map.indexOf("complex-outline") - 1);
   assert.equal(map.layout("complex-under").visibility, "visible");
-  assert.equal(map.getLayer("complex-outline").paint["line-color"], "#d93025");
+  assert.equal(map.getLayer("complex-outline").paint["line-color"], "#cc3311");
   assert.equal(map.getLayer("complex-members").paint["line-color"], "#80868b");
   assert.ok(map.indexOf("complex-fill") > map.indexOf("selection-dim"));
   assert.ok(map.indexOf("complex-members") > map.indexOf("complex-fill"));

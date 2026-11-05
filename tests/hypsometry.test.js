@@ -27,12 +27,13 @@ test("bands start at hypso_z0_m in 50 m steps", () => {
   assert.equal(b[49].permille, 1);
 });
 
-test("one bar per band, zero bands included, in the accent color", () => {
+test("one bar per band, zero bands included, in the bars' one lighter blue", () => {
   const rects = [...draw().querySelectorAll("rect")];
   assert.equal(rects.length, 50);
   assert.ok(rects.every((r) => r.getAttribute("class") === "bar" && !r.hasAttribute("style")));
   const css = readFileSync(new URL("../style.css", import.meta.url), "utf8");
-  assert.match(css, /\.hypsometry \.bar\s*\{\s*fill:\s*var\(--accent\);/);
+  assert.match(css, /\.hypsometry \.bar\s*\{\s*fill:\s*var\(--bar\);/);
+  assert.match(css, /--bar:\s*#4a9ac2;/, "lighter than the buttons' --accent");
   assert.equal(Number(rects[48].getAttribute("width")), 0);
   const ys = rects.map((r) => Number(r.getAttribute("y")));
   assert.ok(ys.every((y, i) => i === 0 || y < ys[i - 1]), "higher bands sit higher");
@@ -44,7 +45,7 @@ test("the widest bar fills the plot and the median line is dashed and red", () =
   const plot = el.querySelector(".x-axis line");
   assert.equal(Math.max(...widths), Number(plot.getAttribute("x2")) - Number(plot.getAttribute("x1")));
   const median = el.querySelector("line.median");
-  assert.equal(median.getAttribute("stroke"), "#d93025");
+  assert.equal(median.getAttribute("stroke"), "#cc3311");
   assert.ok(median.getAttribute("stroke-dasharray"));
   assert.ok(el.querySelector("line.mean").getAttribute("stroke-dasharray"));
 });

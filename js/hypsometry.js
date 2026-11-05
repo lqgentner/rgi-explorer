@@ -27,7 +27,7 @@ const PLOT_MAX = 300;
 const PLOT_MIN = 120;
 const X_AXIS_H = 2 * FONT + 18;
 const LABEL_GAP = FONT + 2;
-const AXIS_INK = "#5f6368";
+const AXIS_INK = "#4f6570";
 const PERCENT = new Intl.NumberFormat("en", { maximumFractionDigits: 1 });
 
 /** The bands of a hypsometry: their center elevation and thousandths of the area. */
@@ -87,7 +87,7 @@ function draw(chart, props, width) {
   chart.replaceChildren(svg("title", {}, summary));
 
   const axis = svg("g", { class: "axis y-axis" });
-  axis.append(svg("line", { x1: plot.left, x2: plot.left, y1: plot.top, y2: plot.bottom, stroke: "#dadce0" }));
+  axis.append(svg("line", { x1: plot.left, x2: plot.left, y1: plot.top, y2: plot.bottom, stroke: "#d3dee4" }));
   const step = tickStep(high - low, plotHeight / (high - low));
   for (let tick = Math.ceil(low / step) * step; tick <= high; tick += step) {
     axis.append(
@@ -100,7 +100,7 @@ function draw(chart, props, width) {
   chart.append(axis);
 
   const xAxis = svg("g", { class: "axis x-axis" });
-  xAxis.append(svg("line", { x1: plot.left, x2: plot.right, y1: plot.bottom, y2: plot.bottom, stroke: "#dadce0" }));
+  xAxis.append(svg("line", { x1: plot.left, x2: plot.right, y1: plot.bottom, y2: plot.bottom, stroke: "#d3dee4" }));
   const percentTop = widest / 10;
   const pStep = percentStep(percentTop);
   /* Counted in steps, so a tick that should land on the widest band does not miss it by a rounding error. */
@@ -131,7 +131,7 @@ function draw(chart, props, width) {
   chart.append(bars);
 
   const marks = [];
-  if (known(props.zmed_m)) marks.push({ name: "Median", value: props.zmed_m, class: "median", stroke: "#d93025" });
+  if (known(props.zmed_m)) marks.push({ name: "Median", value: props.zmed_m, class: "median", stroke: "#cc3311" });
   if (known(props.zmean_m)) marks.push({ name: "Mean", value: props.zmean_m, class: "mean", stroke: AXIS_INK });
   marks.sort((a, b) => b.value - a.value);
   /* Each label on its line, the lower pushed down clear of the upper, and the pair moved up if that leaves the plot. */
