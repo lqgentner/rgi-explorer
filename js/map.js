@@ -457,17 +457,19 @@ function buildStyle(liberty, rgi, state) {
       filter: ["<", ["zoom"], ["get", "outline_zoom"]],
       paint: { ...SELECTION_DOT },
     },
-    /* The selected glacier's name, in red over its outline. It wins the label collisions, so the plain label of the same name gives way. */
+    /*
+     * The selected glacier's name, in red: its plain name drawn again, on the
+     * same line, so it shows only where and when the plain name would. It wins
+     * the label collisions, so the plain name below gives way to it.
+     */
     {
       id: "selection-label",
       type: "symbol",
       source: "data",
       "source-layer": "glacier-labels",
+      ...(glacierLabels?.filter ? { filter: structuredClone(glacierLabels.filter) } : {}),
       layout: {
         ...structuredClone(glacierLabels?.layout ?? {}),
-        /* At the glacier's point, so a selection is named at every zoom, whether or not its name fits along its centerline. */
-        "symbol-placement": "point",
-        "text-size": 15,
         "text-allow-overlap": true,
         ...NONE,
       },
@@ -617,6 +619,8 @@ export async function createMap(container, catalog, state, liberty = fetchLibert
   liberty = await liberty;
   const rgi = rgiStyle(catalog.collections.glaciers.pmtilesUrl);
   const labels = labelColors(liberty, rgi);
+  /** The plain glacier names' filter: their lines, one per zoom, which the selection's name follows. */
+  const NAME_LINES = /** @type {ExpressionSpecification} */ (rgi.layers.find((layer) => layer.id === "glacier-labels")?.filter ?? true);
 
   registerProtocol(catalog.collections.glaciers.pmtilesUrl);
   const { maplibregl } = globalThis;
@@ -768,7 +772,7 @@ export async function createMap(container, catalog, state, liberty = fetchLibert
         map.setFilter("selection-under", idFilter(rgiId));
         map.setFilter("selection-outline", idFilter(rgiId));
         map.setFilter("selection-dot", ["all", POINTS, idFilter(rgiId)]);
-        map.setFilter("selection-label", ["all", POINTS, idFilter(rgiId)]);
+        map.setFilter("selection-label", ["all", NAME_LINES, idFilter(rgiId)]);
       }
       for (const id of COMPLEX) show(id, false);
       for (const id of SELECTION) show(id, on);

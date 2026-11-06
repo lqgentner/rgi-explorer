@@ -323,14 +323,17 @@ test("the selected glacier's name is red and drawn above the selection", async (
   assert.equal(label["source-layer"], "glacier-labels");
   assert.equal(label.paint["text-color"], "#cc3311");
   assert.deepEqual(label.layout["text-field"], map.getLayer("glacier-labels").layout["text-field"]);
-  assert.equal(label.layout["symbol-placement"], "point", "at the glacier's point, though the plain names follow the centerline");
+  const plain = map.getLayer("glacier-labels");
+  for (const key of ["symbol-placement", "text-size", "text-font", "text-letter-spacing"]) {
+    assert.deepEqual(label.layout[key], plain.layout[key], `${key}: its plain name, drawn again`);
+  }
   assert.equal(map.layout("selection-label").visibility, "none");
   for (const id of ["selection-dim", "selection-fill", "selection-outline"]) {
     assert.ok(map.indexOf("selection-label") > map.indexOf(id), `above ${id}`);
   }
   rgiMap.select(rgiId);
-  /* Points only: a symbol on a line feature's points would repeat the name at each vertex. */
-  assert.deepEqual(map.getLayer("selection-label").filter, ["all", ["in", ["geometry-type"], ["literal", ["Point", "MultiPoint"]]], ["==", ["get", "rgi_id"], rgiId]]);
+  /* On the plain name's line at this zoom, so it shows only where the plain name would. */
+  assert.deepEqual(map.getLayer("selection-label").filter, ["all", plain.filter, ["==", ["get", "rgi_id"], rgiId]]);
   assert.equal(map.layout("selection-label").visibility, "visible");
   rgiMap.select(null);
   assert.equal(map.layout("selection-label").visibility, "none");
