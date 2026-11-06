@@ -172,11 +172,24 @@ export function rgiStyle(pmtilesUrl) {
         },
         paint: label(),
       }),
+      /*
+       * A glacier's name shows only where it fits along the glacier's main
+       * centerline: from the zoom, `line_zoom`, at which the tiles add a
+       * stretch of that line, smoothed, as a line of its own. Each zoom has its
+       * own stretch, the one nearest the tongue that fits, so the name moves
+       * down the glacier as the map zooms in. The name's points in the same
+       * layer serve the selection's label.
+       */
       layer("glacier-labels", "symbol", "glacier-labels", {
+        /* One line per zoom, its stretch nearest the tongue that fits there; z12's serves the deeper zooms. */
+        filter: ["all", ["==", ["geometry-type"], "LineString"], ["==", ["get", "label_zoom"], ["min", ["zoom"], 12]]],
         layout: {
           "text-field": ["get", "display_name"],
+          /* Liberty's lake and river names: the same italic, 14 px, spaced 0.2 em. */
           "text-font": ["Noto Sans Italic"],
-          "text-size": 12,
+          "text-size": 14,
+          "text-letter-spacing": 0.2,
+          "symbol-placement": "line-center",
           "symbol-sort-key": ["-", ["get", "area_km2"]],
         },
         paint: label({ "text-color": PALETTE.glacierLabel }),

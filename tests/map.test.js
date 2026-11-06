@@ -334,12 +334,14 @@ test("the selected glacier's name is red and drawn above the selection", async (
   assert.equal(label["source-layer"], "glacier-labels");
   assert.equal(label.paint["text-color"], "#cc3311");
   assert.deepEqual(label.layout["text-field"], map.getLayer("glacier-labels").layout["text-field"]);
+  assert.equal(label.layout["symbol-placement"], "point", "at the glacier's point, though the plain names follow the centerline");
   assert.equal(map.layout("selection-label").visibility, "none");
   for (const id of ["selection-dim", "selection-fill", "selection-outline"]) {
     assert.ok(map.indexOf("selection-label") > map.indexOf(id), `above ${id}`);
   }
   rgiMap.select(rgiId);
-  assert.deepEqual(map.getLayer("selection-label").filter, ["==", ["get", "rgi_id"], rgiId]);
+  /* Points only: a symbol on a line feature's points would repeat the name at each vertex. */
+  assert.deepEqual(map.getLayer("selection-label").filter, ["all", ["in", ["geometry-type"], ["literal", ["Point", "MultiPoint"]]], ["==", ["get", "rgi_id"], rgiId]]);
   assert.equal(map.layout("selection-label").visibility, "visible");
   rgiMap.select(null);
   assert.equal(map.layout("selection-label").visibility, "none");

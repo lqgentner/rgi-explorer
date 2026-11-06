@@ -464,7 +464,9 @@ function buildStyle(liberty, rgi, state) {
       "source-layer": "glacier-labels",
       layout: {
         ...structuredClone(glacierLabels?.layout ?? {}),
-        "text-size": 13,
+        /* At the glacier's point, so a selection is named at every zoom, whether or not its name fits along its centerline. */
+        "symbol-placement": "point",
+        "text-size": 15,
         "text-allow-overlap": true,
         ...NONE,
       },
@@ -766,7 +768,7 @@ export async function createMap(container, catalog, state, liberty = fetchLibert
         map.setFilter("selection-under", idFilter(rgiId));
         map.setFilter("selection-outline", idFilter(rgiId));
         map.setFilter("selection-dot", ["all", POINTS, idFilter(rgiId)]);
-        map.setFilter("selection-label", idFilter(rgiId));
+        map.setFilter("selection-label", ["all", POINTS, idFilter(rgiId)]);
       }
       for (const id of COMPLEX) show(id, false);
       for (const id of SELECTION) show(id, on);
