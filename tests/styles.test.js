@@ -106,7 +106,7 @@ test("a glacier's name shows only along its centerline, never at its point", () 
   const names = layers.filter((l) => l["source-layer"] === "glacier-labels");
   assert.deepEqual(names.map((l) => l.id), ["glacier-labels"]);
   const [name] = names;
-  assert.deepEqual(name.filter, ["all", ["==", ["geometry-type"], "LineString"], ["==", ["get", "label_zoom"], ["min", ["zoom"], 12]]]);
+  assert.deepEqual(name.filter, ["all", ["==", ["geometry-type"], "LineString"], ["==", ["get", "label_zoom"], ["min", ["zoom"], 14]]]);
   assert.equal(name.layout["symbol-placement"], "line-center");
   assert.deepEqual(name.layout["text-font"], ["Noto Sans Italic"]);
   assert.equal(name.layout["text-size"], 14, "as Liberty's lake and river names");

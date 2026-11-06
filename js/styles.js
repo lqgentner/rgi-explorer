@@ -192,15 +192,17 @@ export function rgiStyle(pmtilesUrl) {
       }),
       /*
        * A glacier's name shows only where it fits along the glacier's main
-       * centerline: from the zoom, `line_zoom`, at which the tiles add a
-       * stretch of that line, smoothed, as a line of its own. Each zoom has its
-       * own stretch, the one nearest the tongue that fits, so the name moves
-       * down the glacier as the map zooms in. The name's points in the same
-       * layer serve the selection's label.
+       * centerline, with room on both sides: from the zoom, `line_zoom`, at
+       * which the tiles add a stretch of that line, smoothed, as a line of its
+       * own. Each zoom has its own stretch, the one nearest the tongue where
+       * the name fits and the glacier is wide enough around it, so the name
+       * moves down the glacier as the map zooms in. The tiles end at zoom 12,
+       * whose tiles also hold the lines for zooms 13 and 14, so a glacier too
+       * narrow at 12 is named closer in.
        */
       layer("glacier-labels", "symbol", "glacier-labels", {
-        /* One line per zoom, its stretch nearest the tongue that fits there; z12's serves the deeper zooms. */
-        filter: ["all", ["==", ["geometry-type"], "LineString"], ["==", ["get", "label_zoom"], ["min", ["zoom"], 12]]],
+        /* One line per zoom; z14's serves the deeper zooms. MapLibre reads the zoom of a tile drawn past 12 as its own. */
+        filter: ["all", ["==", ["geometry-type"], "LineString"], ["==", ["get", "label_zoom"], ["min", ["zoom"], 14]]],
         layout: {
           "text-field": ["get", "display_name"],
           /* Liberty's lake and river names: the same italic, 14 px, spaced 0.2 em. */
