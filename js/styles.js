@@ -24,15 +24,14 @@ export const REGION_DASH = { 1: [4, 2], 2: [5, 3] };
  * The glaciers' blues: one ramp at the hue of the page's own blues in
  * style.css (about 235° in OKLCH), by lightness from 50, near white, to 900,
  * near black. Three steps are the page's: 100 is --accent-tint, 700 --accent
- * and 900 --text. Over imagery a part takes a lighter step than on the
- * standard map.
+ * and 900 --text. The outline is 500 on both base maps; the names take a
+ * dark step on the standard map and a light one over imagery.
  */
 export const ICE = {
   50: "#f0f8fe",
   100: "#e3f0f6",
   200: "#b9e1fb",
   500: "#03a9f4",
-  600: "#058ac2",
   700: "#00668a",
   900: "#14232b",
 };
@@ -41,9 +40,8 @@ export const ICE = {
 export const PALETTE = {
   /* A glacier is the faintest blue, lighter and greener than Liberty's lakes. */
   glacier: ICE[50],
-  /* 3.6:1 on the glacier's fill; over imagery the lighter step, on no casing. */
-  glacierOutline: ICE[600],
-  glacierOutlineOnImagery: ICE[500],
+  /* One blue on both maps: a fine line on the standard map's fill, a wider one over imagery. */
+  glacierOutline: ICE[500],
   /* The page's blue-greys: --muted and --image-placeholder, and over imagery --surface-2 and --line. */
   region1: "#4f6570",
   region2: "#93a5ae",
@@ -64,48 +62,57 @@ export const PALETTE = {
   glacierLabelOnImagery: ICE[200],
   glacierShadow: ICE[900],
   halo: "#ffffff",
+  /* Liberty's halo on the names of lakes and rivers, which the glacier names share. */
+  waterHalo: "rgba(255,255,255,0.7)",
 };
 
 /** A width that follows the zoom: `low` at zoom 8, `high` from zoom 12 and at zoom 0. */
 const byZoom = (high, low) => ["interpolate", ["linear"], ["zoom"], 0, high, 8, low, 12, high];
 
-/* The width of the glacier outlines, on both base maps: no casing, so as wide as an outline needs to read alone. */
-export const OUTLINE_WIDTH = byZoom(1.5, 0.75);
+/*
+ * The width of the glacier outlines, per base map. No line has a casing. On
+ * the standard map the outline is a fine edge to the fill, as quiet as
+ * Liberty's lakes, which have none; over imagery it must read alone on snow
+ * and rock, so it is half again as wide.
+ */
+export const OUTLINE_WIDTH = { standard: byZoom(1, 0.5), imagery: byZoom(1.5, 0.75) };
 /*
  * The width of the divides. A divide is a stretch of outline that two
  * glaciers share and lies on it, half a pixel wider close in, so that the
  * blue below does not fringe the purple.
  */
-export const DIVIDE_WIDTH = byZoom(2, 1);
+export const DIVIDE_WIDTH = { standard: byZoom(1.5, 0.75), imagery: byZoom(2, 1) };
 
 const MAIN = ["get", "is_main"];
-/** The width of the centerlines: the main ones are twice as wide as the others. */
-export const CENTERLINE_WIDTH = ["interpolate", ["linear"], ["zoom"], 8, ["case", MAIN, 1, 0.5], 12, ["case", MAIN, 2, 1]];
+/** A centerline width: `main` px for a main centerline from zoom 12, half that at zoom 8, and half for the others. */
+const centerlineWidth = (main) => ["interpolate", ["linear"], ["zoom"], 8, ["case", MAIN, main / 2, main / 4], 12, ["case", MAIN, main, main / 2]];
+/* The width of the centerlines, per base map: a main one as wide as a divide close in. */
+export const CENTERLINE_WIDTH = { standard: centerlineWidth(1.5), imagery: centerlineWidth(2) };
 
 /**
  * The paint that changes with the base map, by layer ID. Over the standard map
  * the glacier fill is opaque, so the water and woods that OSM maps on a glacier
  * do not tint it. Over imagery the glaciers are outlines without a fill, so the
- * ice shows, and every line takes a lighter color: the outlines and divides
- * their ramp's lighter step, the centerlines a lighter gold, which the
- * standard map's light glaciers would fade, and the region outlines light
+ * ice shows; the outlines, divides and centerlines are wider, and the divides,
+ * centerlines and region outlines take lighter colors: a lighter purple, a
+ * lighter gold, which the standard map's light glaciers would fade, and light
  * blue-greys, the first-order outline the lightest, as it is the darkest over
- * the standard map. No line has a casing.
+ * the standard map.
  */
 export const BASE_PAINT = {
   standard: {
     "glaciers-fill": { "fill-opacity": 1 },
-    "glaciers-outline": { "line-color": PALETTE.glacierOutline },
-    "intersects": { "line-color": PALETTE.divide },
-    "centerlines": { "line-color": PALETTE.centerline },
+    "glaciers-outline": { "line-color": PALETTE.glacierOutline, "line-width": OUTLINE_WIDTH.standard },
+    "intersects": { "line-color": PALETTE.divide, "line-width": DIVIDE_WIDTH.standard },
+    "centerlines": { "line-color": PALETTE.centerline, "line-width": CENTERLINE_WIDTH.standard },
     "regions-outline-1": { "line-color": PALETTE.region1 },
     "regions-outline-2": { "line-color": PALETTE.region2 },
   },
   imagery: {
     "glaciers-fill": { "fill-opacity": 0 },
-    "glaciers-outline": { "line-color": PALETTE.glacierOutlineOnImagery },
-    "intersects": { "line-color": PALETTE.divideOnImagery },
-    "centerlines": { "line-color": PALETTE.centerlineOnImagery },
+    "glaciers-outline": { "line-color": PALETTE.glacierOutline, "line-width": OUTLINE_WIDTH.imagery },
+    "intersects": { "line-color": PALETTE.divideOnImagery, "line-width": DIVIDE_WIDTH.imagery },
+    "centerlines": { "line-color": PALETTE.centerlineOnImagery, "line-width": CENTERLINE_WIDTH.imagery },
     "regions-outline-1": { "line-color": PALETTE.region1OnImagery },
     "regions-outline-2": { "line-color": PALETTE.region2OnImagery },
   },
@@ -140,7 +147,7 @@ export function rgiStyle(pmtilesUrl) {
         paint: { "fill-color": PALETTE.glacier, ...BASE_PAINT.standard["glaciers-fill"] },
       }),
       layer("glaciers-outline", "line", "glaciers", {
-        paint: { "line-width": OUTLINE_WIDTH, ...BASE_PAINT.standard["glaciers-outline"] },
+        paint: { ...BASE_PAINT.standard["glaciers-outline"] },
       }),
       layer("glaciers-dots", "circle", "glaciers", {
         filter: POINTS,
@@ -153,12 +160,11 @@ export function rgiStyle(pmtilesUrl) {
       }),
       layer("centerlines", "line", "centerlines", {
         paint: {
-          "line-width": CENTERLINE_WIDTH,
           ...BASE_PAINT.standard.centerlines,
         },
       }),
       layer("intersects", "line", "intersects", {
-        paint: { "line-width": DIVIDE_WIDTH, ...BASE_PAINT.standard.intersects },
+        paint: { ...BASE_PAINT.standard.intersects },
       }),
       layer("region-labels-1", "symbol", "region-labels", {
         minzoom: 1,
@@ -204,8 +210,8 @@ export function rgiStyle(pmtilesUrl) {
           "symbol-placement": "line-center",
           "symbol-sort-key": ["-", ["get", "area_km2"]],
         },
-        /* A halo in the fill's own blue, half a pixel wider than the region labels', soft as theirs. */
-        paint: label({ "text-color": PALETTE.glacierLabel, "text-halo-color": PALETTE.glacier, "text-halo-width": 1.5 }),
+        /* Liberty's lake and river halo: white at 70 %, 1.5 px, hard. */
+        paint: label({ "text-color": PALETTE.glacierLabel, "text-halo-color": PALETTE.waterHalo, "text-halo-width": 1.5, "text-halo-blur": 0 }),
       }),
     ],
   };

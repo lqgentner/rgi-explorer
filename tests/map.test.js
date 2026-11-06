@@ -73,7 +73,7 @@ test("the map is a globe and reads no catalog style", async () => {
 test("glaciers are a faint blue with a blue outline and regions have no fill", async () => {
   const { map } = await build();
   assert.equal(map.getLayer("glaciers-fill").paint["fill-color"], "#f0f8fe");
-  assert.equal(map.getLayer("glaciers-outline").paint["line-color"], "#058ac2");
+  assert.equal(map.getLayer("glaciers-outline").paint["line-color"], "#03a9f4");
   const regionFills = [...map.layers.values()].filter((l) => /^region/.test(l["source-layer"] ?? "") && l.type === "fill");
   assert.deepEqual(regionFills, []);
 });
@@ -97,12 +97,13 @@ test("over imagery glaciers are light blue outlines without a fill, and every li
   assert.equal(paint("glaciers-fill", "fill-opacity"), 1);
   assert.equal(paint("selection-fill", "fill-opacity"), 1);
   assert.equal(paint("selection-dim", "fill-opacity"), 0.15);
-  assert.equal(paint("glaciers-outline", "line-color"), "#058ac2");
-  assert.equal(paint("complex-members", "line-color"), "#058ac2");
+  assert.equal(paint("glaciers-outline", "line-color"), "#03a9f4");
+  assert.equal(paint("complex-members", "line-color"), "#03a9f4");
   assert.equal(paint("intersects", "line-color"), "#801fa2");
   assert.equal(paint("centerlines", "line-color"), "#b8860b");
   assert.equal(paint("selection-centerlines", "line-color"), "#b8860b");
-  assert.deepEqual(paint("glaciers-outline", "line-width"), width, "as wide on both maps");
+  assert.notDeepEqual(paint("glaciers-outline", "line-width"), width, "finer on the standard map");
+  assert.deepEqual(paint("complex-members", "line-width"), paint("glaciers-outline", "line-width"));
   assert.equal(paint("regions-outline-1", "line-color"), "#4f6570");
   assert.equal(map.getSky()["atmosphere-blend"], 0.5, "fainter over the light map");
   rgiMap.setBase("imagery");
@@ -535,7 +536,7 @@ test("a complex is selected like a glacier: dimmed map, lifted complex, red outl
   assert.equal(map.indexOf("complex-under"), map.indexOf("complex-outline") - 1);
   assert.equal(map.layout("complex-under").visibility, "visible");
   assert.equal(map.getLayer("complex-outline").paint["line-color"], "#cc3311");
-  assert.equal(map.getLayer("complex-members").paint["line-color"], "#058ac2");
+  assert.equal(map.getLayer("complex-members").paint["line-color"], "#03a9f4");
   assert.ok(map.indexOf("complex-fill") > map.indexOf("selection-dim"));
   assert.ok(map.indexOf("complex-members") > map.indexOf("complex-fill"));
   assert.ok(map.indexOf("complex-outline") > map.indexOf("complex-members"));
@@ -894,9 +895,9 @@ test("over imagery each label's colours turn round in lightness, the glacier nam
   assert.equal(paint("selection-label", "text-color"), "#cc3311", "the selection's label keeps its red");
   assert.equal(paint("label_place", "text-halo-blur"), 0, "Liberty's labels: a hard halo over imagery");
   rgiMap.setBase("standard");
-  assert.equal(paint("glacier-labels", "text-halo-blur"), 1, "Liberty's soft place-label halo on the standard map");
+  assert.equal(paint("glacier-labels", "text-halo-blur"), 0, "Liberty's lake-name halo on the standard map");
   assert.equal(paint("glacier-labels", "text-color"), "#00668a", "the page's accent");
-  assert.equal(paint("glacier-labels", "text-halo-color"), "#f0f8fe", "in the glacier fill's blue");
+  assert.equal(paint("glacier-labels", "text-halo-color"), "rgba(255,255,255,0.7)", "white at 70 %, as Liberty's lake names");
   assert.equal(paint("complex-labels", "text-color"), "#00668a");
   rgiMap.setBase("imagery");
   assert.equal(paint("glacier-labels", "text-color"), "#b9e1fb");

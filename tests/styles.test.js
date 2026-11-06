@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { PREVIEWS, GLACIERS } from "../js/previews.js";
-import { BASE_PAINT, DIVIDE_WIDTH, ICE, OUTLINE_WIDTH, PALETTE, rgiStyle, TOGGLES } from "../js/styles.js";
+import { BASE_PAINT, CENTERLINE_WIDTH, DIVIDE_WIDTH, ICE, OUTLINE_WIDTH, PALETTE, rgiStyle, TOGGLES } from "../js/styles.js";
 
 const PMTILES = "https://data.source.coop/lqgentner/rgi/v7.0/rgi7.0.pmtiles";
 
@@ -39,23 +39,29 @@ test("no line has a casing, and the centerlines are drawn alone", () => {
   assert.ok(!layers.some((l) => l["source-layer"] === "centerlines" && l.id !== "centerlines"));
 });
 
-test("the outlines are as wide on both maps, and the divides lie on them, half a pixel wider close in", () => {
+test("the lines are finer on the standard map, and the divides lie on the outlines half a pixel wider close in", () => {
   const { layers } = rgiStyle(PMTILES);
   const paint = (id) => layers.find((l) => l.id === id).paint;
-  assert.deepEqual(paint("glaciers-outline")["line-width"], OUTLINE_WIDTH);
-  assert.deepEqual(paint("intersects")["line-width"], DIVIDE_WIDTH);
-  for (const base of Object.values(BASE_PAINT)) {
-    assert.ok(!("line-width" in base["glaciers-outline"]) && !("line-width" in base.intersects), "no base map changes a width");
-  }
+  assert.deepEqual(paint("glaciers-outline")["line-width"], OUTLINE_WIDTH.standard, "the style starts on the standard map");
+  assert.deepEqual(paint("intersects")["line-width"], DIVIDE_WIDTH.standard);
+  assert.deepEqual(paint("centerlines")["line-width"], CENTERLINE_WIDTH.standard);
   const stops = (width) => width.slice(3).filter((_, i) => i % 2 === 1);
-  stops(DIVIDE_WIDTH).forEach((w, i) => assert.equal(w, stops(OUTLINE_WIDTH)[i] + (i === 1 ? 0.25 : 0.5)));
+  for (const base of ["standard", "imagery"]) {
+    assert.deepEqual(BASE_PAINT[base]["glaciers-outline"]["line-width"], OUTLINE_WIDTH[base], base);
+    assert.deepEqual(BASE_PAINT[base].intersects["line-width"], DIVIDE_WIDTH[base], base);
+    assert.deepEqual(BASE_PAINT[base].centerlines["line-width"], CENTERLINE_WIDTH[base], base);
+    stops(DIVIDE_WIDTH[base]).forEach((w, i) => assert.equal(w, stops(OUTLINE_WIDTH[base])[i] + (i === 1 ? 0.25 : 0.5), base));
+  }
+  stops(OUTLINE_WIDTH.standard).forEach((w, i) => assert.ok(w < stops(OUTLINE_WIDTH.imagery)[i]));
+  /* A main centerline is as wide as a divide from zoom 12, on each map. */
+  for (const base of ["standard", "imagery"]) assert.equal(CENTERLINE_WIDTH[base][6][2], stops(DIVIDE_WIDTH[base])[2], base);
 });
 
-test("each line takes a lighter color over imagery, and the glaciers take the ramp's blues", () => {
+test("the glaciers take the ramp's blues, one outline blue on both maps, and the other lines turn lighter over imagery", () => {
   const { layers } = rgiStyle(PMTILES);
   const paint = (id) => layers.find((l) => l.id === id).paint;
   assert.equal(paint("glaciers-fill")["fill-color"], ICE[50]);
-  assert.equal(paint("glaciers-outline")["line-color"], ICE[600]);
+  assert.equal(paint("glaciers-outline")["line-color"], ICE[500]);
   assert.equal(BASE_PAINT.imagery["glaciers-outline"]["line-color"], ICE[500]);
   assert.equal(paint("intersects")["line-color"], PALETTE.divide);
   assert.equal(BASE_PAINT.imagery.intersects["line-color"], PALETTE.divideOnImagery);
@@ -63,6 +69,8 @@ test("each line takes a lighter color over imagery, and the glaciers take the ra
   assert.equal(BASE_PAINT.imagery.centerlines["line-color"], PALETTE.centerlineOnImagery);
   for (const id of ["glaciers-outline", "intersects", "centerlines", "regions-outline-1", "regions-outline-2"]) {
     assert.equal(paint(id)["line-color"], BASE_PAINT.standard[id]["line-color"], `${id} starts on the standard map`);
+  }
+  for (const id of ["intersects", "centerlines", "regions-outline-1", "regions-outline-2"]) {
     assert.notEqual(BASE_PAINT.standard[id]["line-color"], BASE_PAINT.imagery[id]["line-color"], id);
   }
 });
@@ -82,14 +90,14 @@ test("the layer previews hold a path for every part they draw", () => {
   }
 });
 
-test("the RGI labels take the soft halo of Liberty's place labels, the glacier names a wider one in the fill's blue", () => {
+test("the region labels take the soft halo of Liberty's place labels, the glacier names that of its lakes", () => {
   const labels = rgiStyle("https://example.org/rgi.pmtiles").layers.filter((layer) => layer.type === "symbol");
   assert.ok(labels.length >= 3);
   for (const layer of labels) {
     const glacier = layer.id === "glacier-labels";
     assert.equal(layer.paint["text-halo-width"], glacier ? 1.5 : 1, layer.id);
-    assert.equal(layer.paint["text-halo-blur"], 1, layer.id);
-    assert.equal(layer.paint["text-halo-color"], glacier ? PALETTE.glacier : PALETTE.halo, layer.id);
+    assert.equal(layer.paint["text-halo-blur"], glacier ? 0 : 1, layer.id);
+    assert.equal(layer.paint["text-halo-color"], glacier ? "rgba(255,255,255,0.7)" : PALETTE.halo, layer.id);
   }
 });
 
