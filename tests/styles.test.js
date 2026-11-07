@@ -2,6 +2,7 @@
 
 import assert from "node:assert/strict";
 import test from "node:test";
+import { featureFilter } from "@maplibre/maplibre-gl-style-spec";
 
 import { PREVIEWS, GLACIERS } from "../js/previews.js";
 import { BASE_PAINT, CENTERLINE_WIDTH, DIVIDE_WIDTH, ICE, OUTLINE_WIDTH, PALETTE, rgiStyle, TOGGLES } from "../js/styles.js";
@@ -106,9 +107,23 @@ test("a glacier's name shows only along its centerline, never at its point", () 
   const names = layers.filter((l) => l["source-layer"] === "glacier-labels");
   assert.deepEqual(names.map((l) => l.id), ["glacier-labels"]);
   const [name] = names;
-  assert.deepEqual(name.filter, ["all", ["==", ["geometry-type"], "LineString"], ["==", ["get", "label_zoom"], ["min", ["zoom"], 14]]]);
+  assert.deepEqual(name.filter[1], ["==", ["geometry-type"], "LineString"]);
   assert.equal(name.layout["symbol-placement"], "line-center");
   assert.deepEqual(name.layout["text-font"], ["Noto Sans Italic"]);
   assert.equal(name.layout["text-size"], 14, "as Liberty's lake and river names");
   assert.equal(name.layout["text-letter-spacing"], 0.2);
 });
+
+test("a glacier's name takes one line at each zoom, as the catalog's styles do", () => {
+  const [name] = rgiStyle(PMTILES).layers.filter((l) => l.id === "glacier-labels");
+  const { filter } = featureFilter(name.filter, "layers[glacier-labels].filter");
+  const shows = (zoom, labelZoom, type = 2) => filter({ zoom }, { type, properties: { label_zoom: labelZoom } });
+  const lines = [7, 8, 9, 10, 11, 12, 13, 14];
+  /* At each quarter zoom, whole as MapLibre reads it or fractional, exactly one of a glacier's lines shows from zoom 7. */
+  for (let zoom = 6; zoom < 18; zoom += 0.25) {
+    const shown = lines.filter((z) => shows(zoom, z));
+    assert.deepEqual(shown, zoom < 7 ? [] : [Math.min(Math.floor(zoom), 14)], `zoom ${zoom}`);
+  }
+  assert.equal(shows(12, 12, 1), false, "never at a point");
+});
+

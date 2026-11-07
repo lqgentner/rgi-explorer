@@ -120,6 +120,19 @@ export const BASE_PAINT = {
 
 const POINTS = ["in", ["geometry-type"], ["literal", ["Point", "MultiPoint"]]];
 
+/*
+ * The zooms at which a glacier's name line shows: from its `label_zoom` up to
+ * the next zoom, and the zoom-14 line at every zoom past it. The catalog's
+ * styles use the same rule. MapLibre reads a tile's zoom whole, also for a
+ * zoom-12 tile drawn past 12, so it matches one line per glacier; so does a
+ * renderer that reads the map's fractional zoom.
+ */
+const NAME_ZOOMS = [
+  "all",
+  [">=", ["zoom"], ["get", "label_zoom"]],
+  ["any", ["<", ["zoom"], ["+", ["get", "label_zoom"], 1]], [">=", ["get", "label_zoom"], 14]],
+];
+
 /** The sources and layers of the RGI style over the PMTiles file at `pmtilesUrl`. */
 export function rgiStyle(pmtilesUrl) {
   const layer = (id, type, sourceLayer, rest) => ({ id, type, source: "data", "source-layer": sourceLayer, ...rest });
@@ -201,8 +214,7 @@ export function rgiStyle(pmtilesUrl) {
        * narrow at 12 is named closer in.
        */
       layer("glacier-labels", "symbol", "glacier-labels", {
-        /* One line per zoom; z14's serves the deeper zooms. MapLibre reads the zoom of a tile drawn past 12 as its own. */
-        filter: ["all", ["==", ["geometry-type"], "LineString"], ["==", ["get", "label_zoom"], ["min", ["zoom"], 14]]],
+        filter: ["all", ["==", ["geometry-type"], "LineString"], NAME_ZOOMS],
         layout: {
           "text-field": ["get", "display_name"],
           /* Liberty's lake and river names: the same italic, 14 px, spaced 0.2 em. */
