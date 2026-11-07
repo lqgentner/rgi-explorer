@@ -19,6 +19,8 @@ import { PREVIEW_SPAN } from "./viewpreview.js";
 /** @typedef {import("maplibre-gl").ExpressionSpecification} ExpressionSpecification */
 
 const SELECTION_RED = "#cc3311";
+/* How long the browser may take to find the reader: a GPS that starts cold needs more than MapLibre's 6 s. */
+const LOCATE_TIMEOUT_MS = 10000;
 const DIM_GREY = "#5f6368";
 /*
  * How much a selection dims the map around it, per base map. A selection is
@@ -697,6 +699,20 @@ export async function createMap(container, catalog, state, liberty = fetchLibert
   });
 
   /*
+   * MapLibre's geolocate control finds the reader once, fits the camera to the
+   * position's accuracy and draws the blue dot with its accuracy circle. The
+   * page draws its own button (js/layers.js), and style.css hides the
+   * control's. A glacier is often far from a phone mast, so it asks for the GPS.
+   */
+  /* MapLibre's own zoom limit, and the page's: a flight longer than FLY_MAX_MS jumps. */
+  const LOCATE_FIT = { maxZoom: 15, maxDuration: FLY_MAX_MS };
+  const geolocate = new maplibregl.GeolocateControl({
+    positionOptions: { enableHighAccuracy: true, maximumAge: 0, timeout: LOCATE_TIMEOUT_MS },
+    fitBoundsOptions: LOCATE_FIT,
+  });
+  map.addControl(geolocate);
+
+  /*
    * Whether `lonLat`, drawn at the screen `point`, is on the near side of the
    * globe. A place on the far side projects onto the near side's disc, so the
    * place must also come back from its screen point: unproject finds the
@@ -979,6 +995,25 @@ export async function createMap(container, catalog, state, liberty = fetchLibert
     zoomOut() {
       requests += 1;
       map.zoomOut();
+    },
+
+    /**
+     * Ask the browser for the reader's position and show it with room for the
+     * panels, as the page's other fits do, or answer false when the browser
+     * has no geolocation. The position comes later, so the press counts as a
+     * camera request now. Until MapLibre has set the control up, a press
+     * does nothing.
+     */
+    locate(padding) {
+      if (!navigator.geolocation) return false;
+      geolocate.options.fitBoundsOptions = { ...LOCATE_FIT, padding };
+      if (geolocate.trigger()) requests += 1;
+      return true;
+    },
+
+    /** Hear why the browser gave no position, as the Geolocation API's error code. */
+    onLocateError(callback) {
+      geolocate.on("error", (event) => callback(event.code));
     },
 
     /**

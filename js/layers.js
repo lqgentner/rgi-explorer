@@ -1,6 +1,6 @@
 /*
- * The map's controls: the base map and RGI layer switcher, the 3D button and
- * the zoom buttons. Each draws once for both layouts and
+ * The map's controls: the base map and RGI layer switcher, the 3D button,
+ * the zoom buttons and the locate button. Each draws once for both layouts and
  * follows PHONE as it changes; style.css shows the layout's own parts.
  */
 
@@ -425,4 +425,17 @@ export function mountZoom(root, rgiMap) {
       zoomButton("minus", "Zoom out", () => rgiMap.zoomOut()),
     ),
   );
+}
+
+/**
+ * Draw the button that shows the reader's location, in both layouts; `onLocate` hears its presses.
+ *
+ * @returns {HTMLElement}
+ */
+export function mountLocate(root, { onLocate }) {
+  const label = "Show my location";
+  const button = h("button", { type: "button", class: "locate-btn", "aria-label": label, title: label }, icon("locate-fixed"));
+  button.addEventListener("click", onLocate);
+  root.append(button);
+  return button;
 }

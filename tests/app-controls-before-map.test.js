@@ -38,7 +38,7 @@ test("the controls and the Layers tile show before the catalog and the map load"
   assert.equal($("#search input"), null, "the page is not wired yet");
   assert.deepEqual(
     [...$("#controls").children].map((node) => node.className),
-    ["compass", "terrain-btn", "zoom-control", "help-btn"],
+    ["compass", "terrain-btn", "zoom-control", "locate-btn", "help-btn"],
   );
   assert.ok($('#controls button[aria-label="Zoom in"]'));
   assert.ok($("#layers .layers-thumb"));
@@ -46,10 +46,11 @@ test("the controls and the Layers tile show before the catalog and the map load"
   assert.equal($(".compass").hasAttribute("data-idle"), true, "the phone hides the compass of a map facing north");
 });
 
-test("before the map, the compass, zoom and Help do nothing; a layer and 3D change the state", () => {
+test("before the map, the compass, zoom, locate and Help do nothing; a layer and 3D change the state", () => {
   click($('.compass button[aria-label="Rotate left"]'));
   click($('.compass button[aria-label="Face north"]'));
   click($('#controls button[aria-label="Zoom in"]'));
+  click($(".locate-btn"));
   click($(".help-btn"));
   assert.equal($("#notice").textContent, "");
 
