@@ -11,7 +11,7 @@
 import { closeDialog, externalLink, h, icon, openDialog } from "./ui.js";
 
 export const OPERATOR = { name: "Luis Gentner", email: "luis.gentner@geo.uzh.ch" };
-export const UPDATED = "3 November 2026";
+export const UPDATED = "7 November 2026";
 
 /**
  * @typedef {object} Service
@@ -133,6 +133,13 @@ function build() {
         "Your browser remembers whether you closed the welcome screen and keeps copies of the catalog and base " +
           "map descriptions, so that later visits load faster. If you block site storage in your browser's " +
           "settings, the map still works.",
+      ),
+      h("h3", {}, "Your location"),
+      h(
+        "p",
+        {},
+        "When you press the location button, the page asks your browser where you are and shows it on the map. " +
+          "The page address then holds that view, as after any move.",
       ),
       h("h3", {}, "Services that receive your IP address"),
       h(

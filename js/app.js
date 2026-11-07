@@ -9,7 +9,7 @@ import { loadCatalog } from "./catalog.js";
 import { mountCompass } from "./compass.js";
 import { mountComplexCard } from "./complexcard.js";
 import { resolveCatalogUrl, SAMPLE_GLACIER, TIMEOUT_MS } from "./config.js";
-import { mountLayers, mountTerrain, mountZoom } from "./layers.js";
+import { mountLayers, mountLocate, mountTerrain, mountZoom } from "./layers.js";
 import { createMap, fetchLiberty, IMAGERY_BACKGROUND } from "./map.js";
 import { findRow, openParquet, readColumns, readRow, rowGroupOf, SEARCH_COLUMNS } from "./parquet.js";
 import { findPhotos } from "./photo.js";
@@ -272,8 +272,9 @@ function ringsOf(map, rgiId) {
 /*
  * The map's controls draw with the page, before the catalog and the map load,
  * so they show by the globe's first frame. Until wire() fills `late` with the
- * map's handlers, the compass, the zoom buttons and Help do nothing, and the
- * layer and 3D buttons change only the state, which wire() applies to the map.
+ * map's handlers, the compass, the zoom and locate buttons and Help do
+ * nothing, and the layer and 3D buttons change only the state, which wire()
+ * applies to the map.
  */
 const late = {};
 /* The layers and the base map chosen before the map existed. */
@@ -323,10 +324,11 @@ function mountControls() {
     zoomIn: () => late.rgiMap?.zoomIn(),
     zoomOut: () => late.rgiMap?.zoomOut(),
   });
+  const locate = mountLocate(el("controls"), { onLocate: () => late.onLocate?.() });
   const help = mountHelp({ desktop: el("controls"), phone: el("status") }, {
     onHelp: () => late.onHelp?.(),
   });
-  return { layers, compass, terrain, help };
+  return { layers, compass, terrain, locate, help };
 }
 
 function wire(catalog, rgiMap, regionsRead, controls) {
@@ -533,6 +535,14 @@ function wire(catalog, rgiMap, regionsRead, controls) {
     return { top: GAP, right: GAP, bottom: GAP, left: (shown || shownComplex ? CARD_WIDTH + sidebarScrollbar() : 0) + GAP };
   };
   const fitTo = (bbox) => rgiMap.fitBbox(bbox, padding());
+  /* MapLibre draws the dot and moves the camera; the page says only why there is no position. */
+  const { locate } = controls;
+  late.onLocate = () => {
+    if (!rgiMap.locate(padding())) announce("Your browser can't share your location.", locate);
+  };
+  rgiMap.onLocateError((code) =>
+    announce(code === 1 ? "Location access is off for this site." : "Your location couldn't be found.", locate),
+  );
   /** Fit a glacier or a complex with room around it. */
   const fitAround = ({ xmin, ymin, xmax, ymax }) => {
     const [dx, dy] = [(xmax - xmin) * FIT_MARGIN, (ymax - ymin) * FIT_MARGIN];
