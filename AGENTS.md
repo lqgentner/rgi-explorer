@@ -1,8 +1,7 @@
 # Working on RGI Explorer
 
 Read [README.md](README.md) for the scope and local startup. This file records
-the contracts to keep when you change the page. The design is in
-`docs/superpowers/specs/2026-10-28-rgi-explorer-design.md`.
+the contracts to keep when you change the page.
 
 ## Commands
 
@@ -39,11 +38,11 @@ regenerates them with `uv run` only when they change.
 by hash: the import map and the globals module. When you edit one, replace its
 `sha256-` hash. `page-assets.test.js` prints the failing script.
 
-`connect-src` and `img-src` list exactly the data hosts in the design. A new
-host needs a CSP entry, a change to that test, and an entry in `SERVICES` in
-`js/privacy.js`: `privacy.test.js` checks that the privacy note names every
-host the CSP allows. A module worker's imports
-fall under `worker-src`.
+`connect-src` and `img-src` list exactly the data hosts that
+`page-assets.test.js` names. A new host needs a CSP entry, a change to that
+test, and an entry in `SERVICES` in `js/privacy.js`: `privacy.test.js` checks
+that the privacy note names every host the CSP allows. A module worker's
+imports fall under `worker-src`.
 
 ## Page rules
 

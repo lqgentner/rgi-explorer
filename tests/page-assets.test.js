@@ -199,7 +199,7 @@ test("the page loads its code and styles from its own origin", () => {
   assert.match(policy(), /worker-src 'self' blob:/);
 });
 
-test("CSP lists exactly the spec's data hosts", () => {
+test("CSP lists exactly the page's data hosts", () => {
   const hosts = [
     "https://commons.wikimedia.org",
     "https://data.source.coop",
