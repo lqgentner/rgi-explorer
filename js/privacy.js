@@ -138,8 +138,8 @@ function build() {
       h(
         "p",
         {},
-        "When you press the location button, the page asks your browser where you are. It shows the position " +
-          "on the map, but never sends or keeps it.",
+        "When you press the location button, the page asks your browser where you are and shows it on the map. " +
+          "The page address then holds that view, as after any move.",
       ),
       h("h3", {}, "Services that receive your IP address"),
       h(
