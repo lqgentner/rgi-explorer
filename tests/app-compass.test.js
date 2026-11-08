@@ -36,7 +36,7 @@ test("the compass leads the column, idle, and the arrows turn the map 45°", () 
   assert.equal(params().get("3d"), null, "facing north in 2D stays in 2D");
 });
 
-test("a tilt by hand past 5° turns 3D on where the reader left the camera", async () => {
+test("a tilt by hand past 10° turns 3D on where the reader left the camera", async () => {
   const mark = map().calls.length;
   map().gesture({ bearing: 40, pitch: 30 });
   await settle();
@@ -62,9 +62,9 @@ test("tilting back flat by hand leaves 3D and keeps the bearing", async () => {
   assert.equal($(".compass").hasAttribute("data-idle"), false, "still turned, so the phone compass stays");
 });
 
-test("a small tilt by hand in 2D eases back flat without 3D", async () => {
+test("a rotation that drifts into a small tilt eases back flat without 3D", async () => {
   const mark = map().calls.length;
-  map().gesture({ pitch: 4 });
+  map().gesture({ bearing: 70, pitch: 8 });
   await settle();
   assert.equal(params().get("3d"), null);
   assert.ok(since(mark).includes('easeTo {"pitch":0}'));

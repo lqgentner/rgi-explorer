@@ -88,8 +88,13 @@ window.addEventListener("resize", measureScrollbar);
 PHONE.addEventListener("change", measureScrollbar);
 
 const state = parseState(new URL(location.href));
-/* A tilt by hand past this many degrees turns 3D on; one that ends below it levels the map and turns 3D off. */
-const TILT_3D = 5;
+/*
+ * A tilt by hand past this many degrees turns 3D on; one that ends below it
+ * levels the map and turns 3D off. A right-drag that rotates the map also
+ * tilts it, about half a degree per pixel of vertical drift, so a rotation
+ * that drifts 10 px or so stays in 2D.
+ */
+const TILT_3D = 10;
 const hadView = state.view !== null;
 
 function save() {
