@@ -11,17 +11,19 @@ import { REPO } from "./browser.js";
 
 export const DATA = "https://data.source.coop/lqgentner/rgi/";
 export const GLACIERS_URL = `${DATA}v7.0/glaciers/rgi7.0-glaciers.parquet`;
+export const NAMES_URL = `${DATA}v7.0/glaciers/rgi7.0-glacier-names.parquet`;
 export const COMPLEXES_URL = `${DATA}v7.0/complexes/rgi7.0-complexes.parquet`;
 export const REGIONS_URL = `${DATA}v7.0/regions/rgi7.0-regions.parquet`;
 const LIBERTY = "https://tiles.openfreemap.org/styles/liberty";
 const FIXTURES = path.join(REPO, "tests", "fixtures");
-/* The glaciers, complexes and regions fixtures that scripts/make_fixture_parquet.py writes. */
+/* The glaciers, glacier names, complexes and regions fixtures that scripts/make_fixture_parquet.py writes. */
 export const PARQUET_DIR = path.join(FIXTURES, "parquet");
 
 /** The parquet fixtures as bytes, by the URL the catalog fixture gives each. */
 export function parquetFiles() {
   return {
     [GLACIERS_URL]: fs.readFileSync(path.join(PARQUET_DIR, "glaciers.parquet")),
+    [NAMES_URL]: fs.readFileSync(path.join(PARQUET_DIR, "glacier-names.parquet")),
     [COMPLEXES_URL]: fs.readFileSync(path.join(PARQUET_DIR, "complexes.parquet")),
     [REGIONS_URL]: fs.readFileSync(path.join(PARQUET_DIR, "regions.parquet")),
   };

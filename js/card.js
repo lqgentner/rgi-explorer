@@ -212,6 +212,8 @@ function photoViewerItem(photo, alt) {
  * close button, the header and the actions go there and the rest in
  * `ctx.sheet`, as cardFrame says.
  * `ctx.onTitle(title)` hears the title each time the header draws.
+ * `ctx.parquet` gives the glaciers file: `rowOf(rgiId)` a glacier's row, and
+ * `open()` the file's handle once it is open.
  */
 export function mountCard(root, ctx) {
   /* moreOpen holds the groups whose "show more" is open. */
@@ -465,7 +467,7 @@ export function mountCard(root, ctx) {
       mine.row = row;
       const wanted = missingAttributes(glacier.props);
       const columns = [...new Set([...CARD_COLUMNS, ...(wanted.length ? ATTRIBUTE_COLUMNS : [])])];
-      const values = await readRow(ctx.parquet.handle, row, columns);
+      const values = await readRow(await ctx.parquet.open(), row, columns);
       if (!isCurrent()) return;
       Object.assign(mine.props, values);
       mine.hypsoState = "done";

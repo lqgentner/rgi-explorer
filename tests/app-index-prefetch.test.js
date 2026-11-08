@@ -25,7 +25,7 @@ globalThis.hyparquet = {
     return hyparquet.parquetReadObjects(options);
   },
 };
-const indexReads = () => reads.filter((columns) => columns.join() === "rgi_id,display_name,complex_id").length;
+const indexReads = () => reads.filter((columns) => columns.join() === "rgi_id,display_name").length;
 
 await load("js/app.js");
 await waitFor(() => document.querySelector("#search input") && document.querySelector("#status .credits"));

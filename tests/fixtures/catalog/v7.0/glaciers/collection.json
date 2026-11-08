@@ -527,6 +527,51 @@
         }
       ]
     },
+    "names": {
+      "href": "./rgi7.0-glacier-names.parquet",
+      "type": "application/vnd.apache.parquet",
+      "title": "Glacier names and IDs, Parquet",
+      "description": "The IDs, names and region codes of the GeoParquet file, without the outlines. The rows are in the order of the GeoParquet file.",
+      "roles": [
+        "data"
+      ],
+      "file:size": 197967,
+      "file:checksum": "12206c1bb9d7232c0e3cdde80c49844fd0f2333ee4bfec70f6d9eaf0695a439db07c",
+      "alternate": {
+        "s3": {
+          "href": "s3://us-west-2.opendata.source.coop/lqgentner/rgi/v7.0/glaciers/rgi7.0-glacier-names.parquet",
+          "title": "Anonymous S3 access"
+        }
+      },
+      "table:row_count": 274531,
+      "table:columns": [
+        {
+          "name": "rgi_id",
+          "type": "string",
+          "description": "Unique identifier assigned to a glacier outline."
+        },
+        {
+          "name": "display_name",
+          "type": "string",
+          "description": "The glacier name for map labels, cleaned from glac_name. Null when glac_name contains no usable name. The rules are in docs/PROVENANCE.md."
+        },
+        {
+          "name": "glac_name",
+          "type": "string",
+          "description": "Glacier name (when available)."
+        },
+        {
+          "name": "o1region",
+          "type": "string",
+          "description": "Code of the first-order region to which the glacier belongs."
+        },
+        {
+          "name": "o2region",
+          "type": "string",
+          "description": "Code of the second-order region to which the glacier belongs."
+        }
+      ]
+    },
     "style-glaciers": {
       "href": "./styles/glaciers.json",
       "type": "application/vnd.mapbox.style+json",

@@ -41,19 +41,34 @@ async function walk(url, fetchJson, seen) {
   return (await Promise.all(children)).flat();
 }
 
-function toCollection({ url, json }) {
-  const assets = Object.values(json.assets ?? {});
-  const data = assets.find((a) => a.roles?.includes("data"));
-  const style = assets.find((a) => a.roles?.includes("default"));
-  const pmtiles = json.assets?.pmtiles;
-  const abs = (asset) => (asset ? resolve(asset.href, url) : null);
-  /* The data file's size spares a HEAD request before its first read. */
-  const size = data?.["file:size"];
-  const dataSize = Number.isInteger(size) && size > 0 ? size : null;
-  return { id: json.id, dataUrl: abs(data), dataSize, pmtilesUrl: abs(pmtiles), styleUrl: abs(style), json };
+/* A file's size spares a HEAD request before its first read. */
+function sizeOf(asset) {
+  const size = asset?.["file:size"];
+  return Number.isInteger(size) && size > 0 ? size : null;
 }
 
-const dataAsset = (collection) => Object.values(collection.assets ?? {}).find((a) => a.roles?.includes("data"));
+/*
+ * Assets are picked by key: the glaciers collection has two with the data
+ * role, the GeoParquet `data` and the names table `names`, whose rows are in
+ * the GeoParquet's order.
+ */
+function toCollection({ url, json }) {
+  const { data, names, pmtiles } = json.assets ?? {};
+  const style = Object.values(json.assets ?? {}).find((a) => a.roles?.includes("default"));
+  const abs = (asset) => (asset ? resolve(asset.href, url) : null);
+  return {
+    id: json.id,
+    dataUrl: abs(data),
+    dataSize: sizeOf(data),
+    namesUrl: abs(names),
+    namesSize: sizeOf(names),
+    pmtilesUrl: abs(pmtiles),
+    styleUrl: abs(style),
+    json,
+  };
+}
+
+const dataAsset = (collection) => collection.assets?.data;
 
 /** The rows of a collection's data file, from its table:row_count, or null. */
 function rowCount(collection) {

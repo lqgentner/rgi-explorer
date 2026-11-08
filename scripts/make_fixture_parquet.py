@@ -2,11 +2,11 @@
 # requires-python = ">=3.12"
 # dependencies = ["pyarrow"]
 # ///
-"""Write small glaciers, complexes and regions GeoParquet-shaped fixtures for the JavaScript tests.
+"""Write small glaciers, glacier names, complexes and regions fixtures for the JavaScript tests.
 
 Usage: uv run scripts/make_fixture_parquet.py tests/fixtures/parquet
 
-The columns and types match the mirror's glaciers, complexes and regions tables, without geometry.
+The columns and types match the mirror's tables of the same names, without geometry.
 The tests read the committed output; run this again only when the fixtures change. pyarrow
 writes them as the mirror's files are written, which a JavaScript writer would not.
 """
@@ -91,6 +91,17 @@ COMPLEX_SCHEMA = pa.schema(
         ("area_km2", pa.float64()),
         ("glacier_ids", pa.list_(pa.string())),
         ("bbox", BBOX),
+    ]
+)
+
+# The names table: the glaciers' IDs, names and regions, in the glaciers' row order.
+NAMES_SCHEMA = pa.schema(
+    [
+        ("rgi_id", pa.string()),
+        ("display_name", pa.string()),
+        ("glac_name", pa.string()),
+        ("o1region", pa.string()),
+        ("o2region", pa.string()),
     ]
 )
 
@@ -274,6 +285,7 @@ def main(out_dir):
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
     write(out / "glaciers.parquet", glacier_rows(), GLACIER_SCHEMA, row_group_size=2)
+    write(out / "glacier-names.parquet", glacier_rows(), NAMES_SCHEMA, row_group_size=4)
     write(out / "complexes.parquet", complex_rows(), COMPLEX_SCHEMA, row_group_size=2)
     write(out / "regions.parquet", regions_rows(), REGIONS_SCHEMA)
 

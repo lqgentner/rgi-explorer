@@ -313,8 +313,9 @@ test("setClosable shows a Close button that calls its function, and null hides i
 
 test("a complex ID lists the complex with its own icon and picks it", async () => {
   const complexIndex = buildGlacierIndex(
-    { rgi_id: [ID(1)], display_name: ["Aletsch"], glac_name: [null], complex_id: ["RGI2000-v7.0-C-11-01323"] },
+    { rgi_id: [ID(1)], display_name: ["Aletsch"] },
     new Map([["11", "Central Europe"]]),
+    ["RGI2000-v7.0-C-11-01323"],
   );
   const { type, key, rows, picks } = setup({ loadGlacierIndex: async () => complexIndex });
   type("C-11-01323");

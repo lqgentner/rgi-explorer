@@ -131,20 +131,26 @@ function whenIdle(fn, timeout = TIMEOUT_MS) {
 
 /**
  * The glaciers GeoParquet, opened on first use, and its search index, read on
- * first use. A failed open or read is tried again on the next use.
+ * first use. A failed open or read is tried again on the next use. The index
+ * reads the names table, whose rows are in the GeoParquet's order, or the
+ * GeoParquet's own columns in a catalog without one; `complexIds()` gives the
+ * complexes an ID search finds.
  */
-function glacierFile(collection, regionNames) {
+function glacierFile(collection, regionNames, complexIds) {
   /* The search index once it is read; until then a row comes from its own row group. */
   let indexed = null;
   const file = {
-    handle: null,
-    open: retrying(() => openData(collection).then((handle) => (file.handle = handle))),
-    index: retrying(() =>
-      file
-        .open()
-        .then((handle) => readColumns(handle, SEARCH_COLUMNS))
-        .then((columns) => (indexed = buildGlacierIndex(columns, regionNames))),
-    ),
+    open: retrying(() => openData(collection)),
+    index: retrying(async () => {
+      const names = collection.namesUrl
+        ? openParquet(collection.namesUrl, { byteLength: collection.namesSize ?? undefined })
+        : file.open();
+      const [columns, ids] = await Promise.all([
+        names.then((handle) => readColumns(handle, SEARCH_COLUMNS)),
+        complexIds(),
+      ]);
+      return (indexed = buildGlacierIndex(columns, regionNames, ids));
+    }),
     /**
      * The row of an RGI ID from its row group alone: the file is sorted by ID,
      * so only one group's IDs are read. Null when the file does not hold it;
@@ -181,6 +187,8 @@ function glacierFile(collection, regionNames) {
 function complexFile(collection) {
   const open = retrying(() => openData(collection));
   return {
+    /** Every complex's ID, for the search index. */
+    ids: async () => (await readColumns(await open(), ["rgi_id"])).rgi_id,
     /** The complex's row, null when the file does not hold it; rejects when the file cannot be read. */
     async read(complexId) {
       const handle = await open();
@@ -347,8 +355,8 @@ function wire(catalog, rgiMap, regionsRead, controls) {
     },
     (error) => fail(CATALOG_ERROR, error),
   );
-  const glaciers = glacierFile(catalog.collections.glaciers, regionNames);
   const complexes = complexFile(catalog.collections.complexes);
+  const glaciers = glacierFile(catalog.collections.glaciers, regionNames, complexes.ids);
   if (state.terrain) rgiMap.setTerrain(true);
   /* A base map or a layer chosen before the map existed, which the map's style may not show. */
   if (early.base) rgiMap.setBase(state.base);
@@ -669,12 +677,7 @@ function wire(catalog, rgiMap, regionsRead, controls) {
     get crop() {
       return PHONE.matches ? PHONE_CROP : DESKTOP_CROP;
     },
-    parquet: {
-      get handle() {
-        return glaciers.handle;
-      },
-      rowOf: (rgiId) => glaciers.rowOf(rgiId),
-    },
+    parquet: { open: () => glaciers.open(), rowOf: (rgiId) => glaciers.rowOf(rgiId) },
     photos: photosOf,
     onClose: closeGlacier,
     onZoom: zoomTo,
@@ -836,8 +839,8 @@ function wire(catalog, rgiMap, regionsRead, controls) {
   /*
    * Read the search index once the first view's tiles have loaded and the
    * browser is idle, so it is ready before the first query and does not
-   * compete with the tiles. It takes about 140 range requests, 2-4 s on the
-   * data host. A browser that asks to save data reads it on the search's
+   * compete with the tiles. It reads the names table and the complexes file's
+   * IDs in about 50 range requests. A browser that asks to save data reads it on the search's
    * first focus instead.
    */
   if (!(/** @type {any} */ (navigator).connection?.saveData)) {
