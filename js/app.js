@@ -87,6 +87,9 @@ measureScrollbar();
 window.addEventListener("resize", measureScrollbar);
 PHONE.addEventListener("change", measureScrollbar);
 
+/* iOS Safari shows :active on a tap only under a touchstart listener; the map's controls show their press with it. */
+document.addEventListener("touchstart", () => {}, { passive: true });
+
 const state = parseState(new URL(location.href));
 /*
  * A tilt by hand past this many degrees turns 3D on; one that ends below it

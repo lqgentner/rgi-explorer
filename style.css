@@ -19,7 +19,7 @@
   --line: #d3dee4;
   /* A hover, and a box of code, on white. */
   --surface-2: #edf3f6;
-  /* The close disc's hover, a step darker than --surface-2. */
+  /* A step darker than --surface-2: the close disc's hover, and a map control's press. */
   --surface-3: #e1eaef;
   /* What an image shows until it loads, or when there is none. */
   --image-placeholder: #93a5ae;
@@ -327,13 +327,48 @@ button {
 
 /* Only a real hover: a tap leaves a sticky :hover behind on touch screens. */
 @media (hover: hover) {
-  .icon-button:hover,
+  .icon-button:hover {
+    background: var(--surface-2);
+  }
+}
+
+/*
+ * The map's controls answer alike on both layouts: a hover a step darker
+ * than the surface, where there is a real hover, and a press a step darker
+ * still. The tap highlight is off so a touch shows the same press; js/app.js
+ * lets iOS Safari show :active. The phone's frosted help button takes its
+ * states in its tint.
+ */
+.zoom-btn,
+.terrain-btn,
+.locate-btn,
+.help-btn,
+.round-button,
+.credits-button,
+.compass button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (hover: hover) {
   .zoom-btn:hover,
   .terrain-btn:hover,
   .locate-btn:hover,
-  .help-btn:hover {
+  .help-btn:hover,
+  .round-button:hover,
+  .credits-button:hover,
+  .compass button:hover {
     background: var(--surface-2);
   }
+}
+
+.zoom-btn:active,
+.terrain-btn:active,
+.locate-btn:active,
+.help-btn:active,
+.round-button:active,
+.credits-button:active,
+.compass button:active {
+  background: var(--surface-3);
 }
 
 .round-button {
@@ -759,12 +794,6 @@ button:focus-visible {
   align-items: center;
   justify-content: center;
   background: var(--surface);
-}
-
-@media (hover: hover) {
-  .compass button:hover {
-    background: var(--surface-2);
-  }
 }
 
 /* Inside the capsule, which would clip an outline outside the button. */
@@ -1193,6 +1222,10 @@ button:focus-visible {
     .help-btn:hover {
       --frost-tint: var(--surface-2);
     }
+  }
+
+  .help-btn:active {
+    --frost-tint: var(--surface-3);
   }
 
   /* Both buttons show at 36 px and take a tap across 44 px. */
