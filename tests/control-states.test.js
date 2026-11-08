@@ -38,3 +38,10 @@ test("no other rule gives a control its own hover or press", () => {
     assert.equal(states.length, 2, `${selector}: ${states.join(" | ")}`);
   }
 });
+
+test("the layer tiles' hover ring shows only on a real hover, so a tapped tile does not stay grey", () => {
+  const at = css.indexOf("  .layer-toggle:hover .layer-preview,\n  .base-tile:hover img {");
+  assert.ok(at > 0, "the tiles' hover rule");
+  assert.match(css.slice(0, at), /@media \(hover: hover\) \{\s*$/, "inside (hover: hover)");
+  assert.doesNotMatch(css, /(^|\n)\.(layer-toggle|base-tile):hover/, "no hover outside it");
+});
