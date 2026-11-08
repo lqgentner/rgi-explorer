@@ -13,7 +13,7 @@ import {
   TERRAIN_TILEJSON,
   TIMEOUT_MS,
 } from "./config.js";
-import { BASE_PAINT, rgiStyle, TOGGLES } from "./styles.js";
+import { BASE_PAINT, PALETTE, rgiStyle, TOGGLES } from "./styles.js";
 import { PREVIEW_SPAN } from "./viewpreview.js";
 
 /** @typedef {import("maplibre-gl").ExpressionSpecification} ExpressionSpecification */
@@ -30,19 +30,12 @@ const DIM_GREY = "#5f6368";
 const DIM_OPACITY = { standard: 0.15, imagery: 0 };
 /*
  * A selection's outline: short red dashes over a solid white line, so that the
- * gaps show white and not the glacier's own outline below. Up to zoom 10 it is
- * the same on both base maps, a little wider than an outline with its casing,
- * so a small glacier's selection reads at a glance. From zoom 11 over imagery
- * it is exactly as wide as an outline with its casing on both sides
- * (OUTLINE_WIDTH.imagery plus twice the casing in js/styles.js; a zoom curve
- * cannot be summed in the style, so the stops are summed here), and on the
- * standard map a little narrower, yet wider than the outline it covers.
+ * gaps show white and not the glacier's own outline below. It is the same on
+ * both base maps, as the outlines are, and wider than an outline or a divide
+ * (OUTLINE_WIDTH and DIVIDE_WIDTH in js/styles.js) at every zoom, so that it
+ * covers them and a small glacier's selection reads at a glance.
  */
-const SELECTION_WIDTH = {
-  standard: ["interpolate", ["linear"], ["zoom"], 0, 2.2, 8, 1.8, 10, 2.4, 12, 2.5],
-  imagery: ["interpolate", ["linear"], ["zoom"], 0, 2.2, 8, 1.8, 10, 2.4, 11, 2.875, 12, 3],
-};
-const SELECTION_LINES = ["selection-under", "selection-outline", "complex-under", "complex-outline"];
+const SELECTION_WIDTH = ["interpolate", ["linear"], ["zoom"], 0, 2.2, 8, 1.8, 10, 2.4, 12, 2.5];
 const SELECTION_UNDER = { "line-color": "#ffffff" };
 const SELECTION_LINE = { "line-color": SELECTION_RED, "line-dasharray": [1, 0.8] };
 const SELECTION_DOT = {
@@ -68,11 +61,12 @@ const sky = (base) => ({
 export const IMAGERY_BACKGROUND = "#3c4043";
 /*
  * Over imagery each label's colours turn round in lightness, hue kept: dark
- * text in a white halo becomes white text in a dark halo. The text goes into
+ * text in a white halo becomes light text in a dark halo. The text goes into
  * the light half and takes more saturation, so a grey name is a light grey and
- * a water label's blue a light, clear blue. The selection's label and the
- * road shields keep theirs. MapLibre draws text black and halos clear when a
- * style gives none.
+ * a water or glacier name's blue a light, clear blue. Every halo turns opaque
+ * and hard, as Esri's and VersaTiles' do: a soft or see-through one loses light
+ * text on snow. The selection's label and the road shields keep theirs.
+ * MapLibre draws text black and halos clear when a style gives none.
  */
 const LABEL_DEFAULTS = { "text-color": "#000000", "text-halo-color": "rgba(0, 0, 0, 0)" };
 
@@ -145,20 +139,24 @@ export function invertLightness(value, lift = false) {
   return `rgba(${r2}, ${g2}, ${b2}, ${Math.round(a * 1000) / 1000})`;
 }
 
+/** A colour, or each colour in an expression, made opaque; a clear one, no halo, stays clear. */
+export function opaque(value) {
+  if (Array.isArray(value)) return value.map(opaque);
+  const rgba = parseColor(value);
+  if (!rgba || rgba[3] === 0) return value;
+  const [r, g, b] = rgba.map((c) => Math.round(c * 255));
+  return `rgba(${r}, ${g}, ${b}, 1)`;
+}
+
 /** A label's colours for `base`, from its standard map colours. */
-/* The glacier names, the map's subject, are white over imagery, as the towns' are. */
-const WHITE_ON_IMAGERY = new Set(["glacier-labels", "complex-labels"]);
-const labelPaint = (id, paint, base) =>
-  base === "imagery"
-    ? {
-        "text-color": WHITE_ON_IMAGERY.has(id)
-          ? "#ffffff"
-          : invertLightness(paint["text-color"] ?? LABEL_DEFAULTS["text-color"], true),
-        "text-halo-color": invertLightness(paint["text-halo-color"] ?? LABEL_DEFAULTS["text-halo-color"]),
-        /* Hard over imagery, as Esri's and VersaTiles' halos: a soft one loses light text on snow. */
+const labelPaint = (paint, base) =>
+  base !== "imagery"
+    ? paint
+    : {
+        "text-color": invertLightness(paint["text-color"] ?? LABEL_DEFAULTS["text-color"], true),
+        "text-halo-color": opaque(invertLightness(paint["text-halo-color"] ?? LABEL_DEFAULTS["text-halo-color"])),
         "text-halo-blur": 0,
-      }
-    : paint;
+      };
 const LABEL_KEYS = /** @type {const} */ (["text-color", "text-halo-color", "text-halo-blur"]);
 /* A fit that would fly longer than this, in ms, jumps there: a far flight is a long wait. */
 const FLY_MAX_MS = 2000;
@@ -328,7 +326,7 @@ function buildStyle(liberty, rgi, state) {
   };
 
   const basePaint = BASE_PAINT[state.base] ?? BASE_PAINT.standard;
-  const selectionWidth = { "line-width": SELECTION_WIDTH[state.base] ?? SELECTION_WIDTH.standard };
+  const selectionWidth = { "line-width": SELECTION_WIDTH };
   const rgiLayers = rgi.layers.map((layer) => {
     const name = toggleOf(layer);
     if (name) layer.layout = { ...layer.layout, visibility: visibility(state.layers.has(name)) };
@@ -458,15 +456,19 @@ function buildStyle(liberty, rgi, state) {
       filter: ["<", ["zoom"], ["get", "outline_zoom"]],
       paint: { ...SELECTION_DOT },
     },
-    /* The selected glacier's name, in red over its outline. It wins the label collisions, so the plain label of the same name gives way. */
+    /*
+     * The selected glacier's name, in red: its plain name drawn again, on the
+     * same line, so it shows only where and when the plain name would. It wins
+     * the label collisions, so the plain name below gives way to it.
+     */
     {
       id: "selection-label",
       type: "symbol",
       source: "data",
       "source-layer": "glacier-labels",
+      ...(glacierLabels?.filter ? { filter: structuredClone(glacierLabels.filter) } : {}),
       layout: {
         ...structuredClone(glacierLabels?.layout ?? {}),
-        "text-size": 13,
         "text-allow-overlap": true,
         ...NONE,
       },
@@ -507,7 +509,7 @@ function buildStyle(liberty, rgi, state) {
       ...base.slice(cut),
       ...rgiLayers.filter(isSymbol),
       ...selection,
-    ].map((layer) => (state.base === "imagery" && labels.has(layer.id) ? { ...layer, paint: { ...layer.paint, ...labelPaint(layer.id, labels.get(layer.id), "imagery") } } : layer)),
+    ].map((layer) => (state.base === "imagery" && labels.has(layer.id) ? { ...layer, paint: { ...layer.paint, ...labelPaint(labels.get(layer.id), "imagery") } } : layer)),
   };
 }
 
@@ -616,6 +618,8 @@ export async function createMap(container, catalog, state, liberty = fetchLibert
   liberty = await liberty;
   const rgi = rgiStyle(catalog.collections.glaciers.pmtilesUrl);
   const labels = labelColors(liberty, rgi);
+  /** The plain glacier names' filter: their lines, one per zoom, which the selection's name follows. */
+  const NAME_LINES = /** @type {ExpressionSpecification} */ (rgi.layers.find((layer) => layer.id === "glacier-labels")?.filter ?? true);
 
   registerProtocol(catalog.collections.glaciers.pmtilesUrl);
   const { maplibregl } = globalThis;
@@ -754,9 +758,8 @@ export async function createMap(container, catalog, state, liberty = fetchLibert
           map.setPaintProperty(id, /** @type {Parameters<typeof map.setPaintProperty>[1]} */ (key), value);
         }
       }
-      for (const id of SELECTION_LINES) map.setPaintProperty(id, "line-width", SELECTION_WIDTH[base]);
       for (const [id, colors] of labels) {
-        for (const [key, value] of Object.entries(labelPaint(id, colors, base))) {
+        for (const [key, value] of Object.entries(labelPaint(colors, base))) {
           map.setPaintProperty(id, /** @type {Parameters<typeof map.setPaintProperty>[1]} */ (key), value);
         }
       }
@@ -782,7 +785,7 @@ export async function createMap(container, catalog, state, liberty = fetchLibert
         map.setFilter("selection-under", idFilter(rgiId));
         map.setFilter("selection-outline", idFilter(rgiId));
         map.setFilter("selection-dot", ["all", POINTS, idFilter(rgiId)]);
-        map.setFilter("selection-label", idFilter(rgiId));
+        map.setFilter("selection-label", ["all", NAME_LINES, idFilter(rgiId)]);
       }
       for (const id of COMPLEX) show(id, false);
       for (const id of SELECTION) show(id, on);

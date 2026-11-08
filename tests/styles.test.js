@@ -2,9 +2,10 @@
 
 import assert from "node:assert/strict";
 import test from "node:test";
+import { featureFilter } from "@maplibre/maplibre-gl-style-spec";
 
 import { PREVIEWS, GLACIERS } from "../js/previews.js";
-import { BASE_PAINT, OUTLINE_WIDTH, PALETTE, rgiStyle, TOGGLES } from "../js/styles.js";
+import { BASE_PAINT, CENTERLINE_WIDTH, DIVIDE_WIDTH, ICE, OUTLINE_WIDTH, PALETTE, rgiStyle, TOGGLES } from "../js/styles.js";
 
 const PMTILES = "https://data.source.coop/lqgentner/rgi/v7.0/rgi7.0.pmtiles";
 
@@ -33,47 +34,46 @@ test("rgiStyle draws regions as dashed outlines from the boundary lines, without
   }
 });
 
-test("rgiStyle draws each casing outside its line, below every line", () => {
+test("no line has a casing, and the centerlines are drawn alone", () => {
   const { layers } = rgiStyle(PMTILES);
-  const index = (id) => layers.findIndex((l) => l.id === id);
-  for (const [casing, line] of [
-    ["glaciers-casing", "glaciers-outline"],
-    ["intersects-casing", "intersects"],
-  ]) {
-    for (const paint of Object.values(BASE_PAINT)) {
-      assert.deepEqual(paint[casing]["line-gap-width"], paint[line]["line-width"], "the gap is as wide as the line");
-    }
-    const paint = layers[index(casing)].paint;
-    assert.deepEqual(paint["line-gap-width"], layers[index(line)].paint["line-width"]);
-    assert.equal(paint["line-color"], layers[index("glaciers-casing")].paint["line-color"], "the casings match");
-    assert.deepEqual(paint["line-width"], layers[index("glaciers-casing")].paint["line-width"]);
-    assert.equal(layers[index(casing)]["source-layer"], layers[index(line)]["source-layer"]);
-    assert.ok(index(casing) < index("glaciers-outline"), casing);
-  }
-  assert.ok(!layers.some((l) => l["source-layer"] === "centerlines" && l.id !== "centerlines"), "centerlines need no casing");
+  assert.deepEqual(layers.filter((l) => /casing/.test(l.id)).map((l) => l.id), []);
+  assert.ok(!layers.some((l) => l["source-layer"] === "centerlines" && l.id !== "centerlines"));
 });
 
-test("the divides are as wide as the glacier outlines, which are wider on the standard map", () => {
+test("the lines are finer on the standard map, and the divides lie on the outlines half a pixel wider close in", () => {
   const { layers } = rgiStyle(PMTILES);
   const paint = (id) => layers.find((l) => l.id === id).paint;
   assert.deepEqual(paint("glaciers-outline")["line-width"], OUTLINE_WIDTH.standard, "the style starts on the standard map");
-  assert.deepEqual(paint("intersects")["line-width"], OUTLINE_WIDTH.standard);
-  for (const [base, width] of Object.entries(OUTLINE_WIDTH)) {
-    assert.deepEqual(BASE_PAINT[base]["glaciers-outline"]["line-width"], width, base);
-    assert.deepEqual(BASE_PAINT[base].intersects["line-width"], width, base);
-  }
+  assert.deepEqual(paint("intersects")["line-width"], DIVIDE_WIDTH.standard);
+  assert.deepEqual(paint("centerlines")["line-width"], CENTERLINE_WIDTH.standard);
   const stops = (width) => width.slice(3).filter((_, i) => i % 2 === 1);
-  stops(OUTLINE_WIDTH.standard).forEach((w, i) => assert.ok(w > stops(OUTLINE_WIDTH.imagery)[i]));
+  for (const base of ["standard", "imagery"]) {
+    assert.deepEqual(BASE_PAINT[base]["glaciers-outline"]["line-width"], OUTLINE_WIDTH[base], base);
+    assert.deepEqual(BASE_PAINT[base].intersects["line-width"], DIVIDE_WIDTH[base], base);
+    assert.deepEqual(BASE_PAINT[base].centerlines["line-width"], CENTERLINE_WIDTH[base], base);
+    stops(DIVIDE_WIDTH[base]).forEach((w, i) => assert.equal(w, stops(OUTLINE_WIDTH[base])[i] + (i === 1 ? 0.25 : 0.5), base));
+  }
+  stops(OUTLINE_WIDTH.standard).forEach((w, i) => assert.ok(w < stops(OUTLINE_WIDTH.imagery)[i]));
+  /* A main centerline is as wide as a divide from zoom 12, on each map. */
+  for (const base of ["standard", "imagery"]) assert.equal(CENTERLINE_WIDTH[base][6][2], stops(DIVIDE_WIDTH[base])[2], base);
 });
 
-test("the casing thins at low zoom, and the centerlines are a lighter gold over imagery", () => {
+test("the glaciers take the ramp's blues, one outline blue on both maps, and the other lines turn lighter over imagery", () => {
   const { layers } = rgiStyle(PMTILES);
   const paint = (id) => layers.find((l) => l.id === id).paint;
-  assert.deepEqual(paint("glaciers-casing")["line-width"], ["interpolate", ["linear"], ["zoom"], 8, 0.4, 11, 1]);
-  assert.equal(paint("glaciers-casing")["line-color"], PALETTE.casing);
+  assert.equal(paint("glaciers-fill")["fill-color"], ICE[50]);
+  assert.equal(paint("glaciers-outline")["line-color"], ICE[500]);
+  assert.equal(BASE_PAINT.imagery["glaciers-outline"]["line-color"], ICE[500]);
+  assert.equal(paint("intersects")["line-color"], PALETTE.divide);
+  assert.equal(BASE_PAINT.imagery.intersects["line-color"], PALETTE.divideOnImagery);
   assert.equal(paint("centerlines")["line-color"], PALETTE.centerline);
   assert.equal(BASE_PAINT.imagery.centerlines["line-color"], PALETTE.centerlineOnImagery);
-  assert.notEqual(PALETTE.centerline, PALETTE.centerlineOnImagery);
+  for (const id of ["glaciers-outline", "intersects", "centerlines", "regions-outline-1", "regions-outline-2"]) {
+    assert.equal(paint(id)["line-color"], BASE_PAINT.standard[id]["line-color"], `${id} starts on the standard map`);
+  }
+  for (const id of ["intersects", "centerlines", "regions-outline-1", "regions-outline-2"]) {
+    assert.notEqual(BASE_PAINT.standard[id]["line-color"], BASE_PAINT.imagery[id]["line-color"], id);
+  }
 });
 
 test("rgiStyle uses only fonts the glyph server holds", () => {
@@ -91,11 +91,39 @@ test("the layer previews hold a path for every part they draw", () => {
   }
 });
 
-test("the RGI labels take the halo of Liberty's place labels: 1 px, blurred 1 px", () => {
+test("the region labels take the soft halo of Liberty's place labels, the glacier names that of its lakes", () => {
   const labels = rgiStyle("https://example.org/rgi.pmtiles").layers.filter((layer) => layer.type === "symbol");
   assert.ok(labels.length >= 3);
   for (const layer of labels) {
-    assert.equal(layer.paint["text-halo-width"], 1, layer.id);
-    assert.equal(layer.paint["text-halo-blur"], 1, layer.id);
+    const glacier = layer.id === "glacier-labels";
+    assert.equal(layer.paint["text-halo-width"], glacier ? 1.5 : 1, layer.id);
+    assert.equal(layer.paint["text-halo-blur"], glacier ? 0 : 1, layer.id);
+    assert.equal(layer.paint["text-halo-color"], glacier ? "rgba(255,255,255,0.7)" : PALETTE.halo, layer.id);
   }
 });
+
+test("a glacier's name shows only along its centerline, never at its point", () => {
+  const { layers } = rgiStyle(PMTILES);
+  const names = layers.filter((l) => l["source-layer"] === "glacier-labels");
+  assert.deepEqual(names.map((l) => l.id), ["glacier-labels"]);
+  const [name] = names;
+  assert.deepEqual(name.filter[1], ["==", ["geometry-type"], "LineString"]);
+  assert.equal(name.layout["symbol-placement"], "line-center");
+  assert.deepEqual(name.layout["text-font"], ["Noto Sans Italic"]);
+  assert.equal(name.layout["text-size"], 14, "as Liberty's lake and river names");
+  assert.equal(name.layout["text-letter-spacing"], 0.2);
+});
+
+test("a glacier's name takes one line at each zoom, as the catalog's styles do", () => {
+  const [name] = rgiStyle(PMTILES).layers.filter((l) => l.id === "glacier-labels");
+  const { filter } = featureFilter(name.filter, "layers[glacier-labels].filter");
+  const shows = (zoom, labelZoom, type = 2) => filter({ zoom }, { type, properties: { label_zoom: labelZoom } });
+  const lines = [7, 8, 9, 10, 11, 12, 13, 14];
+  /* At each quarter zoom, whole as MapLibre reads it or fractional, exactly one of a glacier's lines shows from zoom 7. */
+  for (let zoom = 6; zoom < 18; zoom += 0.25) {
+    const shown = lines.filter((z) => shows(zoom, z));
+    assert.deepEqual(shown, zoom < 7 ? [] : [Math.min(Math.floor(zoom), 14)], `zoom ${zoom}`);
+  }
+  assert.equal(shows(12, 12, 1), false, "never at a point");
+});
+

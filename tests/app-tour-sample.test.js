@@ -13,7 +13,7 @@ const page = await loadPage({ fetch: servedFetch(parquetFiles()) });
 const { document, window } = page;
 window.localStorage.clear();
 /* The index is the read of exactly the search columns; it never finishes here. */
-const isIndex = (columns) => columns?.join() === "rgi_id,display_name,complex_id";
+const isIndex = (columns) => columns?.join() === "rgi_id,display_name";
 const reads = [];
 globalThis.hyparquet = {
   ...hyparquet,

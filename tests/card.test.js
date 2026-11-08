@@ -41,7 +41,7 @@ function setup(over = {}) {
   const rowOf = async (id) => (IDS.includes(id) ? IDS.indexOf(id) : null);
   const ctx = {
     catalog, regions,
-    parquet: { handle, rowOf },
+    parquet: { open: async () => handle, rowOf },
     photos: async () => [],
     onClose: () => calls.push("close"),
     onZoom: (x) => calls.push(["zoom", x]),
@@ -114,14 +114,14 @@ test("a title, subtitle and unnamed glacier", async () => {
 });
 
 test("a glac_name is no title: a glacier without a display_name shows its ID", async () => {
-  const { root, card } = setup({ parquet: { handle, rowOf: () => new Promise(() => {}) } });
+  const { root, card } = setup({ parquet: { open: async () => handle, rowOf: () => new Promise(() => {}) } });
   card.open({ rgiId: IDS[4], props: { rgi_id: IDS[4], display_name: null, glac_name: "Unnamed_23", o1region: "11" } });
   assert.equal(text(root, ".card-title"), IDS[4]);
   assert.equal(text(root, ".card-subtitle"), "Glacier · Central Europe");
 });
 
 test("an unnamed glacier's title is its ID before any read", () => {
-  const { root, card } = setup({ parquet: { handle, rowOf: () => new Promise(() => {}) } });
+  const { root, card } = setup({ parquet: { open: async () => handle, rowOf: () => new Promise(() => {}) } });
   card.open({ rgiId: IDS[4], props: { rgi_id: IDS[4], display_name: null, glac_name: "" } });
   assert.equal(text(root, ".card-title"), IDS[4]);
   assert.equal(text(root, ".card-subtitle"), "Glacier · Central Europe");
@@ -147,7 +147,7 @@ test("full tile properties skip the attribute read", async () => {
 });
 
 test("a pick the index cannot place renders the props without an error", async () => {
-  const { root, card } = setup({ parquet: { handle, rowOf: async () => null } });
+  const { root, card } = setup({ parquet: { open: async () => handle, rowOf: async () => null } });
   await card.open({ rgiId: "RGI2000-v7.0-G-99-99999", props: OVERVIEW_PROPS });
   assert.equal(text(root, ".card-title"), "Grosser Aletsch Gletscher");
   assert.doesNotMatch(root.textContent, /error|failed|Loading/i);
@@ -157,7 +157,7 @@ test("a late read for A is ignored after B opens", async () => {
   let release;
   const gate = new Promise((resolve) => { release = resolve; });
   const { root, card } = setup({
-    parquet: { handle, rowOf: async (id) => { if (id === IDS[0]) await gate; return IDS.indexOf(id); } },
+    parquet: { open: async () => handle, rowOf: async (id) => { if (id === IDS[0]) await gate; return IDS.indexOf(id); } },
   });
   const a = card.open({ rgiId: IDS[0], props: { display_name: "A glacier" } });
   const b = card.open({ rgiId: IDS[1], props: { display_name: "B glacier" } });
@@ -209,7 +209,7 @@ test("the buttons call the context", async () => {
 });
 
 test("Zoom to passes the props before the bbox arrives", () => {
-  const { root, card, calls } = setup({ parquet: { handle, rowOf: () => new Promise(() => {}) } });
+  const { root, card, calls } = setup({ parquet: { open: async () => handle, rowOf: () => new Promise(() => {}) } });
   card.open({ rgiId: IDS[0], props: { cenlon: 8, cenlat: 46 } });
   click([...root.querySelectorAll(".card-actions button")].find((b) => b.textContent === "Zoom to"));
   assert.deepEqual(calls[0][1], { cenlon: 8, cenlat: 46 });
@@ -263,7 +263,7 @@ test("+ N more expands the RGI 6.0 overlaps in place", async () => {
   const links = ["A", "B", "C", "D", "E"].map((id) => ({ rgi6_id: id }));
   await card.open({ rgiId: IDS[3], row: 3 });
   assert.equal(rowOfLabel(root, "RGI 6.0 overlaps").querySelectorAll(".link-id").length, 2);
-  const big = setup({ parquet: { handle, rowOf: async () => null } });
+  const big = setup({ parquet: { open: async () => handle, rowOf: async () => null } });
   await big.card.open({ rgiId: IDS[0], props: { rgi6_links: links } });
   const rowBig = () => rowOfLabel(big.root, "RGI 6.0 overlaps");
   assert.equal(rowBig().querySelectorAll(".link-id").length, 3);
@@ -277,10 +277,10 @@ test("+ N more expands the RGI 6.0 overlaps in place", async () => {
 
 test("the Greenland connection shows only in region 05", async () => {
   const label = "Greenland ice sheet connection";
-  const a = setup({ parquet: { handle, rowOf: async () => null } });
+  const a = setup({ parquet: { open: async () => handle, rowOf: async () => null } });
   await a.card.open({ rgiId: IDS[0], props: { o1region: "11", conn_lvl: 0 } });
   assert.equal(rowOfLabel(a.root, label), undefined);
-  const b = setup({ parquet: { handle, rowOf: async () => null } });
+  const b = setup({ parquet: { open: async () => handle, rowOf: async () => null } });
   await b.card.open({ rgiId: IDS[0], props: { o1region: "05", conn_lvl: 1 } });
   assert.equal(rowOfLabel(b.root, label).querySelector(".row-value").textContent, "Weak connection");
 });
@@ -412,7 +412,7 @@ test("null or empty hypsometry settles on a message, not Loading", async () => {
     const h = await fakeHandle(1, async () => ({}));
     globalThis.hyparquet = { ...real, parquetReadObjects: async () => [{ ...hypso, bbox: null, rgi6_links: null }] };
     try {
-      const { root, card } = setup({ parquet: { handle: h, rowOf: async () => 0 } });
+      const { root, card } = setup({ parquet: { open: async () => h, rowOf: async () => 0 } });
       await card.open({ rgiId: IDS[0], row: 0, props: { display_name: "X" } });
       assert.equal(text(root, ".panel-hypsometry"), "No hypsometry data.");
       assert.equal(root.querySelector(".panel-hypsometry svg"), null);
@@ -420,7 +420,7 @@ test("null or empty hypsometry settles on a message, not Loading", async () => {
       globalThis.hyparquet = real;
     }
   }
-  const { root, card } = setup({ parquet: { handle, rowOf: async () => null } });
+  const { root, card } = setup({ parquet: { open: async () => handle, rowOf: async () => null } });
   await card.open({ rgiId: IDS[0], props: { hypso_permille: [], hypso_z0_m: 1000 } });
   assert.equal(text(root, ".panel-hypsometry"), "No hypsometry data.");
 });
@@ -437,7 +437,7 @@ test("a late readRow for A is ignored after B opens", async () => {
   globalThis.hyparquet = { ...real, parquetReadObjects: read };
   try {
     const h = await fakeHandle(2, async () => ({}));
-    const { root, card } = setup({ parquet: { handle: h, rowOf: async () => null } });
+    const { root, card } = setup({ parquet: { open: async () => h, rowOf: async () => null } });
     const a = card.open({ rgiId: IDS[0], row: 0, props: {} });
     await card.open({ rgiId: IDS[1], row: 1, props: {} });
     assert.equal(text(root, ".card-title"), "Prompt B");

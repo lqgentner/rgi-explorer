@@ -41,12 +41,13 @@ export function parseIds(q) {
 /**
  * Index the glaciers for search.
  *
- * @param {{rgi_id: string[], display_name: (string|null)[], complex_id?: string[]}} cols
+ * @param {{rgi_id: string[], display_name: (string|null)[]}} cols
  * @param {Map<string, string>} [regionNames]  two-digit region code to region name
+ * @param {string[]} [complexIds]  every complex's ID, which an ID search finds
  */
-export function buildGlacierIndex(cols, regionNames = new Map()) {
+export function buildGlacierIndex(cols, regionNames = new Map(), complexIds = []) {
   const byId = new Map();
-  const complexes = new Set(cols.complex_id ?? []);
+  const complexes = new Set(complexIds);
   const rows = [];
   const folded = [];
   for (let row = 0; row < cols.rgi_id.length; row += 1) {

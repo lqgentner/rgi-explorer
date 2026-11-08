@@ -42,6 +42,25 @@ test("gives each data file's size from file:size, or null", async () => {
   assert.equal(c.collections.glaciers.dataSize, null);
 });
 
+test("picks the glaciers' GeoParquet and names table by key, whatever their order", async () => {
+  const c = await loadCatalog(ROOT, fixtureFetch());
+  const { glaciers, complexes } = c.collections;
+  assert.equal(glaciers.namesUrl, "https://data.source.coop/lqgentner/rgi/v7.0/glaciers/rgi7.0-glacier-names.parquet");
+  assert.equal(glaciers.namesSize, 197967);
+  assert.equal(complexes.namesUrl, null, "only the glaciers have a names table");
+
+  const swapped = await loadCatalog(ROOT, fixtureFetch((path, json) => {
+    if (path === "v7.0/glaciers/collection.json") {
+      const { names, ...rest } = json.assets;
+      json.assets = { names, ...rest };
+    }
+  }));
+  assert.equal(swapped.collections.glaciers.dataUrl, glaciers.dataUrl);
+  assert.equal(swapped.collections.glaciers.namesUrl, glaciers.namesUrl);
+  assert.equal(swapped.glacierCount, 274531);
+  assert.ok(swapped.columns.has("area_km2"), "the columns come from the GeoParquet");
+});
+
 test("resolves against the URL the JSON was fetched from", async () => {
   const fetched = [];
   const local = "http://localhost:8000/catalog/catalog.json";

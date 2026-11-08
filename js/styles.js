@@ -1,6 +1,6 @@
 /*
  * The page's own style for the RGI layers. It reads the catalog's PMTiles file
- * but not the catalog's styles: glaciers are white with a grey outline, and
+ * but not the catalog's styles: glaciers are a faint blue with a blue outline, and
  * regions are dashed outlines without a fill. The outlines come from the
  * `region-boundaries` layer, which holds each border once: the `regions`
  * polygons hold a shared border twice, and two dash patterns over one line
@@ -20,87 +20,116 @@ export const REGION2_MINZOOM = 3;
 /** The region outlines' dashes, in line widths: dash, gap. */
 export const REGION_DASH = { 1: [4, 2], 2: [5, 3] };
 
+/*
+ * The glaciers' blues: steps of one ramp at the hue of the page's own blues in
+ * style.css (about 235° in OKLCH), by lightness from 50, near white, to 900,
+ * near black. 50 is the fill, 500 the outline on both base maps, and 700, the
+ * page's --accent, the names; over imagery they turn round as every label does.
+ */
+export const ICE = {
+  50: "#f0f8fe",
+  500: "#03a9f4",
+  700: "#00668a",
+};
+
 /** The colors the map and the layer previews share. */
 export const PALETTE = {
-  glacier: "#ffffff",
-  glacierOutline: "#80868b",
-  region1: "#5f6368",
-  region2: "#9aa0a6",
+  /* A glacier is the faintest blue, lighter and greener than Liberty's lakes. */
+  glacier: ICE[50],
+  /* One blue on both maps: a fine line on the standard map's fill, a wider one over imagery. */
+  glacierOutline: ICE[500],
+  /* The page's blue-greys: --muted and --image-placeholder, and over imagery --surface-2 and --line. */
+  region1: "#4f6570",
+  region2: "#93a5ae",
+  region1OnImagery: "#edf3f6",
+  region2OnImagery: "#d3dee4",
   centerline: "#b8860b",
   centerlineOnImagery: "#ddaa33",
-  divide: "#009e73",
+  /*
+   * A purple, darker than the outline beside it on each base map, so that it
+   * stands apart from the blue by its lightness too, as it must for readers
+   * who see purple as a blue.
+   */
+  divide: "#801fa2",
+  divideOnImagery: "#983dbc",
   label: "#3c4043",
-  /* The glacier names share the region labels' dark grey: near the outlines' grey, at 10:1 on white. */
-  glacierLabel: "#3c4043",
+  /* The glacier names: --accent on the fill, 6:1. */
+  glacierLabel: ICE[700],
   halo: "#ffffff",
-  casing: "#202124",
+  /* Liberty's halo on the names of lakes and rivers, which the glacier names share. */
+  waterHalo: "rgba(255,255,255,0.7)",
 };
 
 /** A width that follows the zoom: `low` at zoom 8, `high` from zoom 12 and at zoom 0. */
 const byZoom = (high, low) => ["interpolate", ["linear"], ["zoom"], 0, high, 8, low, 12, high];
 
 /*
- * The width of the glacier outlines and of the divides, per base map. A divide
- * is a stretch of outline that two glaciers share, so it is as wide as one and
- * set apart by its color. The standard map's grey lines have no casing and are
- * wider.
+ * The width of the glacier outlines, per base map. No line has a casing. On
+ * the standard map the outline is a fine edge to the fill, as quiet as
+ * Liberty's lakes, which have none; over imagery it must read alone on snow
+ * and rock, so it is half again as wide.
  */
-export const OUTLINE_WIDTH = { standard: byZoom(1.5, 0.75), imagery: byZoom(1, 0.5) };
+export const OUTLINE_WIDTH = { standard: byZoom(1, 0.5), imagery: byZoom(1.5, 0.75) };
+/*
+ * The width of the divides. A divide is a stretch of outline that two
+ * glaciers share and lies on it, half a pixel wider close in, so that the
+ * blue below does not fringe the purple.
+ */
+export const DIVIDE_WIDTH = { standard: byZoom(1.5, 0.75), imagery: byZoom(2, 1) };
 
 const MAIN = ["get", "is_main"];
-/** The width of the centerlines: the main ones are twice as wide as the others. */
-export const CENTERLINE_WIDTH = ["interpolate", ["linear"], ["zoom"], 8, ["case", MAIN, 1, 0.5], 12, ["case", MAIN, 2, 1]];
-
-/* The glacier outlines, the divides and their casings over one base map. */
-const outlines = (width, color, casingOpacity) => ({
-  "glaciers-casing": { "line-gap-width": width, "line-opacity": casingOpacity },
-  "intersects-casing": { "line-gap-width": width, "line-opacity": casingOpacity },
-  "glaciers-outline": { "line-color": color, "line-width": width },
-  "intersects": { "line-width": width },
-});
+/** A centerline width: `main` px for a main centerline from zoom 12, half that at zoom 8, and half for the others. */
+const centerlineWidth = (main) => ["interpolate", ["linear"], ["zoom"], 8, ["case", MAIN, main / 2, main / 4], 12, ["case", MAIN, main, main / 2]];
+/* The width of the centerlines, per base map: a main one as wide as a divide close in. */
+export const CENTERLINE_WIDTH = { standard: centerlineWidth(1.5), imagery: centerlineWidth(2) };
 
 /**
  * The paint that changes with the base map, by layer ID. Over the standard map
  * the glacier fill is opaque, so the water and woods that OSM maps on a glacier
- * do not tint it. Over imagery the glaciers are white outlines without a fill,
- * so the ice shows, and the region outlines turn light: the first-order outline
- * is the lightest, as it is the darkest over the standard map. The glacier
- * outlines and the divides get a near-black casing over imagery that keeps them
- * apart from snow. The casing is opaque, so where an outline and a divide
- * overlap it is no darker. The gold centerlines need no casing; over imagery
- * they are a lighter gold, which the standard map's light glaciers would fade.
+ * do not tint it. Over imagery the glaciers are outlines without a fill, so the
+ * ice shows; the outlines, divides and centerlines are wider, and the divides,
+ * centerlines and region outlines take lighter colors: a lighter purple, a
+ * lighter gold, which the standard map's light glaciers would fade, and light
+ * blue-greys, the first-order outline the lightest, as it is the darkest over
+ * the standard map.
  */
 export const BASE_PAINT = {
   standard: {
     "glaciers-fill": { "fill-opacity": 1 },
-    ...outlines(OUTLINE_WIDTH.standard, PALETTE.glacierOutline, 0),
-    "centerlines": { "line-color": PALETTE.centerline },
+    "glaciers-outline": { "line-color": PALETTE.glacierOutline, "line-width": OUTLINE_WIDTH.standard },
+    "intersects": { "line-color": PALETTE.divide, "line-width": DIVIDE_WIDTH.standard },
+    "centerlines": { "line-color": PALETTE.centerline, "line-width": CENTERLINE_WIDTH.standard },
     "regions-outline-1": { "line-color": PALETTE.region1 },
     "regions-outline-2": { "line-color": PALETTE.region2 },
   },
   imagery: {
     "glaciers-fill": { "fill-opacity": 0 },
-    ...outlines(OUTLINE_WIDTH.imagery, "#ffffff", 1),
-    "centerlines": { "line-color": PALETTE.centerlineOnImagery },
-    "regions-outline-1": { "line-color": "#f1f3f4" },
-    "regions-outline-2": { "line-color": "#bdc1c6" },
+    "glaciers-outline": { "line-color": PALETTE.glacierOutline, "line-width": OUTLINE_WIDTH.imagery },
+    "intersects": { "line-color": PALETTE.divideOnImagery, "line-width": DIVIDE_WIDTH.imagery },
+    "centerlines": { "line-color": PALETTE.centerlineOnImagery, "line-width": CENTERLINE_WIDTH.imagery },
+    "regions-outline-1": { "line-color": PALETTE.region1OnImagery },
+    "regions-outline-2": { "line-color": PALETTE.region2OnImagery },
   },
 };
 
 const POINTS = ["in", ["geometry-type"], ["literal", ["Point", "MultiPoint"]]];
 
 /*
- * A casing on each side of a line, drawn around a gap as wide as the line, so
- * it starts at the line's edge and leaves the line's width as it is. It is 1 px
- * wide close in and thins to 0.4 px at zoom 8, where a heavily glaciated range
- * is a mesh of outlines that full casings would blacken.
+ * The zooms at which a glacier's name line shows: from its `label_zoom` up to
+ * the next zoom, and the zoom-14 line at every zoom past it. The catalog's
+ * styles use the same rule. MapLibre reads a tile's zoom whole, also for a
+ * zoom-12 tile drawn past 12, so it matches one line per glacier; so does a
+ * renderer that reads the map's fractional zoom.
  */
-const CASING = { "line-color": PALETTE.casing, "line-width": ["interpolate", ["linear"], ["zoom"], 8, 0.4, 11, 1] };
+const NAME_ZOOMS = [
+  "all",
+  [">=", ["zoom"], ["get", "label_zoom"]],
+  ["any", ["<", ["zoom"], ["+", ["get", "label_zoom"], 1]], [">=", ["get", "label_zoom"], 14]],
+];
 
 /** The sources and layers of the RGI style over the PMTiles file at `pmtilesUrl`. */
 export function rgiStyle(pmtilesUrl) {
   const layer = (id, type, sourceLayer, rest) => ({ id, type, source: "data", "source-layer": sourceLayer, ...rest });
-  const casing = (id, sourceLayer) => layer(id, "line", sourceLayer, { paint: { ...CASING, ...BASE_PAINT.standard[id] } });
   /* The labels' halo is Liberty's place labels': 1 px, softened by 1 px of blur. */
   const label = (rest) => ({
     "text-color": PALETTE.label,
@@ -124,9 +153,6 @@ export function rgiStyle(pmtilesUrl) {
       layer("glaciers-fill", "fill", "glaciers", {
         paint: { "fill-color": PALETTE.glacier, ...BASE_PAINT.standard["glaciers-fill"] },
       }),
-      /* The casings lie below all the lines, so that none covers another line. */
-      casing("glaciers-casing", "glaciers"),
-      casing("intersects-casing", "intersects"),
       layer("glaciers-outline", "line", "glaciers", {
         paint: { ...BASE_PAINT.standard["glaciers-outline"] },
       }),
@@ -141,12 +167,11 @@ export function rgiStyle(pmtilesUrl) {
       }),
       layer("centerlines", "line", "centerlines", {
         paint: {
-          "line-width": CENTERLINE_WIDTH,
           ...BASE_PAINT.standard.centerlines,
         },
       }),
       layer("intersects", "line", "intersects", {
-        paint: { "line-color": PALETTE.divide, ...BASE_PAINT.standard.intersects },
+        paint: { ...BASE_PAINT.standard.intersects },
       }),
       layer("region-labels-1", "symbol", "region-labels", {
         minzoom: 1,
@@ -172,14 +197,29 @@ export function rgiStyle(pmtilesUrl) {
         },
         paint: label(),
       }),
+      /*
+       * A glacier's name shows only where it fits along the glacier's main
+       * centerline, with room on both sides: from the zoom, `line_zoom`, at
+       * which the tiles add a stretch of that line, smoothed, as a line of its
+       * own. Each zoom has its own stretch, the one nearest the tongue where
+       * the name fits and the glacier is wide enough around it, so the name
+       * moves down the glacier as the map zooms in. The tiles end at zoom 12,
+       * whose tiles also hold the lines for zooms 13 and 14, so a glacier too
+       * narrow at 12 is named closer in.
+       */
       layer("glacier-labels", "symbol", "glacier-labels", {
+        filter: ["all", ["==", ["geometry-type"], "LineString"], NAME_ZOOMS],
         layout: {
           "text-field": ["get", "display_name"],
+          /* Liberty's lake and river names: the same italic, 14 px, spaced 0.2 em. */
           "text-font": ["Noto Sans Italic"],
-          "text-size": 12,
+          "text-size": 14,
+          "text-letter-spacing": 0.2,
+          "symbol-placement": "line-center",
           "symbol-sort-key": ["-", ["get", "area_km2"]],
         },
-        paint: label({ "text-color": PALETTE.glacierLabel }),
+        /* Liberty's lake and river halo: white at 70 %, 1.5 px, hard. */
+        paint: label({ "text-color": PALETTE.glacierLabel, "text-halo-color": PALETTE.waterHalo, "text-halo-width": 1.5, "text-halo-blur": 0 }),
       }),
     ],
   };

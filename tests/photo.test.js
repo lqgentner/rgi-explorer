@@ -303,7 +303,7 @@ function setup(over = {}) {
   const root = document.createElement("div");
   root.id = "card";
   document.getElementById("sidebar").append(root);
-  const ctx = { catalog: CATALOG, regions: [], parquet: { handle: null, rowOf: async () => null }, photos: async () => [], ...over };
+  const ctx = { catalog: CATALOG, regions: [], parquet: { open: async () => null, rowOf: async () => null }, photos: async () => [], ...over };
   return { root, card: mountCard(root, ctx) };
 }
 const click = (node) => node.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
@@ -474,7 +474,7 @@ test("without a bbox the area stays empty until the parquet read supplies it", a
   };
   try {
     const handle = await openParquet({});
-    const { root, card } = setup({ parquet: { handle, rowOf: async () => 0 } });
+    const { root, card } = setup({ parquet: { open: async () => handle, rowOf: async () => 0 } });
     const done = card.open({ rgiId: "A", row: 0, props: { display_name: "A" } });
     await settle();
     await done;
@@ -519,7 +519,7 @@ test("the crop image is kept when the card re-renders with the same bbox", async
   };
   try {
     const handle = await openParquet({});
-    const { root, card } = setup({ parquet: { handle, rowOf: async () => 0 } });
+    const { root, card } = setup({ parquet: { open: async () => handle, rowOf: async () => 0 } });
     const done = card.open({ rgiId: "A", row: 0, props: { display_name: "A", bbox: BBOX } });
     await settle();
     const img = root.querySelector(".photo img");

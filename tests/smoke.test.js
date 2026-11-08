@@ -61,10 +61,25 @@ test("the live catalog serves the data the page reads", { skip: process.env.SMOK
     );
   });
 
+  await t.test("reads the names table, whose rows are in the GeoParquet's order", async () => {
+    assert.ok(glaciers.namesUrl, "the glaciers collection has no names asset");
+    const names = await openParquet(glaciers.namesUrl);
+    const data = await openParquet(glaciers.dataUrl);
+    const [{ rgi_id: named }, { rgi_id: ids }] = await Promise.all([
+      readColumns(names, ["rgi_id"]),
+      readColumns(data, ["rgi_id"]),
+    ]);
+    assert.equal(named.length, GLACIER_COUNT);
+    const at = named.findIndex((id, row) => id !== ids[row]);
+    assert.equal(at, -1, `row ${at}: ${named[at]} in the names table, ${ids[at]} in the GeoParquet`);
+  });
+
   await t.test("gives each data file's own size, which the page reads without a HEAD request", async () => {
-    for (const [name, collection] of Object.entries(catalog.collections)) {
-      const response = await fetch(collection.dataUrl, { method: "HEAD" });
-      assert.equal(collection.dataSize, Number(response.headers.get("content-length")), name);
+    const sizes = Object.entries(catalog.collections).map(([name, c]) => [name, c.dataUrl, c.dataSize]);
+    sizes.push(["glacier names", glaciers.namesUrl, glaciers.namesSize]);
+    for (const [name, url, size] of sizes) {
+      const response = await fetch(url, { method: "HEAD" });
+      assert.equal(size, Number(response.headers.get("content-length")), name);
     }
   });
 });

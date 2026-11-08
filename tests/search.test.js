@@ -11,10 +11,10 @@ const cols = {
   rgi_id: [ID("11", 2596), UNNAMED_ID, ID("11", 3), ID("11", 4), ID("01", 5), ID("11", 6)],
   display_name: ["Aletsch", null, "Aletschfirn", "Grosser Aletsch", "Müller", "Rhône"],
   glac_name: [null, "Unnamed_23", null, "GROSSER ALETSCH", null, null],
-  complex_id: [CID("11", 1323), CID("11", 1), CID("11", 1323), CID("11", 4), CID("01", 5), CID("11", 6)],
 };
+const complexIds = [CID("01", 5), CID("11", 1), CID("11", 4), CID("11", 6), CID("11", 1323)];
 const names = new Map([["11", "Central Europe"]]);
-const idx = buildGlacierIndex(cols, names);
+const idx = buildGlacierIndex(cols, names, complexIds);
 const placeHit = (title, score = 600) => ({ kind: "place", title, subtitle: "", score, center: [0, 0] });
 
 test("an ID names a glacier, a complex or both", () => {

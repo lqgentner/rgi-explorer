@@ -2,10 +2,13 @@
 
 import { decompress } from "fzstd";
 
-import { ROW_GROUP_CACHE } from "./config.js";
+import { FOOTER_FETCH, ROW_GROUP_CACHE } from "./config.js";
 
-/* Names come from display_name only: glac_name holds placeholders such as "Unnamed_23". */
-export const SEARCH_COLUMNS = ["rgi_id", "display_name", "complex_id"];
+/*
+ * The search index's columns, which the names table and the glaciers file both
+ * hold. Names come from display_name only: glac_name holds placeholders such as "Unnamed_23".
+ */
+export const SEARCH_COLUMNS = ["rgi_id", "display_name"];
 export const CARD_COLUMNS = ["bbox", "hypso_z0_m", "hypso_permille", "rgi6_links"];
 
 /*
@@ -40,20 +43,22 @@ const fromUrl = (url, byteLength) =>
  * Opens a GeoParquet from a URL or an AsyncBuffer and lists its row groups.
  * `byteLength`, the size a catalog gives for the URL, spares a HEAD request;
  * when the file proves it wrong, the size comes from a HEAD request instead.
+ * `footerFetch` is the first read of the file's end, which should hold its footer.
  *
  * @param {string | import("hyparquet").AsyncBuffer} source
- * @param {{ byteLength?: number }} [options]
+ * @param {{ byteLength?: number, footerFetch?: number }} [options]
  */
-export async function openParquet(source, { byteLength } = {}) {
+export async function openParquet(source, { byteLength, footerFetch = FOOTER_FETCH } = {}) {
   const { parquetMetadataAsync } = globalThis.hyparquet;
   let file = typeof source === "string" ? await fromUrl(source, byteLength) : source;
+  const options = { initialFetchSize: footerFetch };
   let metadata;
   try {
-    metadata = await parquetMetadataAsync(file);
+    metadata = await parquetMetadataAsync(file, options);
   } catch (error) {
     if (typeof source !== "string" || !byteLength) throw error;
     file = await fromUrl(source);
-    metadata = await parquetMetadataAsync(file);
+    metadata = await parquetMetadataAsync(file, options);
   }
   const groups = [];
   let start = 0;

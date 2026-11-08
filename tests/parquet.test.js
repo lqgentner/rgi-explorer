@@ -90,6 +90,32 @@ test("a second read of the same group hits the cache", async () => {
   assert.equal(buffer.calls, first);
 });
 
+/* The fixture behind 1 MB of zeros: a file larger than the first read, whose footer is still valid. Logs each read. */
+function padded(reads) {
+  const real = new Uint8Array(readFileSync(file));
+  const pad = 1 << 20;
+  const buffer = {
+    byteLength: pad + real.byteLength,
+    slice(start, end = buffer.byteLength) {
+      reads.push([start, end]);
+      const out = new Uint8Array(end - start);
+      out.set(real.subarray(Math.max(0, start - pad), end - pad), Math.max(0, pad - start));
+      return out.buffer;
+    },
+  };
+  return buffer;
+}
+
+test("the footer comes from one read of the file's last 64 KB, or of footerFetch bytes", async () => {
+  for (const [footerFetch, size] of [[undefined, 1 << 16], [1 << 19, 1 << 19]]) {
+    const reads = [];
+    const buffer = padded(reads);
+    const h = await openParquet(buffer, { footerFetch });
+    assert.ok(h.groups.length > 0);
+    assert.deepEqual(reads, [[buffer.byteLength - size, buffer.byteLength]], "the fixture's footer fits in the first read");
+  }
+});
+
 test("concurrent identical reads share one fetch", async () => {
   const solo = counting(await hyparquet.asyncBufferFromFile(file));
   const soloHandle = await openParquet(solo);
