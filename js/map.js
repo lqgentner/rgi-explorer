@@ -247,6 +247,72 @@ function registerProtocol(url) {
   if (!protocol.get(url)) protocol.add(uncachedArchive(url));
 }
 
+/*
+ * The RGI archive's retries: the first after 2 s, each next one after twice
+ * as long, up to a minute. After six in a row the page waits for the browser
+ * to come back online, or for a failure five minutes after the last one.
+ */
+const RETRY_FIRST = 2000;
+const RETRY_LONGEST = 60_000;
+const RETRIES = 6;
+const RETRY_QUIET = 5 * 60_000;
+
+/**
+ * Reads the RGI archive at `url` again after a failed read. pmtiles keeps a
+ * failed read of an archive's header or of a directory for the life of its
+ * reader, so one network blip would leave the outlines blank until a reload.
+ * A retry adds a fresh reader. A failed header read, the TileJSON MapLibre
+ * asks for first, then reloads the source and every tile in view; failed
+ * tile reads reload only those tiles.
+ *
+ * @param {import("maplibre-gl").Map} map
+ * @param {string} url
+ */
+function retryArchive(map, url) {
+  let failures = 0;
+  let lastFailure = -Infinity;
+  /** @type {ReturnType<typeof setTimeout> | null} */
+  let timer = null;
+  let sourceFailed = false;
+  /** @type {Map<string, {x: number, y: number, z: number}>} */
+  const tiles = new Map();
+  const retry = () => {
+    if (timer !== null) clearTimeout(timer);
+    timer = null;
+    protocol.add(uncachedArchive(url));
+    if (sourceFailed) {
+      /** @type {import("maplibre-gl").VectorTileSource} */ (map.getSource("data")).setUrl(`pmtiles://${url}`);
+    } else if (tiles.size) {
+      map.refreshTiles("data", [...tiles.values()]);
+    }
+    sourceFailed = false;
+    tiles.clear();
+  };
+  /**
+   * MapLibre adds the source's ID to its errors, and the tile to a tile's.
+   *
+   * @typedef {{ sourceId?: string, error?: Error, tile?: { tileID?: { canonical: { x: number, y: number, z: number } } } }} SourceError
+   */
+  map.on("error", (error) => {
+    const event = /** @type {SourceError} */ (/** @type {unknown} */ (error));
+    if (event.sourceId !== "data" || event.error?.name === "AbortError") return;
+    const canonical = event.tile?.tileID?.canonical;
+    if (canonical) tiles.set(`${canonical.z}/${canonical.x}/${canonical.y}`, { x: canonical.x, y: canonical.y, z: canonical.z });
+    else sourceFailed = true;
+    const now = Date.now();
+    if (now - lastFailure > RETRY_QUIET) failures = 0;
+    lastFailure = now;
+    if (timer !== null || failures >= RETRIES) return;
+    timer = setTimeout(retry, Math.min(RETRY_FIRST * 2 ** failures, RETRY_LONGEST));
+    failures += 1;
+  });
+  window.addEventListener("online", () => {
+    if (!sourceFailed && !tiles.size) return;
+    failures = 0;
+    retry();
+  });
+}
+
 /** Liberty's style, which needs no catalog: start it early and pass the promise to createMap. */
 export const fetchLiberty = () => fetchJson(LIBERTY_STYLE);
 
@@ -646,6 +712,7 @@ export async function createMap(container, catalog, state, liberty = fetchLibert
     transformCameraUpdate: ({ center }) =>
       Math.abs(center.lat) > MAX_LAT ? { center: new maplibregl.LngLat(center.lng, clampLat(center.lat)) } : {},
   });
+  retryArchive(map, catalog.collections.glaciers.pmtilesUrl);
   /** @type {Promise<void>} */
   const loaded = new Promise((resolve, reject) => {
     const fail = (event) => {
