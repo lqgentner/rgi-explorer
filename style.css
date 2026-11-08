@@ -1228,13 +1228,16 @@ button:focus-visible {
     height: 20px;
   }
 
+  /* Its glass, not its background, which the glass would blur, takes the shared states. */
   @media (hover: hover) {
     .help-btn:hover {
+      background: none;
       --frost-tint: var(--surface-2);
     }
   }
 
   .help-btn:active {
+    background: none;
     --frost-tint: var(--surface-3);
   }
 

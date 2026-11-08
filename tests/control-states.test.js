@@ -10,7 +10,8 @@ const app = readFileSync(new URL("../js/app.js", import.meta.url), "utf8");
 /* Every button over the map: zoom, 3D, locate, help, the phone's Layers and credits, the compass's three. */
 const CONTROLS = [".zoom-btn", ".terrain-btn", ".locate-btn", ".help-btn", ".round-button", ".credits-button", ".compass button"];
 const list = (state, indent = "") => CONTROLS.map((selector) => `${selector}${state}`).join(`,\n${indent}`);
-const rule = (selectors) => new RegExp(`(^|\\n)\\s*${selectors.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} \\{([^}]*)\\}`).exec(css)?.[2] ?? "";
+const escape = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const rule = (selectors) => new RegExp(`(^|\\n)\\s*${escape(selectors)} \\{([^}]*)\\}`).exec(css)?.[2] ?? "";
 
 test("a real hover darkens each control a step, and no tap leaves it behind", () => {
   const at = css.indexOf(list(":hover", "  "));
@@ -27,14 +28,16 @@ test("a press darkens each control a step further, on touch too", () => {
 
 test("the phone's frosted help button takes the same steps in its tint", () => {
   const phone = css.slice(css.indexOf("@media (max-width: 640px) {\n  #layers"));
-  assert.match(phone, /\.help-btn:hover \{\s*--frost-tint: var\(--surface-2\);/);
-  assert.match(phone, /\.help-btn:active \{\s*--frost-tint: var\(--surface-3\);/);
+  /* Its glass blurs whatever lies behind it, its own background too, which stays clear. */
+  assert.match(phone, /\.help-btn:hover \{\s*background: none;\s*--frost-tint: var\(--surface-2\);/);
+  assert.match(phone, /\.help-btn:active \{\s*background: none;\s*--frost-tint: var\(--surface-3\);/);
 });
 
 test("no other rule gives a control its own hover or press", () => {
   for (const selector of CONTROLS) {
-    const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const states = css.match(new RegExp(`${escaped}:(hover|active)[^{]*\\{[^}]*background`, "g")) ?? [];
+    const states = (css.match(new RegExp(`${escape(selector)}:(hover|active)[^{]*\\{[^}]*background`, "g")) ?? [])
+      /* The phone's help button clears its own background; the test above checks it. */
+      .filter((state) => !/^\.help-btn:(hover|active) \{\s*background$/.test(state));
     assert.equal(states.length, 2, `${selector}: ${states.join(" | ")}`);
   }
 });

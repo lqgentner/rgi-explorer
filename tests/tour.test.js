@@ -255,7 +255,7 @@ test("on the desktop Layers docks above the Layers control and the last card bes
   assert.match(css, /@media \(min-width: 641px\) \{\s*\.tour\[data-dock="controls"\] \{\s*top: auto;\s*left: auto;\s*bottom: calc\(var\(--status-h, 0px\) \+ 16px\);\s*right: calc\(16px \+ var\(--controls-w\) \+ 12px\);\s*\}/,
     "its bottom on the same line as the controls', left of the compass's 54 px and the 12 px gap");
   assert.match(css, /\.tour\[data-dock="layers"\] \{[^}]*left: 16px;[^}]*bottom: calc\(var\(--status-h, 0px\) \+ 16px \+ var\(--layers-h\) \+ 12px\);/,
-    "above the Layers control, whose card is 90 px tall, on the line it stands on");
+    "above the Layers control, whose card is 94 px tall, on the line it stands on");
   assert.match(css, /body\.card-open \.tour\[data-dock="layers"\] \{\s*left: calc\(var\(--sidebar-w\) \+ 16px\);/, "with the card open the control moves right of it, and the step with it");
 });
 test("a layers change before step 4 does not move the tour", () => {
