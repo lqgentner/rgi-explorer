@@ -139,14 +139,13 @@ export function invertLightness(value, lift = false) {
 }
 
 /*
- * The glacier names over imagery take their own blues, not their standard
- * ones turned round: a light step of the ramp on a soft shadow of its darkest,
- * as wide and as soft as their halo on the standard map.
+ * The glacier names over imagery keep a light step of their own blue ramp, in
+ * the other labels' halo: their white turned round, an opaque black, hard.
  */
 const GLACIER_NAMES_ON_IMAGERY = {
   "text-color": PALETTE.glacierLabelOnImagery,
-  "text-halo-color": PALETTE.glacierShadow,
-  "text-halo-blur": 1,
+  "text-halo-color": invertLightness(PALETTE.halo),
+  "text-halo-blur": 0,
 };
 const GLACIER_NAMES = new Set(["glacier-labels", "complex-labels"]);
 /** A label's colours for `base`, from its standard map colours. */

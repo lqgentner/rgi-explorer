@@ -57,10 +57,9 @@ export const PALETTE = {
   divide: "#801fa2",
   divideOnImagery: "#983dbc",
   label: "#3c4043",
-  /* The glacier names: --accent on the fill, 6:1, and over imagery a light blue on a soft --text shadow. */
+  /* The glacier names: --accent on the fill, 6:1, and over imagery a light blue in the labels' black halo. */
   glacierLabel: ICE[700],
   glacierLabelOnImagery: ICE[200],
-  glacierShadow: ICE[900],
   halo: "#ffffff",
   /* Liberty's halo on the names of lakes and rivers, which the glacier names share. */
   waterHalo: "rgba(255,255,255,0.7)",
