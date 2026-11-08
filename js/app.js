@@ -8,7 +8,7 @@ import { mountCard } from "./card.js";
 import { loadCatalog } from "./catalog.js";
 import { mountCompass } from "./compass.js";
 import { mountComplexCard } from "./complexcard.js";
-import { resolveCatalogUrl, SAMPLE_GLACIER, TIMEOUT_MS } from "./config.js";
+import { GLACIERS_FOOTER_FETCH, resolveCatalogUrl, SAMPLE_GLACIER, TIMEOUT_MS } from "./config.js";
 import { mountLayers, mountLocate, mountTerrain, mountZoom } from "./layers.js";
 import { createMap, fetchLiberty, IMAGERY_BACKGROUND } from "./map.js";
 import { findRow, openParquet, readColumns, readRow, rowGroupOf, SEARCH_COLUMNS } from "./parquet.js";
@@ -105,8 +105,9 @@ function rowsOf(columns) {
   return columns[names[0]].map((_, i) => Object.fromEntries(names.map((name) => [name, columns[name][i]])));
 }
 
-/** A collection's GeoParquet, opened at the size the catalog gives. */
-const openData = (collection) => openParquet(collection.dataUrl, { byteLength: collection.dataSize ?? undefined });
+/** A collection's GeoParquet, opened at the size the catalog gives, with a first footer read of `footerFetch`. */
+const openData = (collection, footerFetch) =>
+  openParquet(collection.dataUrl, { byteLength: collection.dataSize ?? undefined, footerFetch });
 
 /** The regions table as row objects. */
 async function loadRegions(collection) {
@@ -141,7 +142,7 @@ function glacierFile(collection, regionNames, complexIds) {
   /* The search index once it is read; until then a row comes from its own row group. */
   let indexed = null;
   const file = {
-    open: retrying(() => openData(collection)),
+    open: retrying(() => openData(collection, GLACIERS_FOOTER_FETCH)),
     index: retrying(async () => {
       const names = collection.namesUrl
         ? await openParquet(collection.namesUrl, { byteLength: collection.namesSize ?? undefined })

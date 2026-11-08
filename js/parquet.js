@@ -43,14 +43,15 @@ const fromUrl = (url, byteLength) =>
  * Opens a GeoParquet from a URL or an AsyncBuffer and lists its row groups.
  * `byteLength`, the size a catalog gives for the URL, spares a HEAD request;
  * when the file proves it wrong, the size comes from a HEAD request instead.
+ * `footerFetch` is the first read of the file's end, which should hold its footer.
  *
  * @param {string | import("hyparquet").AsyncBuffer} source
- * @param {{ byteLength?: number }} [options]
+ * @param {{ byteLength?: number, footerFetch?: number }} [options]
  */
-export async function openParquet(source, { byteLength } = {}) {
+export async function openParquet(source, { byteLength, footerFetch = FOOTER_FETCH } = {}) {
   const { parquetMetadataAsync } = globalThis.hyparquet;
   let file = typeof source === "string" ? await fromUrl(source, byteLength) : source;
-  const options = { initialFetchSize: FOOTER_FETCH };
+  const options = { initialFetchSize: footerFetch };
   let metadata;
   try {
     metadata = await parquetMetadataAsync(file, options);
