@@ -61,11 +61,12 @@ const sky = (base) => ({
 export const IMAGERY_BACKGROUND = "#3c4043";
 /*
  * Over imagery each label's colours turn round in lightness, hue kept: dark
- * text in a white halo becomes white text in a dark halo. The text goes into
+ * text in a white halo becomes light text in a dark halo. The text goes into
  * the light half and takes more saturation, so a grey name is a light grey and
- * a water label's blue a light, clear blue. The selection's label and the
- * road shields keep theirs. MapLibre draws text black and halos clear when a
- * style gives none.
+ * a water or glacier name's blue a light, clear blue. Every halo turns opaque
+ * and hard, as Esri's and VersaTiles' do: a soft or see-through one loses light
+ * text on snow. The selection's label and the road shields keep theirs.
+ * MapLibre draws text black and halos clear when a style gives none.
  */
 const LABEL_DEFAULTS = { "text-color": "#000000", "text-halo-color": "rgba(0, 0, 0, 0)" };
 
@@ -138,27 +139,24 @@ export function invertLightness(value, lift = false) {
   return `rgba(${r2}, ${g2}, ${b2}, ${Math.round(a * 1000) / 1000})`;
 }
 
-/*
- * The glacier names over imagery keep a light step of their own blue ramp, in
- * the other labels' halo: their white turned round, an opaque black, hard.
- */
-const GLACIER_NAMES_ON_IMAGERY = {
-  "text-color": PALETTE.glacierLabelOnImagery,
-  "text-halo-color": invertLightness(PALETTE.halo),
-  "text-halo-blur": 0,
-};
-const GLACIER_NAMES = new Set(["glacier-labels", "complex-labels"]);
+/** A colour, or each colour in an expression, made opaque; a clear one, no halo, stays clear. */
+export function opaque(value) {
+  if (Array.isArray(value)) return value.map(opaque);
+  const rgba = parseColor(value);
+  if (!rgba || rgba[3] === 0) return value;
+  const [r, g, b] = rgba.map((c) => Math.round(c * 255));
+  return `rgba(${r}, ${g}, ${b}, 1)`;
+}
+
 /** A label's colours for `base`, from its standard map colours. */
-const labelPaint = (id, paint, base) => {
-  if (base !== "imagery") return paint;
-  if (GLACIER_NAMES.has(id)) return GLACIER_NAMES_ON_IMAGERY;
-  return {
-    "text-color": invertLightness(paint["text-color"] ?? LABEL_DEFAULTS["text-color"], true),
-    "text-halo-color": invertLightness(paint["text-halo-color"] ?? LABEL_DEFAULTS["text-halo-color"]),
-    /* Hard over imagery, as Esri's and VersaTiles' halos: a soft one loses light text on snow. */
-    "text-halo-blur": 0,
-  };
-};
+const labelPaint = (paint, base) =>
+  base !== "imagery"
+    ? paint
+    : {
+        "text-color": invertLightness(paint["text-color"] ?? LABEL_DEFAULTS["text-color"], true),
+        "text-halo-color": opaque(invertLightness(paint["text-halo-color"] ?? LABEL_DEFAULTS["text-halo-color"])),
+        "text-halo-blur": 0,
+      };
 const LABEL_KEYS = /** @type {const} */ (["text-color", "text-halo-color", "text-halo-blur"]);
 /* A fit that would fly longer than this, in ms, jumps there: a far flight is a long wait. */
 const FLY_MAX_MS = 2000;
@@ -511,7 +509,7 @@ function buildStyle(liberty, rgi, state) {
       ...base.slice(cut),
       ...rgiLayers.filter(isSymbol),
       ...selection,
-    ].map((layer) => (state.base === "imagery" && labels.has(layer.id) ? { ...layer, paint: { ...layer.paint, ...labelPaint(layer.id, labels.get(layer.id), "imagery") } } : layer)),
+    ].map((layer) => (state.base === "imagery" && labels.has(layer.id) ? { ...layer, paint: { ...layer.paint, ...labelPaint(labels.get(layer.id), "imagery") } } : layer)),
   };
 }
 
@@ -761,7 +759,7 @@ export async function createMap(container, catalog, state, liberty = fetchLibert
         }
       }
       for (const [id, colors] of labels) {
-        for (const [key, value] of Object.entries(labelPaint(id, colors, base))) {
+        for (const [key, value] of Object.entries(labelPaint(colors, base))) {
           map.setPaintProperty(id, /** @type {Parameters<typeof map.setPaintProperty>[1]} */ (key), value);
         }
       }

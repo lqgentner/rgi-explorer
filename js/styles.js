@@ -21,19 +21,15 @@ export const REGION2_MINZOOM = 3;
 export const REGION_DASH = { 1: [4, 2], 2: [5, 3] };
 
 /*
- * The glaciers' blues: one ramp at the hue of the page's own blues in
+ * The glaciers' blues: steps of one ramp at the hue of the page's own blues in
  * style.css (about 235° in OKLCH), by lightness from 50, near white, to 900,
- * near black. Three steps are the page's: 100 is --accent-tint, 700 --accent
- * and 900 --text. The outline is 500 on both base maps; the names take a
- * dark step on the standard map and a light one over imagery.
+ * near black. 50 is the fill, 500 the outline on both base maps, and 700, the
+ * page's --accent, the names; over imagery they turn round as every label does.
  */
 export const ICE = {
   50: "#f0f8fe",
-  100: "#e3f0f6",
-  200: "#b9e1fb",
   500: "#03a9f4",
   700: "#00668a",
-  900: "#14232b",
 };
 
 /** The colors the map and the layer previews share. */
@@ -57,9 +53,8 @@ export const PALETTE = {
   divide: "#801fa2",
   divideOnImagery: "#983dbc",
   label: "#3c4043",
-  /* The glacier names: --accent on the fill, 6:1, and over imagery a light blue in the labels' black halo. */
+  /* The glacier names: --accent on the fill, 6:1. */
   glacierLabel: ICE[700],
-  glacierLabelOnImagery: ICE[200],
   halo: "#ffffff",
   /* Liberty's halo on the names of lakes and rivers, which the glacier names share. */
   waterHalo: "rgba(255,255,255,0.7)",

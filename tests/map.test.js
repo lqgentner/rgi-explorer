@@ -884,13 +884,24 @@ test("a colour's lightness turns round, its hue, saturation and alpha kept, in h
   assert.equal(invertLightness("#74aee9", true), "rgba(128, 191, 255, 1)", "a river's name, a clear blue at the 75 % floor, not a dark one");
 });
 
-test("over imagery each label's colours turn round in lightness, the glacier names keep their own blue, and the standard map gets its own back", async () => {
+test("opaque gives a halo full opacity and leaves no halo clear", async () => {
+  await loadPage();
+  const { opaque } = await load("js/map.js");
+  assert.equal(opaque("rgba(0, 0, 0, 0.7)"), "rgba(0, 0, 0, 1)");
+  assert.equal(opaque("#ffffffb3"), "rgba(255, 255, 255, 1)");
+  assert.equal(opaque("rgba(0, 0, 0, 0)"), "rgba(0, 0, 0, 0)", "a label without a halo gets none");
+  assert.deepEqual(opaque(["interpolate", ["linear"], ["zoom"], 5, "rgba(0,0,0,0.5)", 10, "#000"]), ["interpolate", ["linear"], ["zoom"], 5, "rgba(0, 0, 0, 1)", 10, "rgba(0, 0, 0, 1)"]);
+});
+
+test("over imagery each label's colours turn round in lightness, in an opaque, hard halo, and the standard map gets its own back", async () => {
   const { rgiMap, map } = await build("?base=imagery");
+  const { invertLightness } = await load("js/map.js");
   const paint = (id, key) => map.getLayer(id).paint[key];
   for (const id of ["glacier-labels", "complex-labels"]) {
-    assert.equal(paint(id, "text-color"), "#b9e1fb", `${id}: a light blue`);
-    assert.equal(paint(id, "text-halo-color"), paint("region-labels-1", "text-halo-color"), `${id}: the region names' halo`);
+    assert.equal(paint(id, "text-color"), invertLightness("#00668a", true), `${id}: the accent turned round, a light blue`);
+    /* Their white at 70 %, as Liberty's lake names, turns round to an opaque black. */
     assert.equal(paint(id, "text-halo-color"), "rgba(0, 0, 0, 1)", `${id}: opaque black`);
+    assert.equal(paint(id, "text-halo-color"), paint("region-labels-1", "text-halo-color"), `${id}: the region names' halo`);
     assert.equal(paint(id, "text-halo-blur"), 0, `${id}: hard, as the other labels`);
   }
   assert.equal(paint("selection-label", "text-color"), "#cc3311", "the selection's label keeps its red");
@@ -901,5 +912,5 @@ test("over imagery each label's colours turn round in lightness, the glacier nam
   assert.equal(paint("glacier-labels", "text-halo-color"), "rgba(255,255,255,0.7)", "white at 70 %, as Liberty's lake names");
   assert.equal(paint("complex-labels", "text-color"), "#00668a");
   rgiMap.setBase("imagery");
-  assert.equal(paint("glacier-labels", "text-color"), "#b9e1fb");
+  assert.equal(paint("glacier-labels", "text-halo-color"), "rgba(0, 0, 0, 1)");
 });
