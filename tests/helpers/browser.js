@@ -366,9 +366,47 @@ export class FakeMap {
     this.calls.push("zoomOut");
   }
 
+  /** MapLibre's controls, in the order added. The page adds only the geolocate control. */
+  addControl(control) {
+    (this.controls ??= []).push(control);
+    control.onAdd(this);
+    return this;
+  }
+
   /** Index of a layer in draw order; -1 when it does not exist. */
   indexOf(id) {
     return this.order.indexOf(id);
+  }
+}
+
+/**
+ * MapLibre's geolocate control. It records its options and each trigger;
+ * `fail(code)` answers a trigger as the Geolocation API does when it can't
+ * give a position. A position itself MapLibre handles, so the fake has none.
+ */
+export class FakeGeolocateControl {
+  constructor(options = {}) {
+    this.options = options;
+    this.triggers = 0;
+    this.handlers = {};
+  }
+
+  onAdd(map) {
+    this.map = map;
+  }
+
+  trigger() {
+    this.triggers += 1;
+    return true;
+  }
+
+  on(event, fn) {
+    (this.handlers[event] ??= []).push(fn);
+    return this;
+  }
+
+  fail(code) {
+    for (const fn of this.handlers.error ?? []) fn({ type: "error", code, message: "" });
   }
 }
 
@@ -425,6 +463,7 @@ export async function loadPage({ url = PAGE_URL, fetch, phone = false } = {}) {
     NavigationControl: class {},
     ScaleControl: class {},
     AttributionControl: class {},
+    GeolocateControl: FakeGeolocateControl,
     LngLat: class {
       constructor(lng, lat) {
         Object.assign(this, { lng, lat });

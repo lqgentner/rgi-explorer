@@ -9,8 +9,8 @@ import { loadCatalog } from "./catalog.js";
 import { mountCompass } from "./compass.js";
 import { mountComplexCard } from "./complexcard.js";
 import { resolveCatalogUrl, SAMPLE_GLACIER, TIMEOUT_MS } from "./config.js";
-import { mountLayers, mountTerrain, mountZoom } from "./layers.js";
-import { createMap, fetchLiberty } from "./map.js";
+import { mountLayers, mountLocate, mountTerrain, mountZoom } from "./layers.js";
+import { createMap, fetchLiberty, IMAGERY_BACKGROUND } from "./map.js";
 import { findRow, openParquet, readColumns, readRow, rowGroupOf, SEARCH_COLUMNS } from "./parquet.js";
 import { findPhotos } from "./photo.js";
 import { openPrivacy } from "./privacy.js";
@@ -269,14 +269,90 @@ function ringsOf(map, rgiId) {
   });
 }
 
-function wire(catalog, rgiMap, regions) {
+/*
+ * The map's controls draw with the page, before the catalog and the map load,
+ * so they show by the globe's first frame. Until wire() fills `late` with the
+ * map's handlers, the compass, the zoom and locate buttons and Help do
+ * nothing, and the layer and 3D buttons change only the state, which wire()
+ * applies to the map.
+ */
+const late = {};
+/* The layers and the base map chosen before the map existed. */
+const early = { base: false, layers: new Set() };
+
+function mountControls() {
+  const layers = mountLayers(el("layers"), {
+    base: state.base,
+    layers: state.layers,
+    /* The Standard background comes with the map's style. */
+    backgrounds: { imagery: IMAGERY_BACKGROUND },
+    onPane: (open) => late.onPane?.(open),
+    onBase(base) {
+      state.base = base;
+      save();
+      if (late.onBase) late.onBase(base);
+      else early.base = true;
+    },
+    onToggle(name, on) {
+      if (on) state.layers.add(name);
+      else state.layers.delete(name);
+      save();
+      if (late.onToggle) late.onToggle(name, on);
+      else early.layers.add(name);
+    },
+  });
+  /* First in #controls, so the desktop column and its Tab order start with it. */
+  const compass = mountCompass(el("controls"), {
+    onRotate: (degrees) => late.onRotate?.(degrees),
+    onReset: () => late.onReset?.(),
+  });
+  /* The phone shows the compass only while the map is turned or in 3D: the opening view faces north. */
+  compass.update({ bearing: 0, pitch: 0, terrain: state.terrain });
+  const terrain = mountTerrain(el("controls"), {
+    on: state.terrain,
+    onChange(on) {
+      if (late.onTerrain) {
+        late.onTerrain(on);
+        return;
+      }
+      state.terrain = on;
+      save();
+      compass.update({ bearing: 0, pitch: 0, terrain: on });
+    },
+  });
+  mountZoom(el("controls"), {
+    zoomIn: () => late.rgiMap?.zoomIn(),
+    zoomOut: () => late.rgiMap?.zoomOut(),
+  });
+  const locate = mountLocate(el("controls"), { onLocate: () => late.onLocate?.() });
+  const help = mountHelp({ desktop: el("controls"), phone: el("status") }, {
+    onHelp: () => late.onHelp?.(),
+  });
+  return { layers, compass, terrain, locate, help };
+}
+
+function wire(catalog, rgiMap, regionsRead, controls) {
   const { map } = rgiMap;
-  const regionNames = new Map(
-    regions.filter((region) => Number(region.level) === 1).map((region) => [region.o1region, region.full_name]),
+  /*
+   * The regions table and the first-order regions' names, filled in once read.
+   * The search, the cards and the search index look them up at each use, and
+   * do without until then; a shared link waits for them.
+   */
+  const regions = [];
+  const regionNames = new Map();
+  const regionsLoaded = regionsRead.then(
+    (rows) => {
+      regions.push(...rows);
+      for (const region of rows) if (Number(region.level) === 1) regionNames.set(region.o1region, region.full_name);
+    },
+    (error) => fail(CATALOG_ERROR, error),
   );
   const glaciers = glacierFile(catalog.collections.glaciers, regionNames);
   const complexes = complexFile(catalog.collections.complexes);
   if (state.terrain) rgiMap.setTerrain(true);
+  /* A base map or a layer chosen before the map existed, which the map's style may not show. */
+  if (early.base) rgiMap.setBase(state.base);
+  for (const name of early.layers) rgiMap.setToggle(name, state.layers.has(name));
 
   const notice = el("notice");
   let noticeTimer = null;
@@ -308,42 +384,14 @@ function wire(catalog, rgiMap, regions) {
   };
 
   let status = null;
-  mountLayers(el("layers"), {
-    base: state.base,
-    layers: state.layers,
+  const { compass, terrain, help } = controls;
+  controls.layers.attach({
     map,
-    onPane: (open) => tour.cover("layers", open),
     standardPicture: (px) => rgiMap.standardPicture(px),
     backgrounds: rgiMap.backgrounds,
-    onBase(base) {
-      state.base = base;
-      rgiMap.setBase(base);
-      save();
-      status?.refresh();
-      tour.layersChanged();
-    },
-    onToggle(name, on) {
-      if (on) state.layers.add(name);
-      else state.layers.delete(name);
-      rgiMap.setToggle(name, on);
-      save();
-      tour.layersChanged();
-    },
-  });
-  /* First in #controls, so the desktop column and its Tab order start with it. */
-  const compass = mountCompass(el("controls"), {
-    onRotate: (degrees) => rgiMap.rotateBy(degrees),
-    onReset() {
-      if (state.terrain) threeD(false, true);
-      else rgiMap.faceNorth();
-    },
   });
   const showCompass = () =>
     compass.update({ bearing: map.getBearing(), pitch: map.getPitch(), terrain: state.terrain });
-  const terrain = mountTerrain(el("controls"), {
-    on: state.terrain,
-    onChange: (on) => threeD(on, true),
-  });
   /*
    * The one way the page switches 3D: the 3D button, the compass and a tilt by
    * hand all come here, so the button, the address and the compass
@@ -359,6 +407,25 @@ function wire(catalog, rgiMap, regions) {
     status?.refresh();
     showCompass();
   }
+  Object.assign(late, {
+    rgiMap,
+    onPane: (open) => tour.cover("layers", open),
+    onBase(base) {
+      rgiMap.setBase(base);
+      status?.refresh();
+      tour.layersChanged();
+    },
+    onToggle(name, on) {
+      rgiMap.setToggle(name, on);
+      tour.layersChanged();
+    },
+    onRotate: (degrees) => rgiMap.rotateBy(degrees),
+    onReset() {
+      if (state.terrain) threeD(false, true);
+      else rgiMap.faceNorth();
+    },
+    onTerrain: (on) => threeD(on, true),
+  });
   rgiMap.onCamera(showCompass);
   showCompass();
   rgiMap.onTilt((pitch) => {
@@ -369,7 +436,6 @@ function wire(catalog, rgiMap, regions) {
     if (state.terrain) threeD(false, false);
     if (pitch > 0) rgiMap.level();
   });
-  mountZoom(el("controls"), rgiMap);
   status = mountStatus(el("status"), rgiMap, catalog, () => state, { onPrivacy: openPrivacy });
 
   /*
@@ -438,15 +504,13 @@ function wire(catalog, rgiMap, regions) {
     },
     onEnd: () => help.button.focus(),
   });
-  const help = mountHelp({ desktop: el("controls"), phone: el("status") }, {
-    onHelp() {
-      if (tour.running) tour.end();
-      if (shown) closeGlacier();
-      else if (shownComplex) closeComplex();
-      welcome.show();
-      help.button.focus();
-    },
-  });
+  late.onHelp = () => {
+    if (tour.running) tour.end();
+    if (shown) closeGlacier();
+    else if (shownComplex) closeComplex();
+    welcome.show();
+    help.button.focus();
+  };
   rgiMap.onMove((view) => {
     state.view = view;
     save();
@@ -471,6 +535,14 @@ function wire(catalog, rgiMap, regions) {
     return { top: GAP, right: GAP, bottom: GAP, left: (shown || shownComplex ? CARD_WIDTH + sidebarScrollbar() : 0) + GAP };
   };
   const fitTo = (bbox) => rgiMap.fitBbox(bbox, padding());
+  /* MapLibre draws the dot and moves the camera; the page says only why there is no position. */
+  const { locate } = controls;
+  late.onLocate = () => {
+    if (!rgiMap.locate(padding())) announce("Your browser can't share your location.", locate);
+  };
+  rgiMap.onLocateError((code) =>
+    announce(code === 1 ? "Location access is off for this site." : "Your location couldn't be found.", locate),
+  );
   /** Fit a glacier or a complex with room around it. */
   const fitAround = ({ xmin, ymin, xmax, ymax }) => {
     const [dx, dy] = [(xmax - xmin) * FIT_MARGIN, (ymax - ymin) * FIT_MARGIN];
@@ -778,8 +850,8 @@ function wire(catalog, rgiMap, regions) {
   /* A shared link's glacier opens once its row group places it; an ID the file lacks is dropped. */
   if (state.glacier) {
     const rgiId = state.glacier;
-    glaciers.find(rgiId).then(
-      (row) => {
+    Promise.all([glaciers.find(rgiId), regionsLoaded]).then(
+      ([row]) => {
         if (state.glacier !== rgiId || shown) return;
         if (row === null) {
           state.glacier = null;
@@ -796,8 +868,8 @@ function wire(catalog, rgiMap, regions) {
   /* A shared link's complex opens once its row is read; an ID the file lacks is dropped. */
   if (state.complex) {
     const complexId = state.complex;
-    complexes.read(complexId).then(
-      (props) => {
+    Promise.all([complexes.read(complexId), regionsLoaded]).then(
+      ([props]) => {
         if (state.complex !== complexId || shownComplex || shown) return;
         if (!props) {
           state.complex = null;
@@ -821,6 +893,7 @@ async function start() {
   /* The basemap style needs no catalog, so it loads while the catalog does. */
   const liberty = fetchLiberty();
   liberty.catch(() => {});
+  const controls = mountControls();
   const catalogUrl = resolveCatalogUrl(new URLSearchParams(location.search));
   let catalog;
   try {
@@ -829,20 +902,22 @@ async function start() {
     fail(CATALOG_ERROR, error);
     return;
   }
-  const [mapResult, regionsResult] = await Promise.allSettled([
-    createMap(el("map"), catalog, state, liberty),
-    loadRegions(catalog.collections.regions),
-  ]);
-  if (regionsResult.status === "rejected") {
-    fail(CATALOG_ERROR, regionsResult.reason);
-    return;
-  }
-  if (mapResult.status === "rejected") {
-    fail(MAP_ERROR, mapResult.reason);
+  /*
+   * The page wires itself once the map's style has loaded, before its first
+   * frame. The regions table takes several reads, a second or more on the
+   * data host, so it does not hold the page back: wire() reports a failure.
+   */
+  const regions = loadRegions(catalog.collections.regions);
+  regions.catch(() => {});
+  let rgiMap;
+  try {
+    rgiMap = await createMap(el("map"), catalog, state, liberty);
+  } catch (error) {
+    fail(MAP_ERROR, error);
     return;
   }
   try {
-    wire(catalog, mapResult.value, regionsResult.value);
+    wire(catalog, rgiMap, regions, controls);
   } catch (error) {
     fail(MAP_ERROR, error);
   }

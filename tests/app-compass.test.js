@@ -13,7 +13,8 @@ const { document, window } = page;
 globalThis.hyparquet = hyparquet;
 window.sessionStorage.clear();
 await load("js/app.js");
-await waitFor(() => document.querySelector("#controls .compass"));
+/* The compass draws with the page; the search shows that the map is wired. */
+await waitFor(() => document.querySelector("#search input"));
 const $ = (sel) => document.querySelector(sel);
 const click = (node) => node.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
 const params = () => new URL(window.location.href).searchParams;

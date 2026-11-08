@@ -306,6 +306,7 @@ button {
 .round-button,
 .zoom-btn,
 .terrain-btn,
+.locate-btn,
 .help-btn {
   display: inline-flex;
   align-items: center;
@@ -329,6 +330,7 @@ button {
   .icon-button:hover,
   .zoom-btn:hover,
   .terrain-btn:hover,
+  .locate-btn:hover,
   .help-btn:hover {
     background: var(--surface-2);
   }
@@ -679,16 +681,23 @@ button:focus-visible {
   font-weight: 600;
 }
 
-/* The help button ends the controls column, sized like 3D. */
+/* The locate button, and the help button that ends the controls column, are sized like 3D. */
+.locate-btn,
 .help-btn {
   width: 36px;
   height: 36px;
   border-radius: 11px;
 }
 
+.locate-btn .icon,
 .help-btn .icon {
   width: 20px;
   height: 20px;
+}
+
+/* MapLibre's geolocate control draws the dot; js/layers.js draws the button. */
+.maplibregl-ctrl-group:has(.maplibregl-ctrl-geolocate) {
+  display: none;
 }
 
 .zoom-control {
@@ -896,6 +905,14 @@ button:focus-visible {
   line-height: 16px;
 }
 
+/*
+ * One line's height, 16px and the padding, until status.js measures the line:
+ * the controls draw before it and stand where it will leave them.
+ */
+:root {
+  --status-h: 20px;
+}
+
 #status a {
   color: inherit;
 }
@@ -1016,7 +1033,9 @@ button:focus-visible {
     bottom: auto;
   }
 
-  .terrain-btn {
+  /* 3D and the locate button under it are round; the compass follows them. */
+  .terrain-btn,
+  .locate-btn {
     width: 44px;
     height: 44px;
     border-radius: 50%;

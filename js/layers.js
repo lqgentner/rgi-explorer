@@ -1,6 +1,6 @@
 /*
- * The map's controls: the base map and RGI layer switcher, the 3D button and
- * the zoom buttons. Each draws once for both layouts and
+ * The map's controls: the base map and RGI layer switcher, the 3D button,
+ * the zoom buttons and the locate button. Each draws once for both layouts and
  * follows PHONE as it changes; style.css shows the layout's own parts.
  */
 
@@ -136,9 +136,11 @@ const swatch = (color = "transparent") =>
  * PREVIEW_DELAY_MS: the imagery picture is one Esri export, and the standard
  * picture comes from `standardPicture(px)`, a promise of an image URL or null.
  * A picture that is hidden catches up when it shows. `onPane(open)` hears the
- * phone's pane open and close.
+ * phone's pane open and close. Without `map`, the control draws before the map
+ * exists, and `attach({ map, standardPicture, backgrounds })` hands it the map
+ * once it does.
  *
- * @returns {{setBase(base: string): void, setLayers(set: Iterable<string>): void}}
+ * @returns {{setBase(base: string): void, setLayers(set: Iterable<string>): void, attach(next: {map: any, standardPicture?: (px: number) => Promise<string | null>, backgrounds?: object}): void}}
  */
 export function mountLayers(root, { base, layers, onBase, onToggle, onPane, map = null, standardPicture = null, backgrounds = {} }) {
   const toggles = toggleButtons({ layers, onToggle });
@@ -223,14 +225,15 @@ export function mountLayers(root, { base, layers, onBase, onToggle, onPane, map 
     for (const key of Object.keys(BASES)) picturesBehind.add(key);
     catchUp();
   };
-  if (map) {
+  const listen = () => {
     let timer = null;
     map.on("movestart", () => clearTimeout(timer));
     map.on("idle", () => {
       clearTimeout(timer);
       timer = setTimeout(follow, PREVIEW_DELAY_MS);
     });
-  }
+  };
+  if (map) listen();
 
   const syncBase = () => {
     for (const { key, button } of tiles) button.setAttribute("aria-pressed", String(key === current));
@@ -327,6 +330,13 @@ export function mountLayers(root, { base, layers, onBase, onToggle, onPane, map 
     setOpen(false);
   });
 
+  /* Draw every picture afresh, from the latest that loaded or the map's background. */
+  const drawPictures = () => {
+    for (const tile of tiles) tile.img.src = pictureSrc(tile.key);
+    for (const key of Object.keys(BASES)) picturesBehind.add(key);
+    syncBase();
+  };
+
   /*
    * The toggles go where the layout shows them, the control left behind
    * closes, and the pictures that now show catch up with the latest.
@@ -339,9 +349,7 @@ export function mountLayers(root, { base, layers, onBase, onToggle, onPane, map 
       showPane(false);
       drawer.append(...toggles.buttons);
     }
-    for (const tile of tiles) tile.img.src = pictureSrc(tile.key);
-    for (const key of Object.keys(BASES)) picturesBehind.add(key);
-    syncBase();
+    drawPictures();
   };
   PHONE.addEventListener("change", place);
   setOpen(false);
@@ -360,6 +368,17 @@ export function mountLayers(root, { base, layers, onBase, onToggle, onPane, map 
     setBase(next) {
       current = next;
       syncBase();
+    },
+    /*
+     * The pictures take the map's backgrounds now, and follow its view from
+     * its first rest, as when the map comes with the mount.
+     */
+    attach(next) {
+      backgrounds = next.backgrounds ?? {};
+      drawPictures();
+      map = next.map;
+      standardPicture = next.standardPicture ?? null;
+      listen();
     },
   };
 }
@@ -406,4 +425,17 @@ export function mountZoom(root, rgiMap) {
       zoomButton("minus", "Zoom out", () => rgiMap.zoomOut()),
     ),
   );
+}
+
+/**
+ * Draw the button that shows the reader's location, in both layouts; `onLocate` hears its presses.
+ *
+ * @returns {HTMLElement}
+ */
+export function mountLocate(root, { onLocate }) {
+  const label = "Show my location";
+  const button = h("button", { type: "button", class: "locate-btn", "aria-label": label, title: label }, icon("locate-fixed"));
+  button.addEventListener("click", onLocate);
+  root.append(button);
+  return button;
 }

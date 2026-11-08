@@ -51,6 +51,7 @@ test("the dialog shows the operator, the storage, each service and the rights, a
   assert.match(text, new RegExp(OPERATOR.name));
   assert.match(text, /no cookies/);
   assert.match(text, /Stored in your browser/);
+  assert.match(text, /When you press the location button/);
   assert.match(text, /legitimate interest/);
   for (const service of services) assert.match(text, new RegExp(service.name), service.name);
   const mails = [...dialog.querySelectorAll('a[href^="mailto:"]')].map((a) => a.getAttribute("href"));
