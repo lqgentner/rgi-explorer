@@ -65,10 +65,13 @@ test("the live catalog serves the data the page reads", { skip: process.env.SMOK
     assert.ok(glaciers.namesUrl, "the glaciers collection has no names asset");
     const names = await openParquet(glaciers.namesUrl);
     const data = await openParquet(glaciers.dataUrl);
-    assert.equal(names.groups.reduce((sum, group) => sum + group.count, 0), GLACIER_COUNT);
-    const { rgi_id: first } = await readColumns(data, ["rgi_id"], 0);
-    const { rgi_id: named } = await readColumns(names, SEARCH_COLUMNS, 0);
-    assert.deepEqual(named.slice(0, first.length), first);
+    const [{ rgi_id: named }, { rgi_id: ids }] = await Promise.all([
+      readColumns(names, ["rgi_id"]),
+      readColumns(data, ["rgi_id"]),
+    ]);
+    assert.equal(named.length, GLACIER_COUNT);
+    const at = named.findIndex((id, row) => id !== ids[row]);
+    assert.equal(at, -1, `row ${at}: ${named[at]} in the names table, ${ids[at]} in the GeoParquet`);
   });
 
   await t.test("gives each data file's own size, which the page reads without a HEAD request", async () => {
