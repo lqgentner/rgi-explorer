@@ -45,3 +45,18 @@ test("the layer tiles' hover ring shows only on a real hover, so a tapped tile d
   assert.match(css.slice(0, at), /@media \(hover: hover\) \{\s*$/, "inside (hover: hover)");
   assert.doesNotMatch(css, /(^|\n)\.(layer-toggle|base-tile):hover/, "no hover outside it");
 });
+
+test("no hover anywhere outlives a tap: every :hover rule sits inside (hover: hover)", () => {
+  const open = [];
+  const outside = [];
+  for (const [index, line] of css.split("\n").entries()) {
+    if (/:hover/.test(line) && !/^(\/\*|\*)/.test(line.trim()) && !open.some((head) => head.includes("@media (hover: hover)"))) {
+      outside.push(`${index + 1}: ${line.trim()}`);
+    }
+    for (const char of line) {
+      if (char === "{") open.push(line);
+      else if (char === "}") open.pop();
+    }
+  }
+  assert.deepEqual(outside, []);
+});

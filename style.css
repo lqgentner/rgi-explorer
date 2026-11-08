@@ -290,9 +290,15 @@ kbd {
   color: var(--muted);
 }
 
-#search li[aria-selected="true"],
-#search li:hover {
+#search li[aria-selected="true"] {
   background: var(--accent-tint);
+}
+
+/* Only a real hover: a tap leaves a sticky :hover behind on touch screens. */
+@media (hover: hover) {
+  #search li:hover {
+    background: var(--accent-tint);
+  }
 }
 
 /* Shared control parts */
@@ -1465,17 +1471,14 @@ body:has(#search.fullscreen) .welcome {
   font-size: 12px;
 }
 
+/*
+ * On the frosted card the X has no disc of its own, and an outlined button
+ * no fill: a grey wash marks a real hover on either.
+ */
 .tour-close {
   position: absolute;
   top: 12px;
   right: 12px;
-}
-
-/*
- * On the frosted card the X has no disc of its own until hovered, and an
- * outlined button no fill: a grey wash marks a hover on either.
- */
-.tour-close:not(:hover) {
   background: none;
 }
 
@@ -1485,9 +1488,11 @@ body:has(#search.fullscreen) .welcome {
   color: var(--quiet-accent);
 }
 
-.tour .btn:not(.primary):hover,
-.tour-close:hover {
-  background: rgb(20 35 43 / 8%);
+@media (hover: hover) {
+  .tour .btn:not(.primary):hover,
+  .tour-close:hover {
+    background: rgb(20 35 43 / 8%);
+  }
 }
 
 .tour-target {
@@ -1700,9 +1705,11 @@ body:has(#search.fullscreen) .welcome {
   background: var(--surface-2);
 }
 
-.card-close:hover,
-.pane-close:hover {
-  background: var(--surface-3);
+@media (hover: hover) {
+  .card-close:hover,
+  .pane-close:hover {
+    background: var(--surface-3);
+  }
 }
 
 .search-close,
@@ -1774,8 +1781,10 @@ body:has(#search.fullscreen) .welcome {
   flex: none;
 }
 
-.btn:hover {
-  background: var(--surface-2);
+@media (hover: hover) {
+  .btn:hover {
+    background: var(--surface-2);
+  }
 }
 
 .btn.primary {
@@ -1784,8 +1793,10 @@ body:has(#search.fullscreen) .welcome {
   color: #fff;
 }
 
-.btn.primary:hover {
-  background: var(--accent-strong);
+@media (hover: hover) {
+  .btn.primary:hover {
+    background: var(--accent-strong);
+  }
 }
 
 .tabs {
@@ -2205,9 +2216,11 @@ a.external .icon {
   right: 8px;
 }
 
-.photo-prev:hover,
-.photo-next:hover {
-  background: var(--photo-glass-strong);
+@media (hover: hover) {
+  .photo-prev:hover,
+  .photo-next:hover {
+    background: var(--photo-glass-strong);
+  }
 }
 
 /*
