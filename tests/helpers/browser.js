@@ -73,13 +73,19 @@ export class FakeMap {
     }
   }
 
-  /** GeoJSON sources take new data; the fake keeps the latest as `data`. */
+  /** GeoJSON sources take new data; the fake keeps the latest as `data`. A vector source takes a new URL. */
   #source(spec) {
     const source = { ...spec };
     if (spec.type === "geojson") {
       source.setData = (data) => {
         source.data = data;
         this.calls.push("setData");
+      };
+    }
+    if (spec.type === "vector") {
+      source.setUrl = (url) => {
+        source.url = url;
+        this.calls.push(`setUrl ${url}`);
       };
     }
     return source;
@@ -98,6 +104,12 @@ export class FakeMap {
 
   getSource(id) {
     return this.sources.get(id);
+  }
+
+  /** Reload a source's tiles in view, as MapLibre's refreshTiles does; the fake records the tile IDs. */
+  refreshTiles(id, tileIds) {
+    if (!this.sources.has(id)) throw new Error(`refresh of missing source '${id}'`);
+    this.calls.push(`refreshTiles ${id} ${JSON.stringify(tileIds)}`);
   }
 
   addLayer(layer, before) {
@@ -490,9 +502,13 @@ export async function loadPage({ url = PAGE_URL, fetch, phone = false } = {}) {
         return this.url;
       }
     },
+    SharedPromiseCache: class {
+      cache = new Map();
+    },
     PMTiles: class {
-      constructor(source) {
+      constructor(source, cache) {
         this.source = source;
+        this.cache = cache;
       }
     },
   };

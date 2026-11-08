@@ -1,5 +1,6 @@
 /* The map: base maps, the RGI layers, the selection and the terminus pin. */
 
+import { forgetfulCache } from "./archive.js";
 import { fetchJson } from "./catalog.js";
 import {
   clampLat,
@@ -235,7 +236,7 @@ function uncachedArchive(url) {
   const source = new FetchSource(url);
   if (!("chromeWindowsNoCache" in source)) console.warn("pmtiles: FetchSource has no chromeWindowsNoCache flag");
   source.chromeWindowsNoCache = true;
-  return new PMTiles(source);
+  return new PMTiles(source, forgetfulCache());
 }
 
 /** Serves pmtiles:// URLs, the archive at `url` past the HTTP cache. */
@@ -245,6 +246,78 @@ function registerProtocol(url) {
     globalThis.maplibregl.addProtocol("pmtiles", protocol.tile);
   }
   if (!protocol.get(url)) protocol.add(uncachedArchive(url));
+}
+
+/* A failed read of the RGI source is tried again after 2 s, then after twice as long each time, up to a minute. */
+const RETRY_FIRST = 2000;
+const RETRY_LONGEST = 60_000;
+
+/**
+ * MapLibre adds the source's ID to its errors and data events, and the tile
+ * to a tile's.
+ *
+ * @typedef {{ sourceId?: string, sourceDataType?: string, error?: Error, tile?: { tileID?: { canonical: { x: number, y: number, z: number } } } }} SourceEvent
+ */
+
+/**
+ * Reads the RGI source at `url` again after a failed read. The archive's
+ * reader forgets a failed read, but MapLibre asks for neither the source's
+ * TileJSON nor a failed tile again by itself, so the outlines would stay
+ * blank. A failed TileJSON reloads the source; failed tiles reload alone,
+ * those in view. The wait doubles while retries fail, and starts again at
+ * 2 s once the TileJSON or a retried tile loads. Coming back online retries
+ * at once.
+ *
+ * @param {import("maplibre-gl").Map} map
+ * @param {string} url
+ */
+function retrySource(map, url) {
+  let failures = 0;
+  /** @type {ReturnType<typeof setTimeout> | null} */
+  let timer = null;
+  let sourceFailed = false;
+  /* The tiles that failed since the last retry, and those it reloaded, by "z/x/y". */
+  /** @type {Map<string, {x: number, y: number, z: number}>} */
+  const failed = new Map();
+  let retried = new Set();
+  const tileKey = (/** @type {SourceEvent} */ event) => {
+    const canonical = event.tile?.tileID?.canonical;
+    return canonical ? `${canonical.z}/${canonical.x}/${canonical.y}` : null;
+  };
+  const retry = () => {
+    if (timer !== null) clearTimeout(timer);
+    timer = null;
+    if (sourceFailed) {
+      /** @type {import("maplibre-gl").VectorTileSource} */ (map.getSource("data")).setUrl(`pmtiles://${url}`);
+    } else if (failed.size) {
+      map.refreshTiles("data", [...failed.values()]);
+    }
+    retried = new Set(failed.keys());
+    sourceFailed = false;
+    failed.clear();
+  };
+  map.on("error", (error) => {
+    const event = /** @type {SourceEvent} */ (/** @type {unknown} */ (error));
+    if (event.sourceId !== "data" || event.error?.name === "AbortError") return;
+    const key = tileKey(event);
+    if (key) {
+      const { x, y, z } = event.tile.tileID.canonical;
+      failed.set(key, { x, y, z });
+    } else {
+      sourceFailed = true;
+    }
+    if (timer !== null) return;
+    timer = setTimeout(retry, Math.min(RETRY_FIRST * 2 ** failures, RETRY_LONGEST));
+    failures += 1;
+  });
+  map.on("sourcedata", (data) => {
+    const event = /** @type {SourceEvent} */ (/** @type {unknown} */ (data));
+    if (event.sourceId !== "data") return;
+    if (event.sourceDataType === "metadata" || retried.has(tileKey(event))) failures = 0;
+  });
+  window.addEventListener("online", () => {
+    if (sourceFailed || failed.size) retry();
+  });
 }
 
 /** Liberty's style, which needs no catalog: start it early and pass the promise to createMap. */
@@ -646,6 +719,7 @@ export async function createMap(container, catalog, state, liberty = fetchLibert
     transformCameraUpdate: ({ center }) =>
       Math.abs(center.lat) > MAX_LAT ? { center: new maplibregl.LngLat(center.lng, clampLat(center.lat)) } : {},
   });
+  retrySource(map, catalog.collections.glaciers.pmtilesUrl);
   /** @type {Promise<void>} */
   const loaded = new Promise((resolve, reject) => {
     const fail = (event) => {

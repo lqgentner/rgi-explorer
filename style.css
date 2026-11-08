@@ -19,7 +19,7 @@
   --line: #d3dee4;
   /* A hover, and a box of code, on white. */
   --surface-2: #edf3f6;
-  /* The close disc's hover, a step darker than --surface-2. */
+  /* A step darker than --surface-2: the close disc's hover, and a map control's press. */
   --surface-3: #e1eaef;
   /* What an image shows until it loads, or when there is none. */
   --image-placeholder: #93a5ae;
@@ -55,14 +55,14 @@
   --space: #10141c;
   --card-w: 408px;
   /*
-   * The Layers control's size: 2 * 8 px padding + 56 px tile + 4 px + 14 px
+   * The Layers control's size: 2 * 8 px padding + 56 px tile + 8 px + 14 px
    * label, and the width of the map's controls, the compass's. The tour's
    * desktop steps dock clear of both.
    */
   --tile: 56px;
   --pad: 8px;
   --label: 14px;
-  --layers-h: calc(2 * var(--pad) + var(--tile) + 4px + var(--label));
+  --layers-h: calc(2 * var(--pad) + var(--tile) + 8px + var(--label));
   --controls-w: 54px;
   /* The desktop sidebar's scrollbar, which js/app.js measures; 0 where scrollbars overlay. */
   --scrollbar: 0px;
@@ -290,9 +290,15 @@ kbd {
   color: var(--muted);
 }
 
-#search li[aria-selected="true"],
-#search li:hover {
+#search li[aria-selected="true"] {
   background: var(--accent-tint);
+}
+
+/* Only a real hover: a tap leaves a sticky :hover behind on touch screens. */
+@media (hover: hover) {
+  #search li:hover {
+    background: var(--accent-tint);
+  }
 }
 
 /* Shared control parts */
@@ -327,13 +333,48 @@ button {
 
 /* Only a real hover: a tap leaves a sticky :hover behind on touch screens. */
 @media (hover: hover) {
-  .icon-button:hover,
+  .icon-button:hover {
+    background: var(--surface-2);
+  }
+}
+
+/*
+ * The map's controls answer alike on both layouts: a hover a step darker
+ * than the surface, where there is a real hover, and a press a step darker
+ * still. The tap highlight is off so a touch shows the same press; js/app.js
+ * lets iOS Safari show :active. The phone's frosted help button takes its
+ * states in its tint.
+ */
+.zoom-btn,
+.terrain-btn,
+.locate-btn,
+.help-btn,
+.round-button,
+.credits-button,
+.compass button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (hover: hover) {
   .zoom-btn:hover,
   .terrain-btn:hover,
   .locate-btn:hover,
-  .help-btn:hover {
+  .help-btn:hover,
+  .round-button:hover,
+  .credits-button:hover,
+  .compass button:hover {
     background: var(--surface-2);
   }
+}
+
+.zoom-btn:active,
+.terrain-btn:active,
+.locate-btn:active,
+.help-btn:active,
+.round-button:active,
+.credits-button:active,
+.compass button:active {
+  background: var(--surface-3);
 }
 
 .round-button {
@@ -600,9 +641,11 @@ button:focus-visible {
 }
 
 /*
- * A tile: a square picture with its name below. Hover and selection outline
- * the square. The picture sits at the top, so a name that wraps to two lines
- * hangs below it and the row's pictures stay level.
+ * A tile: a square picture with its name below. Hover and selection ring the
+ * square outside a 2 px gap, so the ring stays clear of a dark picture such
+ * as the imagery's; keyboard focus rings it further out. The name keeps 8 px
+ * below, clear of the rings. The picture sits at the top, so a name that
+ * wraps to two lines hangs below it and the row's pictures stay level.
  */
 .layer-toggle,
 .base-tile {
@@ -610,7 +653,7 @@ button:focus-visible {
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  gap: 4px;
+  gap: 8px;
   width: 76px;
   padding: 0;
   border: 0;
@@ -629,16 +672,19 @@ button:focus-visible {
   object-fit: cover;
 }
 
-.layer-toggle:hover .layer-preview,
-.base-tile:hover img {
-  outline: 2px solid var(--image-placeholder);
-  outline-offset: -2px;
+/* Only a real hover: a tap leaves a sticky :hover behind on touch screens. */
+@media (hover: hover) {
+  .layer-toggle:hover .layer-preview,
+  .base-tile:hover img {
+    outline: 2px solid var(--image-placeholder);
+    outline-offset: 2px;
+  }
 }
 
 .layer-toggle[aria-pressed="true"] .layer-preview,
 .base-tile[aria-pressed="true"] img {
   outline: 2px solid var(--accent);
-  outline-offset: -2px;
+  outline-offset: 2px;
 }
 
 .layer-toggle:focus-visible,
@@ -648,7 +694,7 @@ button:focus-visible {
 
 .layer-toggle:focus-visible .layer-preview,
 .base-tile:focus-visible img {
-  box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent);
+  box-shadow: 0 0 0 5px var(--surface), 0 0 0 7px var(--accent);
 }
 
 .layer-toggle[aria-pressed="true"] .layer-name,
@@ -761,12 +807,6 @@ button:focus-visible {
   background: var(--surface);
 }
 
-@media (hover: hover) {
-  .compass button:hover {
-    background: var(--surface-2);
-  }
-}
-
 /* Inside the capsule, which would clip an outline outside the button. */
 .compass button:focus-visible {
   outline-offset: -2px;
@@ -876,7 +916,6 @@ button:focus-visible {
 .layers-pane .base-tile {
   flex: 0 1 96px;
   min-width: 0;
-  gap: 6px;
   font-size: 14px;
 }
 
@@ -1189,10 +1228,17 @@ button:focus-visible {
     height: 20px;
   }
 
+  /* Its glass, not its background, which the glass would blur, takes the shared states. */
   @media (hover: hover) {
     .help-btn:hover {
+      background: none;
       --frost-tint: var(--surface-2);
     }
+  }
+
+  .help-btn:active {
+    background: none;
+    --frost-tint: var(--surface-3);
   }
 
   /* Both buttons show at 36 px and take a tap across 44 px. */
@@ -1428,17 +1474,14 @@ body:has(#search.fullscreen) .welcome {
   font-size: 12px;
 }
 
+/*
+ * On the frosted card the X has no disc of its own, and an outlined button
+ * no fill: a grey wash marks a real hover on either.
+ */
 .tour-close {
   position: absolute;
   top: 12px;
   right: 12px;
-}
-
-/*
- * On the frosted card the X has no disc of its own until hovered, and an
- * outlined button no fill: a grey wash marks a hover on either.
- */
-.tour-close:not(:hover) {
   background: none;
 }
 
@@ -1448,9 +1491,11 @@ body:has(#search.fullscreen) .welcome {
   color: var(--quiet-accent);
 }
 
-.tour .btn:not(.primary):hover,
-.tour-close:hover {
-  background: rgb(20 35 43 / 8%);
+@media (hover: hover) {
+  .tour .btn:not(.primary):hover,
+  .tour-close:hover {
+    background: rgb(20 35 43 / 8%);
+  }
 }
 
 .tour-target {
@@ -1663,9 +1708,11 @@ body:has(#search.fullscreen) .welcome {
   background: var(--surface-2);
 }
 
-.card-close:hover,
-.pane-close:hover {
-  background: var(--surface-3);
+@media (hover: hover) {
+  .card-close:hover,
+  .pane-close:hover {
+    background: var(--surface-3);
+  }
 }
 
 .search-close,
@@ -1737,8 +1784,10 @@ body:has(#search.fullscreen) .welcome {
   flex: none;
 }
 
-.btn:hover {
-  background: var(--surface-2);
+@media (hover: hover) {
+  .btn:hover {
+    background: var(--surface-2);
+  }
 }
 
 .btn.primary {
@@ -1747,8 +1796,10 @@ body:has(#search.fullscreen) .welcome {
   color: #fff;
 }
 
-.btn.primary:hover {
-  background: var(--accent-strong);
+@media (hover: hover) {
+  .btn.primary:hover {
+    background: var(--accent-strong);
+  }
 }
 
 .tabs {
@@ -2168,9 +2219,11 @@ a.external .icon {
   right: 8px;
 }
 
-.photo-prev:hover,
-.photo-next:hover {
-  background: var(--photo-glass-strong);
+@media (hover: hover) {
+  .photo-prev:hover,
+  .photo-next:hover {
+    background: var(--photo-glass-strong);
+  }
 }
 
 /*
