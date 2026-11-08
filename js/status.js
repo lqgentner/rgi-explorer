@@ -3,6 +3,7 @@
  * credits into an info button and draws no scale bar.
  */
 
+import { forgetfulCache } from "./archive.js";
 import { clampLat, EARTH_RADIUS, ESRI_ATTRIBUTION, TERRAIN_COVERAGE, TILE_SIZE } from "./config.js";
 import { PHONE, h, icon } from "./ui.js";
 
@@ -125,7 +126,7 @@ function coverageEntries({ z, x, y }) {
 async function lookUpProducers(bounds, zoom) {
   const tiles = coverageTiles(bounds, zoom);
   if (!tiles.length) return null;
-  coverage ??= new globalThis.pmtiles.PMTiles(TERRAIN_COVERAGE);
+  coverage ??= new globalThis.pmtiles.PMTiles(TERRAIN_COVERAGE, forgetfulCache());
   const found = await Promise.all(tiles.map(coverageEntries));
   return terrainProducers(Object.assign({}, ...found));
 }

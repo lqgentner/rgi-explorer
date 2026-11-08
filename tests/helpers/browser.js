@@ -502,9 +502,13 @@ export async function loadPage({ url = PAGE_URL, fetch, phone = false } = {}) {
         return this.url;
       }
     },
+    SharedPromiseCache: class {
+      cache = new Map();
+    },
     PMTiles: class {
-      constructor(source) {
+      constructor(source, cache) {
         this.source = source;
+        this.cache = cache;
       }
     },
   };

@@ -1,13 +1,11 @@
 /*
- * A failed read of the RGI archive is retried with a fresh pmtiles reader:
- * pmtiles keeps a failed header read for the life of its reader. The tests run
- * in order on one map and one clock.
+ * A failed read of the RGI source is tried again: MapLibre asks for neither
+ * the source's TileJSON nor a failed tile again by itself. The tests run in
+ * order on one map and one clock.
  */
 
 import assert from "node:assert/strict";
 import { mock, test } from "node:test";
-
-import * as pmtiles from "pmtiles";
 
 import { loadCatalog } from "../js/catalog.js";
 import { parseState } from "../js/state.js";
@@ -15,27 +13,33 @@ import { load, loadPage } from "./helpers/browser.js";
 import { servedFetch } from "./helpers/served.js";
 
 const ARCHIVE = "https://data.source.coop/lqgentner/rgi/v7.0/rgi7.0.pmtiles";
-const TILEJSON = { url: `pmtiles://${ARCHIVE}`, type: "json" };
+const SET_URL = `setUrl pmtiles://${ARCHIVE}`;
 
-const log = [];
 let page;
-let handler = null;
-const reads = () => log.filter((r) => r.url === ARCHIVE).length;
+const protocols = [];
 const since = (mark) => page.map.calls.slice(mark);
-/* Ask the protocol for the archive's TileJSON, as the source does, and wait for the read to fail. */
-const askHeader = () => handler(TILEJSON, new AbortController()).catch(() => {});
-/* The read of a missing archive fails, and MapLibre names the source on its error. */
-const sourceError = () => page.map.fire("error", { error: new Error("404"), sourceId: "data" });
-const tileError = (z, x, y) =>
-  page.map.fire("error", { error: new Error("404"), sourceId: "data", tile: { tileID: { canonical: { z, x, y } } } });
+const tile = (z, x, y) => ({ tileID: { canonical: { z, x, y } } });
+const sourceError = () => page.map.fire("error", { error: new Error("503"), sourceId: "data" });
+const tileError = (z, x, y) => page.map.fire("error", { error: new Error("503"), sourceId: "data", tile: tile(z, x, y) });
+const tileLoaded = (z, x, y) => page.map.fire("sourcedata", { sourceId: "data", tile: tile(z, x, y) });
+const metadataLoaded = () => page.map.fire("sourcedata", { sourceId: "data", sourceDataType: "metadata" });
+/* The calls the clock makes over `ms`. */
+const after = (ms) => {
+  const mark = page.map.calls.length;
+  mock.timers.tick(ms);
+  return since(mark);
+};
 
 test.before(async () => {
   mock.timers.enable({ apis: ["setTimeout", "Date"] });
   const url = "https://lqgentner.github.io/rgi-explorer/";
-  page = await loadPage({ url, fetch: servedFetch({}, log) });
-  globalThis.pmtiles = pmtiles;
-  globalThis.maplibregl.addProtocol = (name, fn) => {
-    if (name === "pmtiles") handler = fn;
+  page = await loadPage({ url, fetch: servedFetch({}, []) });
+  const { Protocol } = globalThis.pmtiles;
+  globalThis.pmtiles.Protocol = class extends Protocol {
+    constructor() {
+      super();
+      protocols.push(this);
+    }
   };
   const { createMap } = await load("js/map.js");
   const catalog = await loadCatalog("https://data.source.coop/lqgentner/rgi/catalog.json");
@@ -46,80 +50,78 @@ test.before(async () => {
 
 test.after(() => mock.timers.reset());
 
-test("a failed header read stays failed in its pmtiles reader", async () => {
-  await askHeader();
-  const first = reads();
-  assert.ok(first > 0, "the archive was not read");
-  await askHeader();
-  assert.equal(reads(), first, "the reader asked the archive again on its own");
+test("the archive's reader forgets a failed read, so a retry needs no new reader", () => {
+  const archive = protocols[0].get(ARCHIVE);
+  assert.ok(archive.cache instanceof globalThis.pmtiles.SharedPromiseCache);
+  assert.equal(typeof archive.cache.forget, "function", "js/archive.js's cache");
 });
 
-test("a failed source is read again 2 s later, by a fresh reader", async () => {
-  const mark = page.map.calls.length;
+test("a failed TileJSON is read again 2 s later, once for both errors", () => {
   sourceError();
   sourceError();
-  mock.timers.tick(1999);
-  assert.deepEqual(since(mark), []);
-  mock.timers.tick(1);
-  assert.deepEqual(since(mark), [`setUrl pmtiles://${ARCHIVE}`], "one retry for both errors");
-  const before = reads();
-  await askHeader();
-  assert.ok(reads() > before, "the retry kept the failed reader");
+  assert.deepEqual(after(1999), []);
+  assert.deepEqual(after(1), [SET_URL]);
 });
 
-test("the next failure waits twice as long", () => {
-  const mark = page.map.calls.length;
+test("while retries fail, each waits twice as long", () => {
   sourceError();
-  mock.timers.tick(3999);
-  assert.deepEqual(since(mark), []);
-  mock.timers.tick(1);
-  assert.deepEqual(since(mark), [`setUrl pmtiles://${ARCHIVE}`]);
+  assert.deepEqual(after(3999), []);
+  assert.deepEqual(after(1), [SET_URL]);
+  sourceError();
+  assert.deepEqual(after(8000), [SET_URL]);
+});
+
+test("once the TileJSON loads, the next failure waits 2 s again", () => {
+  metadataLoaded();
+  sourceError();
+  assert.deepEqual(after(2000), [SET_URL]);
+  metadataLoaded();
 });
 
 test("failed tiles reload alone, each once", () => {
-  const mark = page.map.calls.length;
   tileError(3, 4, 2);
   tileError(3, 4, 2);
   tileError(3, 5, 2);
-  mock.timers.tick(8000);
-  assert.deepEqual(since(mark), [
-    `refreshTiles data ${JSON.stringify([{ x: 4, y: 2, z: 3 }, { x: 5, y: 2, z: 3 }])}`,
-  ]);
+  assert.deepEqual(after(2000), [`refreshTiles data ${JSON.stringify([{ x: 4, y: 2, z: 3 }, { x: 5, y: 2, z: 3 }])}`]);
+});
+
+test("a retried tile that loads starts the wait again at 2 s; another tile does not", () => {
+  tileError(3, 4, 2);
+  after(4000);
+  tileLoaded(9, 9, 9);
+  tileError(3, 4, 2);
+  assert.deepEqual(after(7999), [], "an unrelated tile keeps the wait growing");
+  assert.deepEqual(after(1), [`refreshTiles data ${JSON.stringify([{ x: 4, y: 2, z: 3 }])}`]);
+  tileLoaded(3, 4, 2);
+  tileError(3, 6, 2);
+  assert.deepEqual(after(2000), [`refreshTiles data ${JSON.stringify([{ x: 6, y: 2, z: 3 }])}`]);
+  tileLoaded(3, 6, 2);
+});
+
+test("a source that keeps failing is retried every minute at most, without end", () => {
+  const waits = [2000, 4000, 8000, 16_000, 32_000, 60_000, 60_000, 60_000];
+  for (const wait of waits) {
+    sourceError();
+    assert.deepEqual(after(wait - 1), [], `before ${wait} ms`);
+    assert.deepEqual(after(1), [SET_URL], `at ${wait} ms`);
+  }
+});
+
+test("coming back online retries at once, and only with something to retry", () => {
+  sourceError();
+  const mark = page.map.calls.length;
+  page.window.dispatchEvent(new page.window.Event("online"));
+  assert.deepEqual(since(mark), [SET_URL]);
+  assert.deepEqual(after(120_000), [], "the pending retry went with it");
+  page.window.dispatchEvent(new page.window.Event("online"));
+  assert.deepEqual(since(mark), [SET_URL]);
+  metadataLoaded();
 });
 
 test("aborted reads and other sources' errors are not retried", () => {
-  const mark = page.map.calls.length;
   const abort = new Error("aborted");
   abort.name = "AbortError";
   page.map.fire("error", { error: abort, sourceId: "data" });
-  page.map.fire("error", { error: new Error("404"), sourceId: "openmaptiles" });
-  mock.timers.tick(120_000);
-  assert.deepEqual(since(mark), []);
-});
-
-test("after six retries in a row the page waits, until the browser is online again", () => {
-  /* Three retries so far; the fourth to sixth wait 16, 32 and 60 s. */
-  for (const wait of [16_000, 32_000, 60_000]) {
-    sourceError();
-    mock.timers.tick(wait);
-  }
-  const mark = page.map.calls.length;
-  sourceError();
-  mock.timers.tick(10 * 60_000);
-  assert.deepEqual(since(mark), [], "a seventh retry");
-  page.window.dispatchEvent(new page.window.Event("online"));
-  assert.deepEqual(since(mark), [`setUrl pmtiles://${ARCHIVE}`]);
-});
-
-test("a failure five minutes after the last one starts again at 2 s", () => {
-  sourceError();
-  mock.timers.tick(2000);
-  sourceError();
-  mock.timers.tick(4000);
-  /* Without the pause the next retry would wait 8 s. */
-  mock.timers.tick(5 * 60_000 + 1);
-  const mark = page.map.calls.length;
-  sourceError();
-  mock.timers.tick(2000);
-  assert.deepEqual(since(mark), [`setUrl pmtiles://${ARCHIVE}`]);
+  page.map.fire("error", { error: new Error("503"), sourceId: "openmaptiles" });
+  assert.deepEqual(after(120_000), []);
 });
