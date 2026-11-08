@@ -36,6 +36,13 @@ export const HYPSO_BAND_M = 50;
  * complex's members and a few glaciers visited before.
  */
 export const ROW_GROUP_CACHE = 6;
+/*
+ * The first read of a Parquet file's end, for its footer. hyparquet reads
+ * 512 KB, more than the names and regions files hold. The mirror's footers fit
+ * in 64 KB, except the glaciers' (400 KB) and centerlines' (100 KB), which
+ * take a second read of the rest.
+ */
+export const FOOTER_FETCH = 1 << 16;
 /** How long a third-party request may take before the page falls back. */
 export const TIMEOUT_MS = 4000;
 export const DEFAULT_VIEW = { zoom: 2, lat: 30, lon: 10 };

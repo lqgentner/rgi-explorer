@@ -2,7 +2,7 @@
 
 import { decompress } from "fzstd";
 
-import { ROW_GROUP_CACHE } from "./config.js";
+import { FOOTER_FETCH, ROW_GROUP_CACHE } from "./config.js";
 
 /*
  * The search index's columns, which the names table and the glaciers file both
@@ -50,13 +50,14 @@ const fromUrl = (url, byteLength) =>
 export async function openParquet(source, { byteLength } = {}) {
   const { parquetMetadataAsync } = globalThis.hyparquet;
   let file = typeof source === "string" ? await fromUrl(source, byteLength) : source;
+  const options = { initialFetchSize: FOOTER_FETCH };
   let metadata;
   try {
-    metadata = await parquetMetadataAsync(file);
+    metadata = await parquetMetadataAsync(file, options);
   } catch (error) {
     if (typeof source !== "string" || !byteLength) throw error;
     file = await fromUrl(source);
-    metadata = await parquetMetadataAsync(file);
+    metadata = await parquetMetadataAsync(file, options);
   }
   const groups = [];
   let start = 0;
