@@ -22,6 +22,7 @@ const MAP_OPTIONS = new Set([
   "center",
   "zoom",
   "attributionControl",
+  "dragRotate",
   "transformCameraUpdate",
   "zoomLevelsToOverscale",
   "interactive",
