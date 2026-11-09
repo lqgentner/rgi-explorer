@@ -6,6 +6,9 @@ the contracts to keep when you change the page.
 ## Commands
 
 Work from the repository root with Node 24 (`.node-version`), after `npm ci`.
+Its `prepare` script points git at `.githooks/`, which reruns `npm ci` after a
+pull, checkout or rebase that changes `package-lock.json`, so a merged
+Dependabot PR reaches `node_modules` too.
 
 ```sh
 npm run serve   # http://localhost:8000/
