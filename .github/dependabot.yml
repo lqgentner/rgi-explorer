@@ -12,6 +12,10 @@ updates:
       day: monday
     cooldown:
       default-days: 3
+    # @types/node follows the major in .node-version: bump both together by hand.
+    ignore:
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
     groups:
       # The test tools never reach the page: their minor and patch bumps share one PR.
       test-tools:
