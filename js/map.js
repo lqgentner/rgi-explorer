@@ -708,6 +708,8 @@ export async function createMap(container, catalog, state, liberty = fetchLibert
     center: [view.lon, clampLat(view.lat)],
     zoom: view.zoom,
     attributionControl: false,
+    // Turn and tilt around the point under the pointer, not the center.
+    dragRotate: { around: "pointer" },
     /*
      * Past a source's maxzoom MapLibre cuts the deepest tile into smaller ones
      * by default, keeping only the source layers a visible style layer reads,
