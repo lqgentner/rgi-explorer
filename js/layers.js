@@ -391,7 +391,7 @@ export function mountLayers(root, { base, layers, onBase, onToggle, onPane, map 
 export function mountTerrain(root, { on, onChange }) {
   let state = false;
 
-  const button = h("button", { type: "button", class: "terrain-btn", "aria-label": "3D terrain" }, "3D");
+  const button = h("button", { type: "button", class: "terrain-btn", "aria-label": "3D terrain", title: "3D terrain" }, "3D");
   root.append(button);
 
   const apply = (next) => {
@@ -413,7 +413,7 @@ export function mountTerrain(root, { on, onChange }) {
  */
 export function mountZoom(root, rgiMap) {
   const zoomButton = (text, label, action) => {
-    const button = h("button", { type: "button", class: "zoom-btn", "aria-label": label }, text);
+    const button = h("button", { type: "button", class: "zoom-btn", "aria-label": label, title: label }, text);
     button.addEventListener("click", action);
     return button;
   };
@@ -433,7 +433,7 @@ export function mountZoom(root, rgiMap) {
  * @returns {HTMLElement}
  */
 export function mountLocate(root, { onLocate }) {
-  const button = h("button", { type: "button", class: "locate-btn", "aria-label": "Show my location" }, icon("locate-fixed"));
+  const button = h("button", { type: "button", class: "locate-btn", "aria-label": "Show my location", title: "Show my location" }, icon("locate-fixed"));
   button.addEventListener("click", onLocate);
   root.append(button);
   return button;
