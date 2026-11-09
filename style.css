@@ -839,10 +839,11 @@ button:focus-visible {
   pointer-events: none;
 }
 
+/* The stem of "3D": Noto Sans SemiBold's 130 units per 1000 at 14 px. */
 .compass-arc {
   fill: none;
   stroke: currentColor;
-  stroke-width: 2;
+  stroke-width: 1.82;
   stroke-linecap: round;
 }
 
