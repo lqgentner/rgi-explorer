@@ -384,22 +384,19 @@ export function mountLayers(root, { base, layers, onBase, onToggle, onPane, map 
 }
 
 /**
- * Draw the 3D button. It is an action that names the mode it switches to,
- * "3D" in 2D and "2D" in 3D, so it has no pressed state.
+ * Draw the 3D button, a toggle that reads "3D" and stays pressed while 3D is on.
  *
  * @returns {{set(on: boolean): void}}
  */
 export function mountTerrain(root, { on, onChange }) {
   let state = false;
 
-  const button = h("button", { type: "button", class: "terrain-btn" });
+  const button = h("button", { type: "button", class: "terrain-btn", "aria-label": "3D terrain" }, "3D");
   root.append(button);
 
   const apply = (next) => {
     state = next;
-    const target = next ? "2D" : "3D";
-    button.textContent = target;
-    button.setAttribute("aria-label", `Switch to ${target}`);
+    button.setAttribute("aria-pressed", String(next));
   };
   button.addEventListener("click", () => {
     apply(!state);
@@ -410,10 +407,13 @@ export function mountTerrain(root, { on, onChange }) {
   return { set: apply };
 }
 
-/** Draw the zoom in and zoom out buttons. The phone is touch only, and style.css hides them there. */
+/**
+ * Draw the zoom in and zoom out buttons, set in 3D's font rather than as icons.
+ * The phone is touch only, and style.css hides them there.
+ */
 export function mountZoom(root, rgiMap) {
-  const zoomButton = (name, label, action) => {
-    const button = h("button", { type: "button", class: "zoom-btn", "aria-label": label }, icon(name));
+  const zoomButton = (text, label, action) => {
+    const button = h("button", { type: "button", class: "zoom-btn", "aria-label": label }, text);
     button.addEventListener("click", action);
     return button;
   };
@@ -421,8 +421,8 @@ export function mountZoom(root, rgiMap) {
     h(
       "div",
       { class: "zoom-control" },
-      zoomButton("plus", "Zoom in", () => rgiMap.zoomIn()),
-      zoomButton("minus", "Zoom out", () => rgiMap.zoomOut()),
+      zoomButton("+", "Zoom in", () => rgiMap.zoomIn()),
+      zoomButton("\u2212", "Zoom out", () => rgiMap.zoomOut()),
     ),
   );
 }
@@ -433,8 +433,7 @@ export function mountZoom(root, rgiMap) {
  * @returns {HTMLElement}
  */
 export function mountLocate(root, { onLocate }) {
-  const label = "Show my location";
-  const button = h("button", { type: "button", class: "locate-btn", "aria-label": label, title: label }, icon("locate-fixed"));
+  const button = h("button", { type: "button", class: "locate-btn", "aria-label": "Show my location" }, icon("locate-fixed"));
   button.addEventListener("click", onLocate);
   root.append(button);
   return button;

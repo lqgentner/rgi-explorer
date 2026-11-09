@@ -59,7 +59,7 @@ test("before the map, the compass, zoom, locate and Help do nothing; a layer and
   assert.equal(params().get("layers"), "regions,centerlines");
 
   click($(".terrain-btn"));
-  assert.equal($(".terrain-btn").textContent, "2D");
+  assert.equal($(".terrain-btn").getAttribute("aria-pressed"), "true");
   assert.equal(params().get("3d"), "1");
   assert.equal($(".compass").hasAttribute("data-idle"), false, "the phone shows the compass in 3D");
 });
