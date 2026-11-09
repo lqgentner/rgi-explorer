@@ -1,35 +1,33 @@
-# Dependabot keeps the npm libraries and the GitHub Actions current. Version
-# updates wait three days after a release; security updates do not wait. A
-# merged update deploys the site, so nothing merges itself. A page library that
-# gains a dependency needs its license in assets/third-party-licenses.txt by
-# hand; the tests catch a new bare import the import map lacks.
+# Dependabot moves the npm packages (the page's libraries and the test tools)
+# and the action versions in the workflows, monthly and in one pull request per
+# ecosystem, so one merge and one deploy take a month's updates. Version updates
+# wait seven days after a release, long enough for regressions to be reported;
+# security updates do not wait. A merged update deploys the site, so nothing
+# merges itself. A page library that gains a dependency needs its license in
+# assets/third-party-licenses.txt by hand; the tests catch a new bare import
+# the import map lacks.
 version: 2
 updates:
   - package-ecosystem: npm
     directory: /
     schedule:
-      interval: weekly
-      day: monday
+      interval: monthly
     cooldown:
-      default-days: 3
+      default-days: 7
     # @types/node follows the major in .node-version: bump both together by hand.
     ignore:
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
     groups:
-      # The test tools never reach the page: their minor and patch bumps share one PR.
-      test-tools:
-        dependency-type: development
-        update-types: [minor, patch]
+      dependencies:
+        patterns: ["*"]
 
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: weekly
-      day: monday
+      interval: monthly
     cooldown:
-      default-days: 3
+      default-days: 7
     groups:
       github-actions:
         patterns: ["*"]
-        update-types: [minor, patch]
