@@ -10,6 +10,7 @@
   "type": "module",
   "license": "MIT",
   "scripts": {
+    "prepare": "git config core.hooksPath .githooks",
     "serve": "node scripts/serve.mjs",
     "test": "node --test",
     "smoke": "SMOKE=1 node --test tests/smoke.test.js",
