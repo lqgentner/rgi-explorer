@@ -171,7 +171,8 @@ test("the zoom buttons zoom the map", () => {
   root.querySelector('button[aria-label="Zoom out"]').click();
   root.querySelector('button[aria-label="Zoom out"]').click();
   assert.deepEqual(map.calls, ["zoomIn", "zoomOut", "zoomOut"]);
-  assert.ok(root.querySelector('button[aria-label="Zoom in"] use').getAttribute("href").endsWith("#plus"));
+  const text = [...root.querySelectorAll("button")].map((button) => button.textContent);
+  assert.deepEqual(text, ["+", "\u2212"], "set in 3D's font, not icons");
 });
 
 
@@ -182,30 +183,28 @@ function terrain(start = false) {
   return { root, changes, api, button: root.querySelector(".terrain-btn") };
 }
 
-test("the 3D button names the mode it switches to, and reports", () => {
+test("the 3D button is a toggle that keeps its name, and reports", () => {
   const { button, changes, api } = terrain();
-  const reads = () => [button.textContent, button.getAttribute("aria-label")];
-  assert.deepEqual(reads(), ["3D", "Switch to 3D"]);
-  assert.equal(button.hasAttribute("aria-pressed"), false, "an action, not a toggle: its label changes");
+  const reads = () => [button.textContent, button.getAttribute("aria-label"), button.getAttribute("aria-pressed")];
+  assert.deepEqual(reads(), ["3D", "3D terrain", "false"]);
   button.click();
   assert.deepEqual(changes, [true]);
-  assert.deepEqual(reads(), ["2D", "Switch to 2D"]);
-  assert.equal(button.hasAttribute("aria-pressed"), false);
+  assert.deepEqual(reads(), ["3D", "3D terrain", "true"]);
   api.set(false);
-  assert.deepEqual(reads(), ["3D", "Switch to 3D"]);
+  assert.deepEqual(reads(), ["3D", "3D terrain", "false"]);
   api.set(true);
-  assert.deepEqual(reads(), ["2D", "Switch to 2D"]);
+  assert.deepEqual(reads(), ["3D", "3D terrain", "true"]);
   assert.deepEqual(changes, [true], "set() does not report");
 });
 
-test("a 3D button that opens in 3D reads 2D", () => {
+test("a 3D button that opens in 3D is pressed", () => {
   const { button } = terrain(true);
-  assert.equal(button.textContent, "2D");
-  assert.equal(button.getAttribute("aria-label"), "Switch to 2D");
+  assert.equal(button.textContent, "3D");
+  assert.equal(button.getAttribute("aria-pressed"), "true");
 });
 
-test("the 3D button looks the same in 2D and 3D: no pressed style", () => {
-  assert.doesNotMatch(CSS, /\.terrain-btn\[aria-pressed/);
+test("the pressed 3D button is white on the accent", () => {
+  assert.match(CSS, /\.terrain-btn\[aria-pressed="true"\] \{\s*background: var\(--accent\);\s*color: #fff;/);
 });
 
 test("3D shows no notice about the terrain's age", () => {

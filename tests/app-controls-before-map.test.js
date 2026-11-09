@@ -44,6 +44,10 @@ test("the controls and the Layers tile show before the catalog and the map load"
   assert.ok($("#layers .layers-thumb"));
   assert.ok($("#layers .layers-open"));
   assert.equal($(".compass").hasAttribute("data-idle"), true, "the phone hides the compass of a map facing north");
+  for (const button of $("#controls").querySelectorAll("button")) {
+    assert.ok(button.title, `${button.className} shows its label as a tooltip`);
+    assert.equal(button.title, button.getAttribute("aria-label"));
+  }
 });
 
 test("before the map, the compass, zoom, locate and Help do nothing; a layer and 3D change the state", () => {
@@ -59,7 +63,7 @@ test("before the map, the compass, zoom, locate and Help do nothing; a layer and
   assert.equal(params().get("layers"), "regions,centerlines");
 
   click($(".terrain-btn"));
-  assert.equal($(".terrain-btn").textContent, "2D");
+  assert.equal($(".terrain-btn").getAttribute("aria-pressed"), "true");
   assert.equal(params().get("3d"), "1");
   assert.equal($(".compass").hasAttribute("data-idle"), false, "the phone shows the compass in 3D");
 });

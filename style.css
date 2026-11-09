@@ -727,6 +727,22 @@ button:focus-visible {
   font-weight: 600;
 }
 
+/* 3D while on: white on the accent, which a hover or press deepens. */
+.terrain-btn[aria-pressed="true"] {
+  background: var(--accent);
+  color: #fff;
+}
+
+.terrain-btn[aria-pressed="true"]:active {
+  background: var(--accent-strong);
+}
+
+@media (hover: hover) {
+  .terrain-btn[aria-pressed="true"]:hover {
+    background: var(--accent-strong);
+  }
+}
+
 /* The locate button, and the help button that ends the controls column, are sized like 3D. */
 .locate-btn,
 .help-btn {
@@ -758,6 +774,10 @@ button:focus-visible {
   width: 36px;
   height: 36px;
   box-shadow: none;
+  /* + and − in 3D's font and weight, larger to match its cap height. */
+  font-weight: 600;
+  font-size: 20px;
+  line-height: 1;
 }
 
 .zoom-btn + .zoom-btn {
@@ -819,10 +839,11 @@ button:focus-visible {
   pointer-events: none;
 }
 
+/* The stem of "3D": Noto Sans SemiBold's 130 units per 1000 at 14 px. */
 .compass-arc {
   fill: none;
   stroke: currentColor;
-  stroke-width: 2;
+  stroke-width: 1.82;
   stroke-linecap: round;
 }
 

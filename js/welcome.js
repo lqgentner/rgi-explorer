@@ -85,7 +85,7 @@ export function mountWelcome(root, { title, autoShow, onTour }) {
  * @returns {{button: HTMLButtonElement}}
  */
 export function mountHelp({ desktop, phone }, { onHelp }) {
-  const button = h("button", { type: "button", class: "help-btn", "aria-label": "Help" }, icon("circle-question-mark"));
+  const button = h("button", { type: "button", class: "help-btn", "aria-label": "Help", title: "Help" }, icon("circle-question-mark"));
   button.addEventListener("click", () => onHelp());
   const place = () => {
     if (PHONE.matches) phone.prepend(button);

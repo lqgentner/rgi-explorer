@@ -27,11 +27,11 @@ test("the compass is a labelled group of three buttons over the arrows", () => {
   for (const label of ["Rotate left", "Face north", "Rotate right"]) assert.equal(button(label).title, label);
   assert.deepEqual(
     [...node.querySelectorAll(".compass-arrows .compass-arc")].map((p) => p.getAttribute("d")),
-    ["M13.25 8.89 A13 13 0 0 0 9.1 27.08", "M40.75 8.89 A13 13 0 0 1 44.9 27.08"],
+    ["M12.69 9.25 A13 13 0 0 0 9.1 27.08", "M41.31 9.25 A13 13 0 0 1 44.9 27.08"],
   );
   assert.deepEqual(
     [...node.querySelectorAll(".compass-arrows .compass-head")].map((p) => p.getAttribute("points")),
-    ["6.08 29.04 12.37 32.11 12.12 25.12", "47.92 29.04 41.63 32.11 41.88 25.12"],
+    ["6.35 28.86 12.08 31.66 11.85 25.30", "47.65 28.86 41.92 31.66 42.15 25.30"],
   );
   assert.equal(button("Face north").querySelector(".needle-north").getAttribute("points"), "14,0 18.7,14 9.3,14");
   assert.equal(button("Face north").querySelector(".needle-south").getAttribute("points"), "9.3,14 18.7,14 14,28");
