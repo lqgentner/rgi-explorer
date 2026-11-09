@@ -10,7 +10,7 @@ Consortium.
 
 ## Run it locally
 
-It needs Node 24, the version in `.node-version`.
+It needs Node 26, the version in `.node-version`.
 
 ```sh
 npm ci
