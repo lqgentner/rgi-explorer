@@ -100,6 +100,141 @@ export function icon(name) {
   return svg;
 }
 
+/**
+ * The round ✕ that closes a surface. `className` places and colours it in
+ * style.css; `tour` names it for the tour's ring.
+ *
+ * @param {{className?: string, label?: string, tour?: string}} [options]
+ */
+export function closeButton({ className = "", label = "Close", tour } = {}) {
+  return h(
+    "button",
+    { type: "button", class: `icon-button ${className}`.trim(), "aria-label": label, dataset: tour ? { tour } : undefined },
+    icon("x"),
+  );
+}
+
+/** Write `text` to the clipboard; resolves true when it worked, false when the browser refused. */
+export async function copyText(text) {
+  try {
+    await globalThis.navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * A row of tabs: a role=tablist whose one selected tab is the only Tab stop,
+ * with the arrow keys, Home and End moving between them. `onPick(id, focus)`
+ * hears the reader choose a tab, by click (`focus` false) or by key (true);
+ * the caller selects it with `select`, and shows its panel.
+ *
+ * @param {{id: string, label: string}[]} items
+ * @param {{prefix: string, label?: string, controls: (id: string) => string, onPick: (id: string, focus: boolean) => void}} options
+ */
+export function tablist(items, { prefix, label, controls, onPick }) {
+  const node = h("div", { class: "tabs", role: "tablist", "aria-label": label });
+  const tabs = Object.fromEntries(
+    items.map((item) => [
+      item.id,
+      h("button", { type: "button", class: "tab", role: "tab", id: `${prefix}-tab-${item.id}`, "aria-controls": controls(item.id) }, item.label),
+    ]),
+  );
+  node.append(...Object.values(tabs));
+  let current = items[0].id;
+
+  /** Mark `id` selected, and focus it when asked. */
+  function select(id, focus = false) {
+    current = id;
+    for (const item of items) {
+      const on = item.id === id;
+      tabs[item.id].setAttribute("aria-selected", String(on));
+      tabs[item.id].tabIndex = on ? 0 : -1;
+    }
+    if (focus) tabs[id].focus();
+  }
+
+  node.addEventListener("click", (event) => {
+    const item = items.find((t) => tabs[t.id].contains(/** @type {Node} */ (event.target)));
+    if (item) onPick(item.id, false);
+  });
+  node.addEventListener("keydown", (event) => {
+    const at = items.findIndex((t) => t.id === current);
+    const next = { ArrowRight: at + 1, ArrowLeft: at - 1, Home: 0, End: items.length - 1 }[event.key];
+    if (next === undefined) return;
+    event.preventDefault();
+    onPick(items[(next + items.length) % items.length].id, true);
+  });
+  return { node, tabs, select };
+}
+
+/**
+ * The open and close of a surface that covers the page: a modal dialog, or a
+ * pane. `show()` and `hide()` do the surface's own work and `isOpen()` reads
+ * it. `open()` remembers the opener, the focus at the time unless given one,
+ * and `close()` focuses it again; `close({ refocus: false })` leaves focus to
+ * the caller. `onToggle(open)` hears each real change, after it happens.
+ *
+ * Escape on any of `nodes`, and a dialog's own cancel, run `onEscape`, which
+ * is `close` unless given. With `backdrop`, a click outside a dialog's box,
+ * that also started there, closes it.
+ *
+ * @param {{nodes: HTMLElement[], isOpen: () => boolean, show: () => void, hide: () => void,
+ *   onToggle?: (open: boolean) => void, onEscape?: () => void, backdrop?: boolean}} options
+ */
+export function modal({ nodes, isOpen, show, hide, onToggle, onEscape, backdrop = false }) {
+  /** @type {Element | null} */
+  let opener = null;
+  const api = {
+    isOpen,
+    /** @param {Element | null} [from] */
+    open(from = document.activeElement) {
+      if (isOpen()) return;
+      opener = from;
+      show();
+      onToggle?.(true);
+    },
+    close({ refocus = true } = {}) {
+      if (!isOpen()) return;
+      hide();
+      onToggle?.(false);
+      const back = opener;
+      opener = null;
+      if (refocus && back?.isConnected) /** @type {HTMLElement} */ (back).focus?.();
+    },
+  };
+  const escape = () => (onEscape ?? api.close)();
+  for (const node of nodes) {
+    node.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape" || !isOpen()) return;
+      event.preventDefault();
+      escape();
+    });
+    if (node.tagName !== "DIALOG") continue;
+    /* The browser's own Escape closes a modal dialog without the bookkeeping. */
+    node.addEventListener("cancel", (event) => {
+      event.preventDefault();
+      escape();
+    });
+    if (!backdrop) continue;
+    /* The dialog's padding is the dialog too: only a point outside its box is the backdrop. */
+    const outside = (/** @type {MouseEvent} */ event) => {
+      const box = node.getBoundingClientRect();
+      return event.target === node && (event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom);
+    };
+    let pressedOutside = false;
+    node.addEventListener("pointerdown", (event) => {
+      pressedOutside = outside(event);
+    });
+    node.addEventListener("click", (event) => {
+      if (pressedOutside && outside(event)) api.close();
+      pressedOutside = false;
+    });
+  }
+  return api;
+}
+
 /* Native popovers light-dismiss; anchor positioning keeps one beside its button. */
 const POPOVERS = typeof HTMLElement !== "undefined" && "popover" in HTMLElement.prototype;
 const ANCHORS = globalThis.CSS?.supports?.("anchor-name: --a") ?? false;

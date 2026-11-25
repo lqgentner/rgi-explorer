@@ -325,7 +325,7 @@ test("the layer pane and the dialog share the light scrim, and the desktop viewe
   assert.match(css, /--scrim:\s*rgb\(20 35 43 \/ 40%\)/);
   assert.match(css, /--scrim-strong:\s*rgb\(20 35 43 \/ 80%\)/);
   assert.match(rule("\\.layers-scrim"), /background:\s*var\(--scrim\)/);
-  assert.match(rule("dialog\\.usedata::backdrop"), /background:\s*var\(--scrim\)/);
+  assert.match(rule("dialog\\.modal::backdrop"), /background:\s*var\(--scrim\)/, "Use this data and the privacy note share it");
   assert.match(rule("dialog\\.viewer"), /background:\s*var\(--scrim-strong\)/, "the full-screen dialog is the scrim");
   const phone = [...css.matchAll(/@media \(max-width: 640px\)\s*{([\s\S]*?)\n}/g)].map((m) => m[1]).join("\n");
   assert.match(phone, /\.viewer-backdrop\s*{[^}]*filter:\s*blur\(/);

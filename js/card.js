@@ -7,7 +7,7 @@ import { CARD_COLUMNS, readRow } from "./parquet.js";
 import { commonsThumb, esriCrop, findCropSource } from "./photo.js";
 import { mountStrip } from "./strip.js";
 import { regionOfId } from "./state.js";
-import { PHONE, externalLink, h, icon, joined, popover } from "./ui.js";
+import { PHONE, closeButton, externalLink, h, icon, joined, popover, tablist } from "./ui.js";
 import { openViewer } from "./viewer.js";
 
 const TABS = [
@@ -92,7 +92,7 @@ export function cardFrame(root, ctx, { label, className, body, onUseData, onZoom
     useData,
     button("Zoom to", "btn", onZoom, "scan-search"),
     button("Share", "btn", (event) => ctx.onShare?.(event.currentTarget), "share-2"));
-  const close = h("button", { type: "button", class: "icon-button card-close", "aria-label": "Close" }, icon("x"));
+  const close = closeButton({ className: "card-close" });
   close.addEventListener("click", () => ctx.onClose?.());
   const inBand = [close, head, actions];
   const section = h("section", { class: className, "aria-label": label, hidden: true }, photo, ...body);
@@ -221,7 +221,6 @@ export function mountCard(root, ctx) {
   let current = null;
   let controller = null;
 
-  const tablist = h("div", { class: "tabs", role: "tablist" });
   const panels = Object.fromEntries(
     TABS.map((tab) => [
       tab.id,
@@ -233,23 +232,20 @@ export function mountCard(root, ctx) {
       }),
     ]),
   );
-  const tabs = Object.fromEntries(
-    TABS.map((tab) => [
-      tab.id,
-      h("button", {
-        type: "button",
-        class: "tab",
-        role: "tab",
-        id: `card-tab-${tab.id}`,
-        "aria-controls": `card-panel-${tab.id}`,
-      }, tab.label),
-    ]),
-  );
-  tablist.append(...Object.values(tabs));
+  /* The reader's own switch to Hypsometry, by click or key, counts as using the card for the tour. */
+  const tabs = tablist(TABS, {
+    prefix: "card",
+    label: "Glacier details",
+    controls: (id) => `card-panel-${id}`,
+    onPick(id, focus) {
+      if (id === "hypsometry" && state.tab !== id) ctx.onInteract?.();
+      selectTab(id, focus);
+    },
+  });
   const { photo, head, show } = cardFrame(root, ctx, {
     label: "Glacier",
     className: "card",
-    body: [tablist, ...Object.values(panels)],
+    body: [tabs.node, ...Object.values(panels)],
     onUseData: () => ctx.onUseData?.(glacierNow()),
     onZoom: () => ctx.onZoom?.(current.props.bbox ?? current.props),
   });
@@ -261,30 +257,9 @@ export function mountCard(root, ctx) {
 
   function selectTab(id, focus = false) {
     state.tab = id;
-    for (const tab of TABS) {
-      const selected = tab.id === id;
-      tabs[tab.id].setAttribute("aria-selected", String(selected));
-      tabs[tab.id].tabIndex = selected ? 0 : -1;
-      panels[tab.id].hidden = !selected;
-    }
-    if (focus) tabs[id].focus();
+    tabs.select(id, focus);
+    for (const tab of TABS) panels[tab.id].hidden = tab.id !== id;
   }
-  /* The reader's own switch to Hypsometry, by click or key, counts as using the card for the tour. */
-  const pick = (id, focus) => {
-    if (id === "hypsometry" && state.tab !== id) ctx.onInteract?.();
-    selectTab(id, focus);
-  };
-  tablist.addEventListener("click", (event) => {
-    const tab = TABS.find((t) => tabs[t.id].contains(event.target));
-    if (tab) pick(tab.id);
-  });
-  tablist.addEventListener("keydown", (event) => {
-    const at = TABS.findIndex((t) => t.id === state.tab);
-    const next = { ArrowRight: at + 1, ArrowLeft: at - 1, Home: 0, End: TABS.length - 1 }[event.key];
-    if (next === undefined) return;
-    event.preventDefault();
-    pick(TABS[(next + TABS.length) % TABS.length].id, true);
-  });
 
   const glacierNow = () => ({ rgiId: current.rgiId, row: current.row, props: current.props });
 

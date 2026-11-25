@@ -20,7 +20,7 @@ import { initSheet, onLevel, popupPadding, setSheetLevel } from "./sheet.js";
 import { parseState, writeState } from "./state.js";
 import { mountStatus } from "./status.js";
 import { mountTour } from "./tour.js";
-import { el, PHONE, scrollbarWidth } from "./ui.js";
+import { copyText, el, PHONE, scrollbarWidth } from "./ui.js";
 import { mountUseData } from "./usedata.js";
 import { onViewerToggle } from "./viewer.js";
 import { mountHelp, mountWelcome, welcomeTitle } from "./welcome.js";
@@ -637,6 +637,13 @@ function wire(catalog, rgiMap, regionsRead, controls) {
   const band = el("sheet-head");
   const sheet = el("sheet-body");
   initSheet();
+  /*
+   * Crossing to the phone lowers the sheet, by initSheet's listener, which
+   * runs first. Use this data, open, moves into the sheet and needs all of it.
+   */
+  PHONE.addEventListener("change", (event) => {
+    if (event.matches && useData.isOpen()) setSheetLevel("full");
+  });
 
   /* The sheet shows only on the phone, through style.css. */
   function showCard(on) {
@@ -674,12 +681,7 @@ function wire(catalog, rgiMap, regionsRead, controls) {
   }
 
   async function share(button) {
-    try {
-      await globalThis.navigator.clipboard.writeText(location.href);
-    } catch {
-      return;
-    }
-    announce("Link copied", button);
+    if (await copyText(location.href)) announce("Link copied", button);
   }
 
   const card = mountCard(cardRoot, {
@@ -701,7 +703,7 @@ function wire(catalog, rgiMap, regionsRead, controls) {
     },
     onUseData(glacier) {
       if (PHONE.matches) setSheetLevel("full");
-      useData.open({ kind: "glacier", rgiId: glacier.rgiId, o1region: glacier.props?.o1region });
+      useData.open({ kind: "glacier", rgiId: glacier.rgiId, o1region: glacier.props?.o1region, name: glacier.props?.display_name });
     },
     onInteract: used,
     onAction(action) {

@@ -55,3 +55,26 @@ test("an open offer moves between the pane and the dialog when the layout change
   assert.equal(pane.hidden, true, "a closed offer stays closed");
   assert.ok(pane.querySelector(".usedata-code"));
 });
+
+test("a move hears no close and open, and takes keyboard focus along", () => {
+  const sheet = document.getElementById("sheet");
+  /* The sheet shows while a card is open; jsdom focuses nothing inside a hidden one. */
+  sheet.hidden = false;
+  const toggles = [];
+  const useData = mountUseData(document.body, { catalog, sheet, onToggle: (open) => toggles.push(open) });
+  const pane = [...sheet.querySelectorAll(".usedata-pane")].at(-1);
+  const dialog = [...document.querySelectorAll("dialog.usedata")].at(-1);
+  dialog.showModal ??= function () { this.setAttribute("open", ""); };
+  dialog.close ??= function () { this.removeAttribute("open"); };
+  useData.open(ALETSCH);
+  assert.ok(pane.contains(document.activeElement), "open, focus starts on the pane's tab");
+
+  setPhone(false);
+  assert.ok(dialog.contains(document.activeElement), "focus moves into the dialog with the content");
+  setPhone(true);
+  assert.ok(pane.contains(document.activeElement), "and back into the pane, not to the button it covers");
+  assert.equal(document.activeElement.getAttribute("aria-selected"), "true", "on the chosen tab");
+  useData.close();
+  assert.deepEqual(toggles, [true, false], "the tour hears one open and one close, none for the moves");
+  sheet.hidden = true;
+});

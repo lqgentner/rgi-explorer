@@ -142,7 +142,7 @@ test("an interaction turns Skip into a filled Next, which leads to Use this data
   assert.deepEqual(ringed(), [], "the card is done: its ring goes, and Next is the way on");
   button("Next").click();
   assert.equal(title(), "Use this data");
-  assert.equal(text(), "This map reads the cloud-native RGI catalog directly, with no download. Open Use this data to read it in Python or QGIS.");
+  assert.equal(text(), "This map reads the cloud-native RGI catalog directly, with no download. Open Use this data to read it in Python, DuckDB or QGIS, or to cite it.");
   assert.ok(popup().textContent.includes("3 of 4"));
   assert.deepEqual(ringed(), ["use-data"]);
   assert.ok(button("Skip"));

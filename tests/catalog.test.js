@@ -30,6 +30,25 @@ test("resolves the glaciers assets to absolute URLs", async () => {
   assert.equal(c.collections.glaciers.id, "rgi-v7-0-glaciers");
 });
 
+test("names the publisher and the version from their catalogs, and lists the publications", async () => {
+  const c = await loadCatalog(ROOT, fixtureFetch());
+  assert.equal(c.title, "Randolph Glacier Inventory Mirror");
+  assert.equal(c.versionTitle, "RGI 7.0");
+  assert.deepEqual(c.publications.map((p) => p.doi), ["10.5281/zenodo.8362857"]);
+});
+
+test("a collection linked from the root has no version title, not the publisher's", async () => {
+  const flat = await loadCatalog(ROOT, fixtureFetch((path, json) => {
+    if (path !== "catalog.json") return;
+    json.links = json.links.filter((l) => l.rel !== "child");
+    for (const name of ["glaciers", "complexes", "intersects", "centerlines", "regions"]) {
+      json.links.push({ rel: "child", href: `./v7.0/${name}/collection.json` });
+    }
+  }));
+  assert.equal(flat.title, "Randolph Glacier Inventory Mirror");
+  assert.equal(flat.versionTitle, null);
+});
+
 test("gives each data file's size from file:size, or null", async () => {
   const c = await loadCatalog(
     ROOT,

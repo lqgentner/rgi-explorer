@@ -27,17 +27,17 @@ const resolve = (href, base) => new URL(href, base).href;
  * Every RGI collection under a catalog, in link order. The children of one
  * catalog are fetched in parallel. `seen` stops a URL from being read twice.
  */
-async function walk(url, fetchJson, seen) {
+async function walk(url, fetchJson, seen, parent = null) {
   if (seen.has(url)) return [];
   seen.add(url);
   const json = await fetchJson(url);
   if (json.type === "Collection") {
     const match = COLLECTION_ID.exec(json.id ?? "");
-    return match ? [{ major: Number(match[1]), minor: Number(match[2]), name: match[3], url, json }] : [];
+    return match ? [{ major: Number(match[1]), minor: Number(match[2]), name: match[3], url, json, parent }] : [];
   }
   const children = (json.links ?? [])
     .filter((link) => link.rel === "child")
-    .map((link) => walk(resolve(link.href, url), fetchJson, seen));
+    .map((link) => walk(resolve(link.href, url), fetchJson, seen, json));
   return (await Promise.all(children)).flat();
 }
 
@@ -94,10 +94,18 @@ function toColumns(collection) {
 /**
  * Walks the catalog at `rootUrl` and returns the highest version's five
  * collections with absolute asset URLs, the glaciers and complexes column labels, the
- * glacier count (or null), the citation and the license. Rejects when a collection is missing.
+ * glacier count (or null), the citation, the publications and the license, and
+ * the titles of the root catalog and of the version's catalog. Rejects when a
+ * collection is missing.
  */
 export async function loadCatalog(rootUrl, read = fetchJson) {
-  const found = await walk(rootUrl, read, new Set());
+  let root = null;
+  const readFirst = async (url) => {
+    const json = await read(url);
+    root ??= json;
+    return json;
+  };
+  const found = await walk(rootUrl, readFirst, new Set());
   if (!found.length) throw new Error("The catalog holds no RGI collections");
 
   const top = found.reduce((best, c) =>
@@ -111,16 +119,21 @@ export async function loadCatalog(rootUrl, read = fetchJson) {
     collections[name] = toCollection(entry);
   }
 
-  const { json, url } = inVersion.find((c) => c.name === "glaciers");
+  const { json, url, parent } = inVersion.find((c) => c.name === "glaciers");
   const complexes = inVersion.find((c) => c.name === "complexes").json;
   const licenseLink = (json.links ?? []).find((l) => l.rel === "license");
   return {
     version: `${top.major}.${top.minor}`,
+    /* The root catalog's title names the publisher in a registry; the glaciers' parent names the version. */
+    title: root?.title ?? null,
+    /* A collection linked from the root has no version catalog to name. */
+    versionTitle: parent && parent !== root ? (parent.title ?? null) : null,
     collections,
     columns: toColumns(json),
     glacierCount: rowCount(json),
     complexColumns: toColumns(complexes),
     citation: json["sci:citation"],
+    publications: Array.isArray(json["sci:publications"]) ? json["sci:publications"] : [],
     license: { id: json.license, href: licenseLink ? resolve(licenseLink.href, url) : null },
     doi: json["sci:doi"],
   };

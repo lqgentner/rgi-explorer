@@ -6,7 +6,7 @@
  * page is blocked.
  */
 
-import { PHONE, h, icon } from "./ui.js";
+import { PHONE, closeButton, h, icon } from "./ui.js";
 
 /* The popover's distance from its target, and from the viewport's edge. */
 const GAP = 12;
@@ -30,7 +30,7 @@ const STEPS = {
   data: {
     n: 3,
     title: "Use this data",
-    text: "This map reads the cloud-native RGI catalog directly, with no download. Open Use this data to read it in Python or QGIS.",
+    text: "This map reads the cloud-native RGI catalog directly, with no download. Open Use this data to read it in Python, DuckDB or QGIS, or to cite it.",
     anchor: "useData",
     sides: PANEL_SIDES,
     skipTo: "layers",
@@ -238,7 +238,7 @@ export function mountTour(root, { anchor, panel, onTakeMe, onStep, onEnd }) {
 
   function show({ focus = false } = {}) {
     if (!node) return;
-    const close = h("button", { type: "button", class: "icon-button tour-close", "aria-label": "End tour" }, icon("x"));
+    const close = closeButton({ className: "tour-close", label: "End tour" });
     close.addEventListener("click", () => end());
     node.classList.toggle("covering", Boolean(covered));
     if (covered) node.dataset.cover = covered;

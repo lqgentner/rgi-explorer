@@ -106,12 +106,13 @@
   src: url("node_modules/@fontsource/noto-sans/files/noto-sans-latin-600-normal.woff2") format("woff2");
 }
 
+/* Code is set a step heavier than text, as a retina weight would: 400 reads thin on screen. */
 @font-face {
   font-family: "Noto Sans Mono";
-  font-weight: 400;
+  font-weight: 500;
   font-style: normal;
   font-display: swap;
-  src: url("node_modules/@fontsource/noto-sans-mono/files/noto-sans-mono-latin-400-normal.woff2") format("woff2");
+  src: url("node_modules/@fontsource/noto-sans-mono/files/noto-sans-mono-latin-500-normal.woff2") format("woff2");
 }
 
 * {
@@ -134,6 +135,7 @@ code,
 pre,
 kbd {
   font-family: var(--mono);
+  font-weight: 500;
 }
 
 /* Readers who ask for less transparency or more contrast get opaque surfaces. */
@@ -1322,7 +1324,9 @@ button:focus-visible {
   display: flex;
 }
 
-.welcome-close {
+/* The welcome's and the tour's ✕ sit in the card's corner. */
+.welcome-close,
+.tour-close {
   position: absolute;
   top: 12px;
   right: 12px;
@@ -1500,9 +1504,6 @@ body:has(#search.fullscreen) .welcome {
  * no fill: a grey wash marks a real hover on either.
  */
 .tour-close {
-  position: absolute;
-  top: 12px;
-  right: 12px;
   background: none;
 }
 
@@ -2525,6 +2526,56 @@ dialog.viewer::backdrop {
   top: -5px;
 }
 
+/*
+ * The page's modal dialogs, Use this data and the privacy note: a white box
+ * on the scrim. Each sets its own width and place. As on the phone's sheet,
+ * the ✕ sits the sheet's inset from the top and the right, and the corner is
+ * its radius plus that inset, so the two are concentric. --inset-x is the
+ * side padding, which full-width parts such as tabs reach past.
+ */
+dialog.modal {
+  --inset-x: var(--sheet-x-inset);
+  padding: var(--sheet-x-inset) var(--inset-x) 0;
+  border: 0;
+  border-radius: calc(var(--radius) + var(--sheet-x-inset));
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+
+/*
+ * Open, the title row stays and the body scrolls inside the box: a scroll
+ * bar on the dialog itself would run into its round corners.
+ */
+dialog.modal[open] {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/*
+ * Use this data scrolls only its panel, in the dialog as in the phone's pane.
+ * The body runs to the box's bottom edge; its own padding ends the text.
+ */
+.usedata-panel,
+dialog.privacy .privacy-body {
+  min-height: 0;
+  padding-bottom: 20px;
+  overflow-y: auto;
+}
+
+dialog.modal::backdrop {
+  background: var(--scrim);
+}
+
+/* A dialog's or pane's title shares its row with the ✕, as large as the card's title. */
+.pane-header h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
 /* Use this data */
 
 /*
@@ -2537,22 +2588,8 @@ dialog.usedata {
   width: min(760px, calc(100vw - 32px));
   max-height: calc(100dvh - var(--usedata-top) - 16px);
   margin: var(--usedata-top) auto auto;
-  padding: 12px 20px 20px;
-  border: 0;
-  border-radius: 12px;
-  background: var(--surface);
-  color: var(--text);
-  box-shadow: var(--shadow);
 }
 
-dialog.usedata::backdrop {
-  background: var(--scrim);
-}
-
-.usedata h2 {
-  margin: 0;
-  font-size: 18px;
-}
 
 .segmented {
   margin: 12px 0 0;
@@ -2610,20 +2647,66 @@ dialog.usedata::backdrop {
   outline-offset: -4px;
 }
 
-.usedata pre {
+/* A code block or a citation, with its Copy in the top right corner. */
+.usedata-block {
+  position: relative;
   margin: 12px 0 0;
-  padding: 12px;
-  overflow-x: auto;
+}
+
+.usedata-block > :is(pre, p) {
+  margin: 0;
+  padding: 12px 44px 12px 12px;
   border-radius: 8px;
   background: var(--surface-2);
+}
+
+.usedata pre {
+  overflow-x: auto;
   font-size: 12.5px;
   line-height: 1.5;
 }
 
-/* The copy button sits under the snippet's bottom left. */
-.usedata-actions {
-  display: flex;
-  margin-top: 4px;
+.usedata-block > .copy {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: transparent;
+}
+
+@media (hover: hover) {
+  .usedata-block > .copy:hover {
+    background: var(--surface-3);
+  }
+}
+
+/* Syntax colours: Pandoc's token classes in the palette of Quarto's default theme. */
+.usedata code span.kw {
+  color: #003b4f;
+  font-weight: 700;
+}
+
+.usedata code span.im {
+  color: #00769e;
+}
+
+.usedata code span.st {
+  color: #20794d;
+}
+
+.usedata code :is(span.dv, span.fl) {
+  color: #ad0000;
+}
+
+.usedata code :is(span.op, span.co) {
+  color: #5e5e5e;
+}
+
+.usedata code span.fu {
+  color: #4758ab;
+}
+
+.usedata code span.at {
+  color: #657422;
 }
 
 .usedata-steps {
@@ -2633,12 +2716,6 @@ dialog.usedata::backdrop {
 
 .usedata-steps li + li {
   margin-top: 4px;
-}
-
-.usedata-url {
-  margin-right: 8px;
-  overflow-wrap: anywhere;
-  font-size: 12.5px;
 }
 
 .icon-button.copy {
@@ -2653,9 +2730,122 @@ dialog.usedata::backdrop {
   height: 16px;
 }
 
-.usedata-filter p,
 .usedata-note {
   margin: 12px 0 0;
+  color: var(--muted);
+}
+
+/* The glacier's name, or the glacier's or complex's ID, under the title. */
+.usedata-sub {
+  margin: 0;
+  color: var(--muted);
+}
+
+/* The tabs run from edge to edge, as on the card, past the surface's side padding. */
+.usedata-tabs {
+  margin: 8px calc(-1 * var(--inset-x)) 0;
+}
+
+/* Edge to edge, a focus ring outside the tab would be cut off by the box: it goes inside. */
+.usedata-tabs .tab:focus-visible {
+  outline-offset: -3px;
+}
+
+/* QGIS: the plugin is not in the registry yet. */
+.usedata-banner {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border: 1px solid #ecd28a;
+  border-radius: 8px;
+  background: #fff6dc;
+  color: #4d3800;
+}
+
+.usedata-steps .usedata-block {
+  margin: 6px 0 4px;
+}
+
+.usedata-para {
+  margin: 8px 0 0;
+}
+
+.usedata-subhead {
+  margin: 20px 0 0;
+  font-size: 15px;
+}
+
+/*
+ * The plugin's buttons as QGIS draws them in its light theme, set in the line
+ * of the step. For a dark mode, QGIS's dark theme uses: --qgis-bg #2b2b2b,
+ * --qgis-line #5a5a5a, --qgis-text #ececec, --qgis-ink #cfcfcf; the blue
+ * button, the green plus and the sheet icon stay as they are.
+ */
+.qgis-button {
+  --qgis-bg: #fff;
+  --qgis-line: #b9b9b9;
+  --qgis-text: #1f1f1f;
+  --qgis-ink: #3c3c3c;
+  --qgis-blue: #4562d6;
+  --qgis-plus: #3d8b45;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 9px 1px 6px;
+  border: 1px solid var(--qgis-line);
+  border-radius: 5px;
+  background: var(--qgis-bg);
+  color: var(--qgis-text);
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.qgis-button.primary {
+  border-color: var(--qgis-blue);
+  background: var(--qgis-blue);
+  color: #fff;
+  font-weight: 600;
+}
+
+.qgis-icon .ink {
+  stroke: var(--qgis-ink);
+}
+
+/* The vertices are hollow: the button's own colour inside a ring. */
+.qgis-icon .vertex {
+  fill: var(--qgis-bg);
+  stroke: var(--qgis-ink);
+}
+
+.qgis-icon .sheet {
+  fill: #ececec;
+  stroke: #8a8a8a;
+  stroke-width: 1.5;
+}
+
+.qgis-icon .plus {
+  fill: var(--qgis-plus);
+}
+
+.qgis-icon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+
+.usedata-path {
+  font-weight: 600;
+}
+
+/* Citation */
+.usedata-ref h3 {
+  margin: 16px 0 4px;
+  font-size: 15px;
+}
+
+.usedata-when {
+  margin: 0;
   color: var(--muted);
 }
 
@@ -2964,14 +3154,26 @@ dialog.usedata::backdrop {
   }
 
   /* Over the whole sheet, which opens all the way while it shows. */
+  /*
+   * The title row and the tabs stay; only the panel under the tabs scrolls,
+   * to the sheet's bottom edge, its last line clear of the home indicator.
+   */
   .usedata-pane {
+    --inset-x: 16px;
     position: absolute;
     inset: 0;
     z-index: 2;
-    overflow-y: auto;
-    padding: 12px 16px calc(24px + env(safe-area-inset-bottom));
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    /* The ✕ keeps the band's inset from the top, concentric with the sheet's corner. */
+    padding: var(--sheet-x-inset) var(--inset-x) 0;
     border-radius: inherit;
     background: var(--surface);
+  }
+
+  .usedata-pane .usedata-panel {
+    padding-bottom: calc(24px + env(safe-area-inset-bottom));
   }
 
   .notice {
@@ -2987,22 +3189,11 @@ dialog.usedata::backdrop {
 dialog.privacy {
   width: min(600px, calc(100vw - 32px));
   max-height: calc(100dvh - 32px);
-  padding: 12px 20px 20px;
-  border: 0;
-  border-radius: 12px;
-  background: var(--surface);
-  color: var(--text);
-  box-shadow: var(--shadow);
-  overflow-y: auto;
 }
 
-dialog.privacy::backdrop {
-  background: var(--scrim);
-}
-
-.privacy h2 {
-  margin: 0;
-  font-size: 18px;
+/* The text keeps clear of the title, now as large as the other dialogs'. */
+.privacy-body {
+  margin-top: 12px;
 }
 
 .privacy h3 {

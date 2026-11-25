@@ -8,7 +8,7 @@
  * the CSP in index.html, so a new host needs a line here.
  */
 
-import { closeDialog, externalLink, h, icon, openDialog } from "./ui.js";
+import { closeButton, closeDialog, externalLink, h, isDialogOpen, modal, openDialog } from "./ui.js";
 
 export const OPERATOR = { name: "Luis Gentner", email: "luis.gentner@geo.uzh.ch" };
 export const UPDATED = "7 November 2026";
@@ -110,13 +110,15 @@ function serviceItem({ name, by, use, link, hosts }) {
 }
 
 let dialog = null;
+/** @type {ReturnType<typeof modal> | null} */
+let surface = null;
 
 function build() {
-  const close = h("button", { type: "button", class: "icon-button privacy-close", "aria-label": "Close" }, icon("x"));
+  const close = closeButton({ className: "pane-close privacy-close" });
   const mail = h("a", { href: `mailto:${OPERATOR.email}` }, OPERATOR.email);
   dialog = h(
     "dialog",
-    { class: "privacy", "aria-labelledby": "privacy-title" },
+    { class: "modal privacy", "aria-labelledby": "privacy-title" },
     h("div", { class: "pane-header" }, h("h2", { id: "privacy-title" }, "Privacy"), close),
     h(
       "div",
@@ -166,15 +168,14 @@ function build() {
     ),
   );
   document.body.append(dialog);
-  close.addEventListener("click", () => closeDialog(dialog));
-  /* A click on the backdrop, outside the box, closes it too. */
-  dialog.addEventListener("click", (event) => {
-    if (event.target === dialog) closeDialog(dialog);
-  });
+  const node = dialog;
+  /* Escape, the ✕ and a click on the backdrop close it, and focus goes back to the Privacy link. */
+  surface = modal({ nodes: [node], isOpen: () => isDialogOpen(node), show: () => openDialog(node), hide: () => closeDialog(node), backdrop: true });
+  close.addEventListener("click", () => surface?.close());
 }
 
 /** Open the privacy note, building it on first use. */
 export function openPrivacy() {
   if (!dialog) build();
-  openDialog(dialog);
+  surface?.open();
 }
