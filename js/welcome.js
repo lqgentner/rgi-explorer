@@ -5,7 +5,7 @@
  */
 
 import { formatInt } from "./columns.js";
-import { PHONE, externalLink, h, icon } from "./ui.js";
+import { PHONE, closeButton, externalLink, h, icon } from "./ui.js";
 
 const KEY = "rgi-explorer:welcome";
 const USER_GUIDE = "https://rgidata.org/user_guide/";
@@ -40,7 +40,7 @@ export function welcomeTitle(count, version) {
  * @returns {{show(): void, dismiss(): void, readonly shown: boolean, readonly node: Element}}
  */
 export function mountWelcome(root, { title, autoShow, onTour }) {
-  const close = h("button", { type: "button", class: "icon-button welcome-close", "aria-label": "Close" }, icon("x"));
+  const close = closeButton({ className: "welcome-close" });
   const tour = h("button", { type: "button", class: "btn primary" }, "Take the tour");
   const node = h(
     "section",

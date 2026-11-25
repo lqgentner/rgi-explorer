@@ -71,3 +71,19 @@ test("opening it again reuses the one dialog", () => {
   openPrivacy();
   assert.equal(document.querySelectorAll("dialog.privacy").length, 1);
 });
+
+test("it looks like the other dialogs and closes like them: Escape, and focus back on the link", () => {
+  const link = document.createElement("button");
+  document.body.append(link);
+  link.focus();
+  openPrivacy();
+  const dialog = document.querySelector("dialog.privacy");
+  assert.ok(dialog.classList.contains("modal"), "the shared dialog box");
+  assert.ok(dialog.querySelector(".privacy-close").classList.contains("pane-close"), "the grey ✕ of the other panes");
+  assert.equal(dialog.querySelector(".pane-header h2").textContent, "Privacy", "the shared title");
+  const escape = new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true });
+  dialog.dispatchEvent(escape);
+  assert.equal(escape.defaultPrevented, true);
+  assert.equal(dialog.open || dialog.hasAttribute("open"), false);
+  assert.equal(document.activeElement, link);
+});

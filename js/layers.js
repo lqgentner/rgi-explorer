@@ -6,7 +6,7 @@
 
 import { GLACIERS, PREVIEWS } from "./previews.js";
 import { PALETTE, REGION_DASH } from "./styles.js";
-import { PHONE, h, icon, inertAround, svg } from "./ui.js";
+import { PHONE, closeButton, h, icon, inertAround, modal, svg } from "./ui.js";
 import { imageryUrl } from "./viewpreview.js";
 
 const BASES = {
@@ -169,7 +169,7 @@ export function mountLayers(root, { base, layers, onBase, onToggle, onPane, map 
     });
     return { key, button, img };
   });
-  const close = h("button", { type: "button", class: "icon-button pane-close", "aria-label": "Close", dataset: { tour: "layers-close" } }, icon("x"));
+  const close = closeButton({ className: "pane-close", tour: "layers-close" });
   const paneToggles = h("div", { class: "tile-row" });
   /* No title: the close button sits in the first section's heading row, and a line parts the sections. */
   const pane = h(
@@ -253,30 +253,31 @@ export function mountLayers(root, { base, layers, onBase, onToggle, onPane, map 
    */
   const scrim = h("div", { class: "layers-scrim", hidden: true });
   let restore = null;
-  const showPane = (show) => {
-    if (show === !pane.hidden) return;
-    pane.hidden = !show;
-    scrim.hidden = !show;
-    if (show) restore = inertAround(pane, scrim);
-    else restore?.();
+  const surface = modal({
+    nodes: [pane],
+    isOpen: () => !pane.hidden,
+    show() {
+      pane.hidden = false;
+      scrim.hidden = false;
+      restore = inertAround(pane, scrim);
+    },
+    hide() {
+      pane.hidden = true;
+      scrim.hidden = true;
+      restore?.();
+    },
     /* Heard after each real change, so the tour can ask the reader to close the pane. */
-    onPane?.(show);
-  };
+    onToggle: (open) => onPane?.(open),
+  });
 
   openPane.addEventListener("click", () => {
-    showPane(true);
+    /* A click does not focus a button in every browser: the round button is the opener all the same. */
+    surface.open(openPane);
     catchUp();
     close.focus();
   });
-  const closePane = () => {
-    showPane(false);
-    openPane.focus();
-  };
-  close.addEventListener("click", closePane);
-  scrim.addEventListener("click", closePane);
-  pane.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") closePane();
-  });
+  close.addEventListener("click", () => surface.close());
+  scrim.addEventListener("click", () => surface.close());
 
   /*
    * A mouse opens the control while it rests on it, and focus while it stays
@@ -346,7 +347,7 @@ export function mountLayers(root, { base, layers, onBase, onToggle, onPane, map 
       setOpen(false);
       paneToggles.append(...toggles.buttons);
     } else {
-      showPane(false);
+      surface.close({ refocus: false });
       drawer.append(...toggles.buttons);
     }
     drawPictures();

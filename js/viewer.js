@@ -7,7 +7,7 @@
  * and, on the desktop, a click outside the image close it.
  */
 
-import { closeDialog, h, icon, isDialogOpen, openDialog, PHONE } from "./ui.js";
+import { closeButton as roundClose, closeDialog, h, icon, isDialogOpen, modal, openDialog, PHONE } from "./ui.js";
 
 /**
  * @typedef {object} ViewerItem
@@ -47,17 +47,11 @@ export function onViewerToggle(fn) {
   toggleListeners.add(fn);
 }
 
-function show() {
-  const was = isOpen();
-  openDialog(dialog);
-  if (!was) for (const fn of toggleListeners) fn(true);
-}
-
-function hide() {
-  const was = isOpen();
-  closeDialog(dialog);
-  if (was) for (const fn of toggleListeners) fn(false);
-}
+/* Escape, the dialog's cancel and the listeners' bookkeeping; close() returns focus itself. */
+/** @type {ReturnType<typeof modal> | null} */
+let surface = null;
+const show = () => surface?.open(null);
+const hide = () => surface?.close({ refocus: false });
 
 /*
  * Close, then let the caller show the image closed on, then focus it without
@@ -159,7 +153,7 @@ function go(i, { scroll = true, smooth = false } = {}) {
 }
 
 function build() {
-  closeButton = h("button", { type: "button", class: "icon-button viewer-close", "aria-label": "Close", dataset: { tour: "viewer-close" } }, icon("x"));
+  closeButton = roundClose({ className: "viewer-close", tour: "viewer-close" });
   /* Not a Tab stop: Chromium would otherwise focus the scroller and ring the whole screen. */
   track = h("div", { class: "viewer-track", tabindex: "-1" });
   prev = h("button", { type: "button", class: "icon-button viewer-prev", "aria-label": "Previous image" }, icon("chevron-left"));
@@ -173,6 +167,17 @@ function build() {
   for (const layer of backdrops) layer.addEventListener("load", () => reveal(layer));
   dialog = h("dialog", { class: "viewer", "aria-label": "Images" }, ...backdrops, track, dock, closeButton);
   document.body.append(dialog);
+  const node = dialog;
+  surface = modal({
+    nodes: [node],
+    isOpen: () => isDialogOpen(node),
+    show: () => openDialog(node),
+    hide: () => closeDialog(node),
+    onToggle: (open) => {
+      for (const fn of toggleListeners) fn(open);
+    },
+    onEscape: close,
+  });
 
   /* On the desktop, a click around the image closes, as on the page behind it. The phone swipes there. */
   track.addEventListener("click", (event) => {
@@ -186,19 +191,9 @@ function build() {
   prev.addEventListener("click", () => go(state.index - 1, { smooth: true }));
   next.addEventListener("click", () => go(state.index + 1, { smooth: true }));
   dialog.addEventListener("keydown", (event) => {
-    if (!state) return;
-    if (event.key === "Escape") {
-      event.preventDefault();
-      close();
-    } else if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
-      event.preventDefault();
-      go(state.index + (event.key === "ArrowLeft" ? -1 : 1), { smooth: true });
-    }
-  });
-  /* The browser's own Escape handling closes the dialog without telling us. */
-  dialog.addEventListener("cancel", (event) => {
+    if (!state || (event.key !== "ArrowLeft" && event.key !== "ArrowRight")) return;
     event.preventDefault();
-    close();
+    go(state.index + (event.key === "ArrowLeft" ? -1 : 1), { smooth: true });
   });
   /* A swipe moves the track; the slide that starts nearest its left edge becomes current, whatever the gap between slides. */
   track.addEventListener(
