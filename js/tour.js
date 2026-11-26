@@ -14,7 +14,7 @@ const MARGIN = 8;
 
 const PANEL_SIDES = ["right", "above", "below"];
 const COUNTED = 4;
-/* `[?]` in a text is the info buttons' icon. */
+/* `[?]` in a text is the info buttons' icon; `**…**` sets a control's name in bold. */
 const STEPS = {
   find: {
     n: 1,
@@ -30,7 +30,7 @@ const STEPS = {
   data: {
     n: 3,
     title: "Use this data",
-    text: "This map reads the cloud-native RGI catalog directly, with no download. Open Use this data to read it in Python, DuckDB or QGIS, or to cite it.",
+    text: "This map reads the cloud-native RGI catalog directly, with no download. Open **Use this data** to read it in Python, DuckDB or QGIS, or to cite it.",
     anchor: "useData",
     sides: PANEL_SIDES,
     skipTo: "layers",
@@ -40,7 +40,9 @@ const STEPS = {
    * On the desktop the layers step docks above the Layers control, clear of
    * the drawer that opens beside it; the last card docks beside the map's
    * controls, level with the lowest. style.css places both. On the phone both
-   * sit at the top, level with the round Layers button.
+   * sit at the top, level with the round Layers button. On the desktop a pick
+   * in the drawer finishes the step; on the phone, opening the pane does, so
+   * closing it again always moves on.
    */
   layers: {
     n: 4,
@@ -67,13 +69,14 @@ function cardText(kind) {
   return `${lead} Tap a [?] to see what a value means.`;
 }
 
-/** A step's text as nodes, with each `[?]` drawn as the info icon. */
+/** A step's text as nodes, with each `[?]` drawn as the info icon and each `**…**` in bold. */
 function textNodes(text) {
-  return text.split("[?]").flatMap((part, i) => {
-    if (!i) return [part];
+  return text.split(/(\[\?\]|\*\*[^*]+\*\*)/).filter(Boolean).map((part) => {
+    if (part.startsWith("**")) return h("strong", {}, part.slice(2, -2));
+    if (part !== "[?]") return part;
     const glyph = icon("circle-question-mark");
     glyph.classList.add("inline-icon");
-    return [glyph, part];
+    return glyph;
   });
 }
 
@@ -113,6 +116,7 @@ export function placeNear(target, box, viewport, sides) {
  * flips a layer toggle, which finishes the layers step; `interacted()` after the
  * reader used the card; `cover(by, open)` when Use this data ("useData"),
  * the viewer ("viewer") or the phone's layers pane ("layers") opens or closes.
+ * Closing Use this data finishes step 3, and closing the phone's pane step 4.
  *
  * @returns {{start(): void, end(): void, refresh(): void, layersChanged(): void, interacted(): void, cover(by: string, open: boolean): void, readonly running: boolean}}
  */
@@ -391,6 +395,7 @@ export function mountTour(root, { anchor, panel, onTakeMe, onStep, onEnd }) {
       else if (covered === by) {
         covered = null;
         if (by === "useData" && step === "data") step = panel() ? "layers" : "find";
+        if (by === "layers" && step === "layers") step = "done";
       } else return;
       show();
     },
