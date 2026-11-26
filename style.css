@@ -705,6 +705,26 @@ button:focus-visible {
   font-weight: 600;
 }
 
+/*
+ * A pressed tile's name turns bold. Each name holds a hidden bold copy of
+ * itself, so it is as wide plain as bold: the drawer's columns, which follow
+ * the widest name, stay put when a layer turns on.
+ */
+.layer-name {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.layer-name::after {
+  height: 0;
+  overflow: hidden;
+  font-weight: 600;
+  visibility: hidden;
+  content: attr(data-label);
+  content: attr(data-label) / "";
+}
+
 /* Compass, 3D, zoom and notice */
 
 /*
