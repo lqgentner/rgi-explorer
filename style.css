@@ -26,31 +26,35 @@
   --shadow: 0 1px 3px rgb(60 64 67 / 30%), 0 4px 8px 3px rgb(60 64 67 / 15%);
   /*
    * Lower-priority surfaces over the map, the phone's help and info buttons,
-   * the credits and the tour's card, let the map through, frosted. GLACE Viewer darkens the backdrop of
+   * the credits, the welcome and the tour's card, let the map through, frosted. GLACE Viewer darkens the backdrop of
    * its dark panels so bright imagery keeps under their tint; these light
    * ones do the reverse: the filter squeezes the backdrop's contrast and
    * lifts it, so space and dark imagery show through light, not grey, and the
-   * blur and saturation keep only the map's colour. Over the near-black space
-   * around the globe, the worst case, the card's text measures 10:1 and its
-   * small grey count, in --quiet-muted, 5:1.
+   * blur and saturation keep only the map's colour. All take one tint, 60%
+   * white, a step under the opaque search, card and controls. Over the
+   * near-black space around the globe, the worst case, text measures 9:1 and
+   * the small grey labels, in --quiet-muted, 4.9:1.
    */
-  --quiet-button: rgb(255 255 255 / 60%);
-  --quiet-card: rgb(255 255 255 / 70%);
+  --quiet-glass: rgb(255 255 255 / 60%);
   --quiet-blur: 16px;
   --quiet-filter: blur(var(--quiet-blur)) contrast(0.5) brightness(1.4) saturate(1.4);
   /* How far a frosted surface's glass reaches past its edges: two blur radii, as in GLACE Viewer. */
   --quiet-reach: calc(2 * var(--quiet-blur));
-  --quiet-muted: #44555e;
+  --quiet-muted: #3d4d55;
   /* Blue text on them, such as an outlined button's: 5:1 over space. */
   --quiet-accent: #004f6b;
   /*
    * Over a photo the photo is the content, so its controls take a plainer,
    * lighter glass than the map's frost, which would wash it out: faint arrows,
-   * a light credit and a dark count.
+   * and a light credit and a dark count of one glass, the same strength and
+   * blur in two tints. At 66% the credit keeps 6.8:1 over a black photo and
+   * the count 5.2:1 over a white one.
    */
   --photo-glass: rgb(255 255 255 / 45%);
   --photo-glass-strong: rgb(255 255 255 / 72%);
-  --photo-dark: rgb(20 35 43 / 62%);
+  --photo-chip: 66%;
+  --photo-chip-light: rgb(255 255 255 / var(--photo-chip));
+  --photo-chip-dark: rgb(20 35 43 / var(--photo-chip));
   --photo-blur: blur(6px);
   --space: #10141c;
   --card-w: 408px;
@@ -141,14 +145,13 @@ kbd {
 /* Readers who ask for less transparency or more contrast get opaque surfaces. */
 @media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
   :root {
-    --quiet-button: var(--surface);
-    --quiet-card: var(--surface);
+    --quiet-glass: var(--surface);
     --quiet-filter: none;
     --quiet-muted: var(--muted);
     --quiet-accent: var(--accent);
     --photo-glass: var(--surface);
     --photo-glass-strong: var(--surface);
-    --photo-dark: var(--text);
+    --photo-chip: 100%;
     --photo-blur: none;
   }
 }
@@ -161,9 +164,11 @@ kbd {
  * under them. A clip, not the surface's overflow, so a button's tap area
  * past its edge still takes taps. Each surface sets --frost-tint and
  * --frost-radius; the glass sits behind its content, in the stacking context
- * the surface makes. The tour's card is frosted on both layouts, the status
- * line on the desktop, and the help button and the credits on the phone.
+ * the surface makes. The welcome and the tour's card are frosted on both
+ * layouts, the status line on the desktop, and the help button and the
+ * credits on the phone.
  */
+.welcome,
 .tour,
 #status,
 .help-btn,
@@ -171,6 +176,7 @@ kbd {
   isolation: isolate;
 }
 
+.welcome::before,
 .tour::before,
 #status::before,
 .help-btn::before,
@@ -980,7 +986,7 @@ button:focus-visible {
   max-width: 100%;
   padding: 2px 8px;
   border-top-left-radius: 8px;
-  --frost-tint: var(--quiet-card);
+  --frost-tint: var(--quiet-glass);
   --frost-radius: 8px 0 0 0;
   color: var(--text);
   font-size: 11px;
@@ -1204,7 +1210,7 @@ button:focus-visible {
     position: relative;
     min-height: 36px;
     border-radius: 18px;
-    --frost-tint: var(--quiet-card);
+    --frost-tint: var(--quiet-glass);
     --frost-radius: 18px;
     box-shadow: var(--shadow);
   }
@@ -1242,14 +1248,13 @@ button:focus-visible {
     height: 20px;
   }
 
-  /* Folded to its button, the box is frosted as the help button is; open, as the desktop's status line. */
+  /* Folded to its button, the box is frosted as the help button is. */
   .credits-box:not(.open) {
     width: 36px;
   }
 
-  .help-btn,
-  .credits-box:not(.open) {
-    --frost-tint: var(--quiet-button);
+  .help-btn {
+    --frost-tint: var(--quiet-glass);
     --frost-radius: 18px;
   }
 
@@ -1311,7 +1316,8 @@ button:focus-visible {
   width: 376px;
   padding: 12px;
   border-radius: var(--card-radius);
-  background: var(--surface);
+  --frost-tint: var(--quiet-glass);
+  --frost-radius: var(--card-radius);
   box-shadow: var(--shadow);
 }
 
@@ -1330,7 +1336,12 @@ button:focus-visible {
 .welcome p {
   margin: 0 0 6px;
   padding: 0 8px;
-  color: var(--muted);
+  color: var(--quiet-muted);
+}
+
+/* The user guide link, in the darker blue that keeps 5:1 on the glass. */
+.welcome a.external {
+  color: var(--quiet-accent);
 }
 
 /* Take the tour on the right, 12 px from the edges. */
@@ -1380,7 +1391,7 @@ button:focus-visible {
   max-width: calc(100vw - 16px);
   padding: 12px;
   border-radius: var(--card-radius);
-  --frost-tint: var(--quiet-card);
+  --frost-tint: var(--quiet-glass);
   --frost-radius: var(--card-radius);
   box-shadow: var(--shadow);
 }
@@ -1391,11 +1402,13 @@ button:focus-visible {
 
 /*
  * The tour is a manual popover, in the top layer: undo the browser's popover
- * box, which centres it with a border; place() sets top and left.
+ * box, which centres it with a border; place() sets top and left. Its Canvas
+ * background goes too: the glass would frost that white, not the map.
  */
 .tour[popover] {
   margin: 0;
   border: 0;
+  background: none;
   color: inherit;
   overflow: visible;
 }
@@ -1520,9 +1533,10 @@ body:has(#search.fullscreen) .welcome {
 }
 
 /*
- * On the frosted card the X has no disc of its own, and an outlined button
+ * On the frosted cards the X has no disc of its own, and an outlined button
  * no fill: a grey wash marks a real hover on either.
  */
+.welcome-close,
 .tour-close {
   background: none;
 }
@@ -1535,6 +1549,7 @@ body:has(#search.fullscreen) .welcome {
 
 @media (hover: hover) {
   .tour .btn:not(.primary):hover,
+  .welcome-close:hover,
   .tour-close:hover {
     background: rgb(20 35 43 / 8%);
   }
@@ -2280,7 +2295,7 @@ a.external .icon {
   max-width: calc(100% - 2 * var(--credit-inset) - 48px);
   padding: 2px 8px;
   border-radius: 8px;
-  background: var(--photo-glass-strong);
+  background: var(--photo-chip-light);
   backdrop-filter: var(--photo-blur);
   color: var(--text);
   font-size: 11px;
@@ -2307,7 +2322,8 @@ a.external .icon {
   bottom: var(--credit-inset);
   padding: 2px 8px;
   border-radius: 8px;
-  background: var(--photo-dark);
+  background: var(--photo-chip-dark);
+  backdrop-filter: var(--photo-blur);
   color: #fff;
   font-size: 11px;
   line-height: 16px;
