@@ -143,6 +143,7 @@ test("an interaction turns Skip into a filled Next, which leads to Use this data
   button("Next").click();
   assert.equal(title(), "Use this data");
   assert.equal(text(), "This map reads the cloud-native RGI catalog directly, with no download. Open Use this data to read it in Python, DuckDB or QGIS, or to cite it.");
+  assert.equal(popup().querySelector("p strong")?.textContent, "Use this data", "the control's name stands out in bold");
   assert.ok(popup().textContent.includes("3 of 4"));
   assert.deepEqual(ringed(), ["use-data"]);
   assert.ok(button("Skip"));
@@ -345,7 +346,7 @@ test("the tour and the welcome hide under the phone's full-screen search", () =>
   assert.doesNotMatch(css, /layers-pane:not\(\[hidden\]\)\) \.tour/, "the layers pane is covered like Use this data: the tour asks to close it");
 });
 
-test("the phone's layers pane covers the tour, rings its close button, and closing returns to the step", () => {
+test("the phone's layers pane covers the tour, rings its close button, and closing it finishes the step", () => {
   toLayers();
   tour.cover("layers", true);
   assert.ok(popup().classList.contains("covering"));
@@ -354,11 +355,10 @@ test("the phone's layers pane covers the tour, rings its close button, and closi
   const css = fs.readFileSync(new URL("../style.css", import.meta.url), "utf8");
   assert.match(css, /\.tour\.covering\[data-cover="layers"\] \{\s*top: auto;\s*bottom: calc\(var\(--tour-above, 340px\) \+ 12px\);/, "12 px above the pane");
   tour.cover("layers", false);
-  assert.equal(title(), "Layers");
+  assert.equal(title(), "You're all set.", "opening the pane is enough: closing it untouched moves on too");
   tour.cover("layers", true);
-  tour.layersChanged();
   tour.cover("layers", false);
-  assert.equal(title(), "You're all set.", "a pick made in the pane finishes the step behind it");
+  assert.equal(title(), "You're all set.", "and the last card stays");
 });
 
 test("the app hears each step the tour enters, once, so it can reveal the step's control", () => {
