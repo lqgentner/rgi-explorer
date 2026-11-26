@@ -54,6 +54,36 @@ test("the desktop drawer gives its toggles one width, as wide as the longest lab
   assert.match(toggle, /(^|[\s;])width:\s*auto;/, "the column sets the width, so a long label never runs into the next");
 });
 
+test("a tile's name holds room for its bold self, so pressing a toggle moves no column", () => {
+  const { root } = layers();
+  const names = [...root.querySelectorAll(".layer-name")];
+  assert.ok(names.length >= 3, "the three toggles");
+  for (const name of names) assert.equal(name.dataset.label, name.textContent);
+  const copy = rule([".layer-name::after"]);
+  assert.match(copy, /content:\s*attr\(data-label\);/);
+  assert.match(copy, /font-weight:\s*600;/, "as bold as a pressed name");
+  assert.match(copy, /(^|[\s;])height:\s*0;/);
+  assert.match(copy, /visibility:\s*hidden;/, "never seen, and never read out");
+  assert.match(rule([".layer-name"]), /flex-direction:\s*column;/, "the copy sits under the name, adding width only");
+});
+
+test("each region line in the preview holds whole dashes from end to end, with gaps that square caps leave open", () => {
+  const { root } = layers();
+  const lines = [...root.querySelectorAll('.layer-toggle[data-name="regions"] path[stroke-dasharray]')];
+  assert.ok(lines.length >= 8, "the region's four sides and its subregions' lines");
+  assert.ok(lines.every((l) => l.getAttribute("stroke-dasharray").split(" ").every((n) => Number(n) > 0)));
+  for (const line of lines) {
+    assert.equal(line.getAttribute("stroke-linecap"), "square");
+    const [x1, y1, x2, y2] = line.getAttribute("d").slice(1).split(/[ L]/).map(Number);
+    const width = Number(line.getAttribute("stroke-width"));
+    const [dash, gap] = line.getAttribute("stroke-dasharray").split(" ").map(Number);
+    assert.ok(dash > 0 && gap > width, "a gap stays open between the caps");
+    /* With its caps, the line runs half a width past each end: whole periods, then a last dash. */
+    const periods = (Math.hypot(x2 - x1, y2 - y1) + width - (dash + width)) / (dash + gap);
+    assert.ok(Math.abs(periods - Math.round(periods)) < 0.01, `${line.getAttribute("d")}: ${periods} periods`);
+  }
+});
+
 test("the narrow window's drawer column lets a long label wrap under its preview", () => {
   const narrow = CSS.slice(CSS.indexOf("@media (min-width: 641px) and (max-width: 814px) {"));
   assert.match(rule(["body.card-open .layers-drawer"], narrow), /grid-auto-flow:\s*row;/);

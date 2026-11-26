@@ -91,6 +91,17 @@ test("the layer previews hold a path for every part they draw", () => {
   }
 });
 
+test("the preview's divides run along the glacier outlines and stop at the ice edge", () => {
+  const points = (d) => [...d.matchAll(/(-?[\d.]+) (-?[\d.]+)/g)].map(([, x, y]) => [Number(x), Number(y)]);
+  const outline = points(GLACIERS);
+  const divide = points(PREVIEWS.intersects.divide);
+  assert.ok(divide.length > 0);
+  for (const [x, y] of divide) {
+    const near = Math.min(...outline.map(([ox, oy]) => Math.hypot(ox - x, oy - y)));
+    assert.ok(near < 0.2, `${x} ${y} lies ${near.toFixed(2)} px off the outlines`);
+  }
+});
+
 test("the region labels take the soft halo of Liberty's place labels, the glacier names that of its lakes", () => {
   const labels = rgiStyle("https://example.org/rgi.pmtiles").layers.filter((layer) => layer.type === "symbol");
   assert.ok(labels.length >= 3);

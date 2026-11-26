@@ -32,24 +32,60 @@ const PREVIEW_DELAY_MS = 500;
 const PREVIEW_LAND = "#eceff1";
 
 const line = (color, width) => ({ fill: "none", stroke: color, "stroke-width": width });
-/* A region outline, dashed as on the map but finer, to read at the preview's small size. */
-const PREVIEW_DASH = 0.5;
-const regionLine = (level, color, width) => ({
-  ...line(color, width),
-  "stroke-dasharray": REGION_DASH[level].map((n) => n * width * PREVIEW_DASH).join(" "),
-});
-const GLACIER_PAINT = { fill: PALETTE.glacier, stroke: PALETTE.glacierOutline, "stroke-width": 0.5 };
+/* A region outline's dashes, as on the map but finer, to read at the preview's small size. */
+export const PREVIEW_DASH = 0.7;
+/*
+ * The ice under the glacier previews: a step deeper than the map's fill, which
+ * is nearly the land's color. At 48 px the land between two outlet lobes
+ * would otherwise pass for ice.
+ */
+export const PREVIEW_ICE = "#dcf0fb";
+const GLACIER_PAINT = { fill: PREVIEW_ICE, stroke: PALETTE.glacierOutline, "stroke-width": 0.5 };
+/* The glaciers in the regions preview: each a zero-length line, drawn as a dot by its round caps. */
+const DOT = { fill: "none", stroke: PALETTE.glacierOutline, "stroke-width": 1.5 };
+
+/**
+ * A region outline, `d` a straight line per subpath, as one path each. Each
+ * line holds whole dashes of the map's pattern, stretched so that it starts
+ * and ends with a dash: a corner or a junction gets a full dash. Square caps
+ * reach half a width past each end of a dash, so the dashes are drawn a width
+ * shorter and the gaps a width wider. Round caps would close the gaps. A line
+ * too short for two dashes and a gap is drawn whole.
+ */
+function regionLines(d, level, color, width) {
+  if (!d) return [];
+  const [dash, gap] = REGION_DASH[level].map((n) => n * width * PREVIEW_DASH);
+  const round = (n) => Math.round(n * 1000) / 1000;
+  return d.split("M").filter(Boolean).map((part) => {
+    const [x1, y1, x2, y2] = part.split(/[ L]/).map(Number);
+    const reach = Math.hypot(x2 - x1, y2 - y1) + width;
+    if (reach < 2 * dash + gap) return [`M${part}`, { ...line(color, width), "stroke-linecap": "square" }];
+    const count = Math.round((reach - dash) / (dash + gap));
+    const stretch = reach / (count * (dash + gap) + dash);
+    return [`M${part}`, {
+      ...line(color, width),
+      "stroke-linecap": "square",
+      "stroke-dasharray": `${round(dash * stretch - width)} ${round(gap * stretch + width)}`,
+    }];
+  });
+}
 
 /** The paths each fixed preview draws, bottom first, as `[d, attributes]`. */
 function previewPaths(name) {
   if (name === "regions") {
-    return [[PREVIEWS.regions.region2, regionLine(2, PALETTE.region2, 0.75)], [PREVIEWS.regions.region1, regionLine(1, PALETTE.region1, 1.25)]];
+    const { glaciers, region2, region1 } = PREVIEWS.regions;
+    return [
+      [glaciers, DOT],
+      ...regionLines(region2, 2, PALETTE.region2, 0.75),
+      ...regionLines(region1, 1, PALETTE.region1, 1.25),
+    ];
   }
   if (name === "centerlines") {
+    const { centerline, centerlineMain } = /** @type {Record<string, string>} */ (PREVIEWS.centerlines);
     return [
       [GLACIERS, GLACIER_PAINT],
-      [PREVIEWS.centerlines.centerline, line(PALETTE.centerline, 0.5)],
-      [PREVIEWS.centerlines.centerlineMain, line(PALETTE.centerline, 1.5)],
+      [centerline, line(PALETTE.centerline, 0.5)],
+      [centerlineMain, line(PALETTE.centerline, 1.5)],
     ];
   }
   return [[GLACIERS, GLACIER_PAINT], [PREVIEWS.intersects.divide, line(PALETTE.divide, 1.25)]];
@@ -63,7 +99,8 @@ function preview(name) {
     "svg",
     { class: "layer-preview", viewBox: `0 0 ${PREVIEW_PX} ${PREVIEW_PX}`, "aria-hidden": "true" },
     svg("rect", { width: PREVIEW_PX, height: PREVIEW_PX, fill: PREVIEW_LAND }),
-    ...previewPaths(name).map(path),
+    /* A part with nothing in view is left out of js/previews.js. */
+    ...previewPaths(name).filter(([d]) => d).map(path),
   );
 }
 
@@ -92,7 +129,7 @@ function toggleButtons({ layers, onToggle }) {
       "button",
       { type: "button", class: "layer-toggle", dataset: { name } },
       preview(name),
-      h("span", { class: "layer-name" }, label),
+      h("span", { class: "layer-name", dataset: { label } }, label),
     );
     button.addEventListener("click", () => {
       const next = !on.has(name);
@@ -161,7 +198,7 @@ export function mountLayers(root, { base, layers, onBase, onToggle, onPane, map 
   /* The phone's pane: the base map tiles and the toggles, opened by a round button. */
   const tiles = Object.entries(BASES).map(([key, { label }]) => {
     const img = h("img", { src: pictureSrc(key), alt: "", width: 48, height: 48 });
-    const button = h("button", { type: "button", class: "base-tile" }, img, h("span", { class: "layer-name" }, label));
+    const button = h("button", { type: "button", class: "base-tile" }, img, h("span", { class: "layer-name", dataset: { label } }, label));
     button.addEventListener("click", () => {
       current = key;
       syncBase();
