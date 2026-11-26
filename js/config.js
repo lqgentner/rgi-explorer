@@ -5,6 +5,8 @@ export const LIBERTY_STYLE = "https://tiles.openfreemap.org/styles/liberty";
 export const GLYPHS = "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf";
 export const ESRI_TILES =
   "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
+/* Which of World Imagery's tiles exist, per level, in blocks: see js/imagery.js. */
+export const ESRI_TILEMAP = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tilemap";
 export const ESRI_EXPORT =
   "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export";
 /* The imagery's source and date at a point, for the card's crop. */
