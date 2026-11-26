@@ -47,6 +47,25 @@ test("the base map glacier fill is hidden", async () => {
   assert.equal(map.layout("water").visibility, undefined);
 });
 
+test("the map zooms no deeper than 18, a deeper link included", async () => {
+  const { map } = await build("#20/46.45/8.03");
+  assert.equal(map.options.maxZoom, 18);
+  assert.equal(map.getZoom(), 18);
+});
+
+test("the imagery source reads through the esri protocol, which createMap registers", async () => {
+  const url = "https://lqgentner.github.io/rgi-explorer/?base=imagery";
+  const page = await loadPage({ url, fetch: fetchFixture });
+  const protocols = new Map();
+  globalThis.maplibregl.addProtocol = (name, fn) => protocols.set(name, fn);
+  const { createMap } = await load("js/map.js");
+  const { imageryTile } = await load("js/imagery.js");
+  const catalog = await loadCatalog(ROOT);
+  await createMap(page.document.getElementById("map"), catalog, parseState(new URL(url)));
+  assert.equal(protocols.get("esri"), imageryTile);
+  assert.deepEqual(page.map.getSource("esri").tiles, ["esri://{z}/{x}/{y}"]);
+});
+
 test("the map reads glyphs from the glyph server and one PMTiles source", async () => {
   const { map } = await build();
   assert.match(map.options.style.glyphs, /^https:\/\/tiles\.openfreemap\.org\/fonts\//);

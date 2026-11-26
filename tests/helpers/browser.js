@@ -21,6 +21,7 @@ const MAP_OPTIONS = new Set([
   "style",
   "center",
   "zoom",
+  "maxZoom",
   "attributionControl",
   "dragRotate",
   "transformCameraUpdate",
@@ -61,7 +62,9 @@ export class FakeMap {
      */
     this.screen = { origin: [0, 0], scale: 1 };
     this.center = { lng: options.center?.[0] ?? 0, lat: options.center?.[1] ?? 0 };
-    this.zoom = options.zoom ?? 0;
+    /* MapLibre's default limit, and like MapLibre the fake keeps every zoom within it. */
+    this.maxZoom = options.maxZoom ?? 22;
+    this.zoom = Math.min(options.zoom ?? 0, this.maxZoom);
     this.pitch = 0;
     this.bearing = 0;
     for (const layer of options.style?.layers ?? []) {
@@ -246,7 +249,7 @@ export class FakeMap {
 
   jumpTo(options) {
     if (options.center) this.center = { lng: options.center[0], lat: options.center[1] };
-    if (options.zoom !== undefined) this.zoom = options.zoom;
+    if (options.zoom !== undefined) this.zoom = Math.min(options.zoom, this.maxZoom);
     this.calls.push(`jumpTo ${options.center} z${options.zoom}`);
     this.fire("moveend");
   }
@@ -258,7 +261,7 @@ export class FakeMap {
    */
   easeTo(options, eventData = {}) {
     if (options.center) this.center = { lng: options.center[0], lat: options.center[1] };
-    if (options.zoom !== undefined) this.zoom = options.zoom;
+    if (options.zoom !== undefined) this.zoom = Math.min(options.zoom, this.maxZoom);
     if (options.pitch !== undefined) this.pitch = options.pitch;
     if (options.bearing !== undefined) this.bearing = options.bearing;
     this.calls.push(`easeTo ${JSON.stringify(options)}`);
@@ -370,7 +373,7 @@ export class FakeMap {
   }
 
   zoomIn() {
-    this.zoom += 1;
+    this.zoom = Math.min(this.zoom + 1, this.maxZoom);
     this.calls.push("zoomIn");
   }
 

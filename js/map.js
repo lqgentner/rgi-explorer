@@ -4,7 +4,6 @@ import { forgetfulCache } from "./archive.js";
 import { fetchJson } from "./catalog.js";
 import {
   clampLat,
-  ESRI_TILES,
   GLYPHS,
   LIBERTY_STYLE,
   MAX_LAT,
@@ -14,6 +13,7 @@ import {
   TERRAIN_TILEJSON,
   TIMEOUT_MS,
 } from "./config.js";
+import { IMAGERY_PROTOCOL, IMAGERY_TILES, imageryTile } from "./imagery.js";
 import { BASE_PAINT, PALETTE, rgiStyle, TOGGLES } from "./styles.js";
 import { PREVIEW_SPAN } from "./viewpreview.js";
 
@@ -58,6 +58,13 @@ const sky = (base) => ({
   "fog-ground-blend": 1,
   "atmosphere-blend": ATMOSPHERE[base] ?? ATMOSPHERE.standard,
 });
+/*
+ * The deepest zoom, as on openstreetmap.org (its level 19 in 256-pixel
+ * tiles): some 0.2 m a pixel in the Alps, already past most of Esri's imagery
+ * and far past the RGI outlines. MapLibre's own limit, 22, enlarges the
+ * imagery eightfold even where it is sharpest.
+ */
+const MAX_ZOOM = 18;
 /* The background on imagery, where the imagery has not loaded yet. */
 export const IMAGERY_BACKGROUND = "#3c4043";
 /*
@@ -570,7 +577,7 @@ function buildStyle(liberty, rgi, state) {
     sources: {
       ...liberty.sources,
       ...rgi.sources,
-      esri: { type: "raster", tiles: [ESRI_TILES], tileSize: 256 },
+      esri: { type: "raster", tiles: [IMAGERY_TILES], tileSize: 256 },
       world: { type: "geojson", data: WORLD },
       pin: { type: "geojson", data: EMPTY },
       "selection-point": { type: "geojson", data: EMPTY },
@@ -696,6 +703,7 @@ export async function createMap(container, catalog, state, liberty = fetchLibert
 
   registerProtocol(catalog.collections.glaciers.pmtilesUrl);
   const { maplibregl } = globalThis;
+  maplibregl.addProtocol(IMAGERY_PROTOCOL, imageryTile);
   const view = state.view ?? startView();
   /*
    * The status line holds every credit, so MapLibre adds no attribution
@@ -707,6 +715,7 @@ export async function createMap(container, catalog, state, liberty = fetchLibert
     style: buildStyle(liberty, rgi, state),
     center: [view.lon, clampLat(view.lat)],
     zoom: view.zoom,
+    maxZoom: MAX_ZOOM,
     attributionControl: false,
     // Turn and tilt around the point under the pointer, not the center.
     dragRotate: { around: "pointer" },
