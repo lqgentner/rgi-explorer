@@ -23,19 +23,9 @@ const SELECTION_RED = "#cc3311";
 /* How long the browser may take to find the reader: a GPS that starts cold needs more than MapLibre's 6 s. */
 const LOCATE_TIMEOUT_MS = 10000;
 const DIM_GREY = "#5f6368";
-/*
- * How much a selection dims the map around it, per base map. A selection is
- * lifted out of the dimming by drawing its fill again, but over imagery the
- * fill is clear, so the dimming would cover the glacier too: imagery has none.
- */
+/* Imagery has no fill to lift a selection out of the dimming, so it does not dim. */
 const DIM_OPACITY = { standard: 0.15, imagery: 0 };
-/*
- * A selection's outline: short red dashes over a solid white line, so that the
- * gaps show white and not the glacier's own outline below. It is the same on
- * both base maps, as the outlines are, and wider than an outline or a divide
- * (OUTLINE_WIDTH and DIVIDE_WIDTH in js/styles.js) at every zoom, so that it
- * covers them and a small glacier's selection reads at a glance.
- */
+/* Red dashes over solid white, wider than OUTLINE_WIDTH and DIVIDE_WIDTH so that they cover them. */
 const SELECTION_WIDTH = ["interpolate", ["linear"], ["zoom"], 0, 2.2, 8, 1.8, 10, 2.4, 12, 2.5];
 const SELECTION_UNDER = { "line-color": "#ffffff" };
 const SELECTION_LINE = { "line-color": SELECTION_RED, "line-dasharray": [1, 0.8] };
@@ -45,11 +35,7 @@ const SELECTION_DOT = {
   "circle-stroke-color": "#ffffff",
   "circle-stroke-width": 1.5,
 };
-/*
- * MapLibre's own atmosphere around the globe, per base map: fainter over the
- * light standard map, which its haze pales. The sky and fog stay clear, as with
- * no sky at all, so a tilted view close in shows the space behind the canvas.
- */
+/* Fainter over the light standard map, which the haze pales. Sky and fog stay clear. */
 const ATMOSPHERE = { standard: 0.5, imagery: 0.8 };
 const sky = (base) => ({
   "sky-color": "transparent",
@@ -58,23 +44,14 @@ const sky = (base) => ({
   "fog-ground-blend": 1,
   "atmosphere-blend": ATMOSPHERE[base] ?? ATMOSPHERE.standard,
 });
-/*
- * The deepest zoom, as on openstreetmap.org (its level 19 in 256-pixel
- * tiles): some 0.2 m a pixel in the Alps, already past most of Esri's imagery
- * and far past the RGI outlines. MapLibre's own limit, 22, enlarges the
- * imagery eightfold even where it is sharpest.
- */
+/* As on openstreetmap.org, and past most of Esri's imagery. MapLibre's 22 enlarges it eightfold. */
 const MAX_ZOOM = 18;
 /* The background on imagery, where the imagery has not loaded yet. */
 export const IMAGERY_BACKGROUND = "#3c4043";
 /*
- * Over imagery each label's colours turn round in lightness, hue kept: dark
- * text in a white halo becomes light text in a dark halo. The text goes into
- * the light half and takes more saturation, so a grey name is a light grey and
- * a water or glacier name's blue a light, clear blue. Every halo turns opaque
- * and hard, as Esri's and VersaTiles' do: a soft or see-through one loses light
- * text on snow. The selection's label and the road shields keep theirs.
- * MapLibre draws text black and halos clear when a style gives none.
+ * Over imagery each label's colours turn round in lightness, and every halo
+ * turns opaque and hard: a soft one loses light text on snow. These are
+ * MapLibre's colours when a style gives none.
  */
 const LABEL_DEFAULTS = { "text-color": "#000000", "text-halo-color": "rgba(0, 0, 0, 0)" };
 
@@ -179,13 +156,7 @@ const NONE = { visibility: "none" };
  */
 const SELECTION_OVERLAYS = ["centerlines"];
 const EMPTY = { type: "FeatureCollection", features: [] };
-/*
- * The catalog's overview rule (rgi-catalog, tiles.py): below zoom 10 a glacier
- * or complex is its outline from the first zoom at which the longer side of its
- * Web Mercator bbox spans 3 pixels of a 512-pixel tile, and RGI's point before.
- * The tiles keep one point per cell of about a pixel, the largest glacier's, so
- * a small selection can be missing from them: the selection draws its own.
- */
+/* The overview rule of rgi-catalog's `tiles.write_overview`. */
 const SHAPE_COMPLETE_ZOOM = 10;
 const SHAPE_MIN_PX = 3;
 const TILE_PX = 512;
@@ -365,12 +336,9 @@ function libertyLayers(liberty) {
 }
 
 /**
- * Liberty's layers split where the imagery goes: above its fills and lines
- * but below its country borders, which Liberty draws last, and its labels.
- * `covered` names the layers switched off on imagery, which then draw and
- * fetch nothing: all but the labels, the borders too, which belong to the
- * standard map and not to a photo of the ground. The background stays, as
- * it shows while the imagery loads; it turns dark grey there.
+ * Liberty's layers split where the imagery goes: above its fills and lines,
+ * below its borders and labels. `covered` names the layers off on imagery:
+ * all but the labels and the background, which shows while imagery loads.
  */
 function splitLiberty(liberty) {
   const base = libertyLayers(liberty);
@@ -433,12 +401,7 @@ function buildStyle(liberty, rgi, state) {
       layout: NONE,
       paint: structuredClone(glaciersFill?.paint ?? {}),
     },
-    /*
-     * A selected complex: lifted out of the dimming like a glacier, its member
-     * glaciers' outlines and the glacier names drawn again above the lift, and
-     * its own outline red. The label tiles do not name a glacier's complex, so
-     * every glacier name is drawn again; the copy below gives way to it.
-     */
+    /* A selected complex. The label tiles do not name a glacier's complex, so every glacier name is drawn again above the lift. */
     {
       id: "complex-fill",
       type: "fill",
@@ -524,11 +487,7 @@ function buildStyle(liberty, rgi, state) {
       layout: NONE,
       paint: { ...SELECTION_DOT },
     },
-    /*
-     * The selection's own dot at RGI's point, below the zoom at which the tiles
-     * hold its outline: there whether or not the tiles kept its point. A filter
-     * reads the zoom at whole zooms, as the tiles change.
-     */
+    /* The selection's own dot below its outline zoom, where the tiles may drop its point. */
     {
       id: "selection-point",
       type: "circle",
@@ -536,11 +495,7 @@ function buildStyle(liberty, rgi, state) {
       filter: ["<", ["zoom"], ["get", "outline_zoom"]],
       paint: { ...SELECTION_DOT },
     },
-    /*
-     * The selected glacier's name, in red: its plain name drawn again, on the
-     * same line, so it shows only where and when the plain name would. It wins
-     * the label collisions, so the plain name below gives way to it.
-     */
+    /* The selected name in red, on the plain name's lines. The plain name gives way to it. */
     {
       id: "selection-label",
       type: "symbol",
@@ -698,7 +653,7 @@ export async function createMap(container, catalog, state, liberty = fetchLibert
   liberty = await liberty;
   const rgi = rgiStyle(catalog.collections.glaciers.pmtilesUrl);
   const labels = labelColors(liberty, rgi);
-  /** The plain glacier names' filter: their lines, one per zoom, which the selection's name follows. */
+  /** The plain glacier names' filter, which the selection's name follows. */
   const NAME_LINES = /** @type {ExpressionSpecification} */ (rgi.layers.find((layer) => layer.id === "glacier-labels")?.filter ?? true);
 
   registerProtocol(catalog.collections.glaciers.pmtilesUrl);
