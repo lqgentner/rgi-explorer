@@ -118,8 +118,8 @@ const POINTS = ["in", ["geometry-type"], ["literal", ["Point", "MultiPoint"]]];
  * The zooms at which a glacier's name line shows: from its `label_zoom` up to
  * the next zoom, and the zoom-14 line at every zoom past it. The catalog's
  * styles use the same rule. MapLibre reads a tile's zoom whole, also for a
- * zoom-12 tile drawn past 12, so it matches one line per glacier; so does a
- * renderer that reads the map's fractional zoom.
+ * zoom-12 tile drawn past 12, so it matches the lines of one zoom per glacier;
+ * so does a renderer that reads the map's fractional zoom.
  */
 const NAME_ZOOMS = [
   "all",
@@ -199,13 +199,13 @@ export function rgiStyle(pmtilesUrl) {
       }),
       /*
        * A glacier's name shows only where it fits along the glacier's main
-       * centerline, with room on both sides: from the zoom, `line_zoom`, at
-       * which the tiles add a stretch of that line, smoothed, as a line of its
-       * own. Each zoom has its own stretch, the one nearest the tongue where
-       * the name fits and the glacier is wide enough around it, so the name
-       * moves down the glacier as the map zooms in. The tiles end at zoom 12,
-       * whose tiles also hold the lines for zooms 13 and 14, so a glacier too
-       * narrow at 12 is named closer in.
+       * centerline, with room on both sides. For each zoom, `label_zoom`, the
+       * tiles add stretches of that line, smoothed, as lines of their own. The
+       * first is the stretch nearest the middle of the centerline where the
+       * name fits and the glacier is wide enough around it. On a long glacier
+       * the name repeats up and down the centerline, with at least 512 px of
+       * centerline between two names. The tiles end at zoom 12, whose tiles
+       * also hold the lines for zooms 13 and 14.
        */
       layer("glacier-labels", "symbol", "glacier-labels", {
         filter: ["all", ["==", ["geometry-type"], "LineString"], NAME_ZOOMS],
